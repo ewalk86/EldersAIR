@@ -1,0 +1,20 @@
+---
+title: "EldersAIR initial data work"
+author: "Ethan Walker"
+date: "Started 19 Nov 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+```
+
+```{r}
+```
