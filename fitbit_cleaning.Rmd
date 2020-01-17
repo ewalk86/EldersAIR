@@ -1,0 +1,45 @@
+---
+title: "Fitbit cleaning"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+library(knitr)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+```
+
+# Load files
+```{r}
+list_excel_files <- list.files("Input/fitbit_navajo_excel")
+# Set working directory and load files in list; extract file name and add as column
+## run next 4 lines together
+setwd("Input/fitbit_navajo_excel")
+initial_data <- tibble(file_name = list_excel_files) %>%
+  mutate(save_data = lapply(file_name, read_excel, skip = 0)) %>%
+  unnest(save_data) 
+
+
+list_csv_files <- list.files("Input/fitbit_navajo_csv")
+# Set working directory and load files in list; extract file name and add as column
+## run next 4 lines together
+setwd("Input/fitbit_navajo_csv")
+initial_data <- tibble(file_name = list_csv_files) %>%
+  mutate(save_data = lapply(file_name, read_csv, skip = 1)) %>%
+  unnest(save_data) 
+```
+
