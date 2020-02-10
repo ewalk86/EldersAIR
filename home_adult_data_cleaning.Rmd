@@ -1,0 +1,351 @@
+---
+title: "EldersAIR initial home/adult data work"
+author: "Ethan Walker"
+date: "Started 10 Feb 2020, Updated 10 Feb 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+```
+
+
+# Load, format, and save home and adult overview/demographic data for NP
+```{r}
+# Load files 
+## Box location: Update Box location once final data loaded
+np_adult_initial <- read_csv("Input/NP/np_adults_20200210.csv") %>% 
+  rename_all(tolower) %>% 
+  mutate(adult_hwid = as.factor(adulthwid),
+         home_id = as.factor(homeid),
+         adult_id = as.factor(adultid),
+         home_winter_id = as.factor(homewinterid)) %>% 
+  select(adult_hwid, home_id, adult_id, home_winter_id) 
+
+
+## Box location: Update Box location once final data loaded
+np_home_initial <- read_csv("Input/NP/np_home_20200210.csv") %>% 
+  rename_all(tolower) %>% 
+  mutate(home_id = as.factor(homeid),
+         winter_id = as.factor(winterid),
+         home_winter_id = as.factor(homewinterid),
+         intervention_date = ymd(interventiondate),
+         intervention_time = as.character(interventiontime),
+         sampling_date_1 = ymd(samplingdate),
+         sampling_time_1 = as.character(samplingtime),
+         pickup_date_1 = ymd(pickupdate),
+         pickup_time_1 = as.character(pickuptime),
+         sampling_date_2 = ymd(sampling2date),
+         sampling_time_2 = as.character(sampling2time),
+         pickup_date_2 = ymd(pickup2date),
+         pickup_time_2 = as.character(pickup2time),
+         home_qaqc_comments = as.character(qaqchccomments)) %>% 
+  select(home_id, winter_id, home_winter_id, intervention_date, intervention_time,
+         sampling_date_1, sampling_time_1, pickup_date_1, pickup_time_1,
+         sampling_date_2, sampling_time_2, pickup_date_2, pickup_time_2,
+         home_qaqc_comments) 
+```
+
+
+# Load, format, and save home and adult overview/demographic data for NN
+```{r}
+# Load files 
+## Box location: Update Box location once final data loaded
+nn_adult_initial <- read_csv("Input/NN/nn_adults_20200210.csv") %>% 
+  rename_all(tolower) %>% 
+  mutate(adult_id = as.factor(adultid),
+         home_id = as.factor(homeid),
+         adult_id_char = as.factor(id),
+         adult_hispanic = as.factor(hispanic),
+         adult_race = as.factor(race),
+         adult_gender = as.factor(gender)) %>% 
+  select(adult_id, home_id, adult_id_char, adult_hispanic, 
+         adult_race, adult_gender) 
+
+
+## Box location: Update Box location once final data loaded
+nn_home_initial <- read_csv("Input/NN/nn_home_20200210.csv") %>% 
+  rename_all(tolower) %>% 
+  mutate(home_id = as.factor(homeid),
+         winter_id = as.factor(winterid),
+         home_winter_id = as.factor(homewinterid),
+         intervention_date = ymd(interventiondate),
+         intervention_time = as.character(interventiontime),
+         sampling_date_1 = ymd(samplingdate),
+         sampling_time_1 = as.character(samplingtime),
+         pickup_date_1 = ymd(pickupdate),
+         pickup_time_1 = as.character(pickuptime),
+         sampling_date_2 = ymd(sampling2date),
+         sampling_time_2 = as.character(sampling2time),
+         pickup_date_2 = ymd(pickup2date),
+         pickup_time_2 = as.character(pickup2time),
+         home_qaqc_comments = as.character(qaqchccomments)) %>% 
+  select(home_id, winter_id, home_winter_id, intervention_date, intervention_time,
+         sampling_date_1, sampling_time_1, pickup_date_1, pickup_time_1,
+         sampling_date_2, sampling_time_2, pickup_date_2, pickup_time_2,
+         home_qaqc_comments) 
+```
+
+
+
+################ Past this point is from KidsAIR data cleaning
+################ Use to finalize Elders code once all data is available
+
+
+
+
+
+
+
+```{r}
+## Box location: Update Box location once final data loaded
+wmt_homewinter_initial <- read_xlsx("Input/WMT/wmt_homewinter_20191126.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, homeid, winterid, interventiondate, interventiontime) %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         home_id = as.character(homeid),
+         winter_id = as.character(winterid),
+         intervention_date = interventiondate,
+         intervention_time = interventiontime) %>% 
+  select(home_winter_id, home_id, winter_id, intervention_date, intervention_time)
+## Box location: Update Box location once final data loaded
+wmt_parent_demographics_initial <-
+  read_xlsx("Input/WMT/wmt_parent_demographics_20191126.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, gender, hispanic, race, income, education,
+         totalres, underfive) %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         gender_parent = as.factor(gender),
+         hispanic_parent = as.factor(hispanic),
+         race_parent = as.factor(race),
+         income = as.factor(income),
+         education = as.factor(education),
+         total_residents = as.character(totalres),
+         residents_under_five = as.character(underfive)) %>% 
+  select(home_winter_id, gender_parent, hispanic_parent, race_parent,
+         income, education, total_residents, residents_under_five) %>% 
+  filter(!is.na(gender_parent))
+# join all files from above
+joined1 <- wmt_homewinter_initial %>% 
+  left_join(wmt_parent_demographics_initial, by = "home_winter_id") %>% 
+  left_join(wmt_home_initial, by = "home_id") %>% 
+  left_join(wmt_child_initial, by = "home_id") %>% 
+  mutate(area = "WMT")
+  
+# create dataset of id's and treatment assignment
+wmt_home_ids_linked <- joined1 %>% 
+  select(area, home_id, winter_id, home, home_winter_id, treatment) %>% 
+  distinct(home_winter_id, .keep_all = TRUE) %>% 
+  arrange(home_id, winter_id)
+  
+# create dataset of child demographic data
+wmt_child_demographics <- joined1 %>% 
+  #distinct(child_id_num, .keep_all = TRUE) %>% 
+  arrange(home_id, child_id_num, winter_id) %>% 
+  filter(winter_id == 1 | winter_id == 2) 
+# Save as RDS and CSV
+write_rds(wmt_home_ids_linked, "Output/wmt_ids_linked.rds")
+write_rds(wmt_child_demographics, "Output/wmt_demographic_data.rds")
+``` 
+
+# Load, format, and save home and child overview/demographic data for NN
+```{r}
+# Load files
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > Navajo > child.xlsx
+nn_child_initial <- read_xlsx("Input/NN/nn_child_20191216.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(childid, homeid, id, hispanic, race, agenov1, enrolled) %>% 
+  mutate(child_id_num = as.character(childid),
+         home_id = as.character(homeid),
+         child_id_char = as.character(id),
+         hispanic_child = as.factor(hispanic),
+         race_child = as.factor(race),
+         age_child_nov = as.character(agenov1)) %>% 
+  select(child_id_num, home_id, child_id_char, hispanic_child,
+         race_child, age_child_nov, enrolled) 
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > Navajo > home.xlsx
+nn_home_initial <- read_xlsx("Input/NN/nn_home_20191216.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(homeid, home, txcondition) %>% 
+  mutate(home_id = as.character(homeid),
+         home = as.character(home),
+         treatment = as.factor(txcondition)) %>% 
+  select(home_id, home, treatment)
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > Navajo > homewinter.xlsx
+nn_homewinter_initial <- read_xlsx("Input/NN/nn_homewinter_20191216.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, homeid, winterid, interventiondate, interventiontime) %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         home_id = as.character(homeid),
+         winter_id = as.character(winterid),
+         intervention_date = interventiondate,
+         intervention_time = interventiontime) %>% 
+  select(home_winter_id, home_id, winter_id, intervention_date, intervention_time)
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > Navajo > Home Data > parentdemographics.xlsx
+nn_parent_demographics_initial <-
+  read_xlsx("Input/NN/nn_parent_demographics_20191216.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, gender, hispanic, race, income, education,
+         totalres, underfive) %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         gender_parent = as.factor(gender),
+         hispanic_parent = as.factor(hispanic),
+         race_parent = as.factor(race),
+         income = as.factor(income),
+         education = as.factor(education),
+         total_residents = as.character(totalres),
+         residents_under_five = as.character(underfive)) %>% 
+  select(home_winter_id, gender_parent, hispanic_parent, race_parent,
+         income, education, total_residents, residents_under_five) %>% 
+  filter(!is.na(gender_parent))
+# join all files from above
+joined1 <- nn_homewinter_initial %>% 
+  left_join(nn_parent_demographics_initial, by = "home_winter_id") %>% 
+  left_join(nn_home_initial, by = "home_id") %>% 
+  left_join(nn_child_initial, by = "home_id") %>% 
+  mutate(area = "NN")
+  
+# create dataset of id's and treatment assignment
+nn_home_ids_linked <- joined1 %>% 
+  select(area, home_id, winter_id, home, home_winter_id, treatment) %>% 
+  distinct(home_winter_id, .keep_all = TRUE) %>% 
+  arrange(home_id, winter_id)
+  
+# create dataset of child demographic data
+nn_child_demographics <- joined1 %>% 
+  #distinct(child_id_num, .keep_all = TRUE) %>% 
+  arrange(home_id, child_id_num, winter_id) %>% 
+  filter(winter_id == 1 | winter_id == 2) 
+# Save as RDS and CSV
+write_rds(nn_home_ids_linked, "Output/nn_ids_linked.rds")
+write_rds(nn_child_demographics, "Output/nn_demographic_data.rds")
+```
+
+# Load, format, and save home and child overview/demographic data for AK
+```{r}
+# Load files 
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > AK > child.xlsx
+ak_child_initial <- read_xlsx("Input/AK/ak_child_20191216.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(childid, homeid, id, hispanic, race, agenov1, enrolled) %>% 
+  mutate(child_id_num = as.character(childid),
+         home_id = as.character(homeid),
+         child_id_char = as.character(id),
+         hispanic_child = as.factor(hispanic),
+         race_child = as.factor(race),
+         age_child_nov = as.character(agenov1)) %>% 
+  select(child_id_num, home_id, child_id_char, hispanic_child,
+         race_child, age_child_nov, enrolled) 
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > AK > home.xlsx
+ak_home_initial <- read_xlsx("Input/AK/ak_home_20191216.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(homeid, home, txcondition) %>% 
+  mutate(home_id = as.character(homeid),
+         home = as.character(home),
+         treatment = as.factor(txcondition)) %>% 
+  select(home_id, home, treatment)
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > AK > homewinter.xlsx
+ak_homewinter_initial <- read_xlsx("Input/AK/ak_homewinter_20191216.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, homeid, winterid, interventiondate, interventiontime) %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         home_id = as.character(homeid),
+         winter_id = as.character(winterid),
+         intervention_date = interventiondate,
+         intervention_time = interventiontime) %>% 
+  select(home_winter_id, home_id, winter_id, intervention_date, intervention_time)
+## Box location: All Files > NoonGroupData > KidsAIR > 
+## 2019-November-Data > AK > Home Data > parentdemographics.xlsx
+ak_parent_demographics_initial <-
+  read_xlsx("Input/AK/ak_parent_demographics_20191216.xlsx") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, gender, hispanic, race, income, education,
+         totalres, underfive) %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         gender_parent = as.factor(gender),
+         hispanic_parent = as.factor(hispanic),
+         race_parent = as.factor(race),
+         income = as.factor(income),
+         education = as.factor(education),
+         total_residents = as.character(totalres),
+         residents_under_five = as.character(underfive)) %>% 
+  select(home_winter_id, gender_parent, hispanic_parent, race_parent,
+         income, education, total_residents, residents_under_five) %>% 
+  filter(!is.na(gender_parent))
+# join all files from above
+joined1 <- ak_homewinter_initial %>% 
+  left_join(ak_parent_demographics_initial, by = "home_winter_id") %>% 
+  left_join(ak_home_initial, by = "home_id") %>% 
+  left_join(ak_child_initial, by = "home_id") %>% 
+  mutate(area = "AK")
+  
+# create dataset of id's and treatment assignment
+ak_home_ids_linked <- joined1 %>% 
+  select(area, home_id, winter_id, home, home_winter_id, treatment) %>% 
+  distinct(home_winter_id, .keep_all = TRUE) %>% 
+  arrange(home_id, winter_id) 
+  
+# create dataset of child demographic data
+ak_child_demographics <- joined1 %>% 
+  #distinct(child_id_num, .keep_all = TRUE) %>% 
+  arrange(home_id, child_id_num, winter_id) %>% 
+  filter(winter_id == 1 | winter_id == 2) 
+# Save as RDS and CSV
+write_rds(ak_home_ids_linked, "Output/ak_ids_linked.rds")
+write_rds(ak_child_demographics, "Output/ak_demographic_data.rds")
+```
+
+# Combine linked id data for WMT, NN, AK
+```{r}
+ak_ids <- read_rds("Output/ak_ids_linked.rds")
+nn_ids <- read_rds("Output/nn_ids_linked.rds")
+wmt_ids <- read_rds("Output/wmt_ids_linked.rds")
+kids_ids <- rbind(ak_ids, nn_ids, wmt_ids)
+#write_rds(kids_ids, "Output/kids_linked_ids.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds") %>% 
+  mutate(winter_id = as.numeric(winter_id),
+         winter_id = if_else(home == "CH218", winter_id + 1, winter_id)) %>% 
+  filter(winter_id > 0)
+#write_rds(kids_linked_ids, "Output/kids_linked_ids.rds")
+```
+
+# Combine demographic data for WMT, NN, AK
+```{r}
+ak_demographics <- read_rds("Output/ak_demographic_data.rds")
+nn_demographics <- read_rds("Output/nn_demographic_data.rds")
+wmt_demographics <- read_rds("Output/wmt_demographic_data.rds")
+kids_demographics <- rbind(ak_demographics, nn_demographics, wmt_demographics)
+# write_rds(kids_demographics, "Output/kids_combined_demographics.rds")
+kids_demographics <- read_rds("Output/kids_combined_demographics.rds")
+```
+
+# Clean demographics data
+```{r}
+kids_demographics <- read_rds("Output/kids_combined_demographics.rds")
+demographics_clean <- kids_demographics %>% 
+  separate(intervention_time, c("trash", "intervention_time"), sep = " ") %>% 
+  unite(intervention_datetime, c("intervention_date", "intervention_time"),
+        sep = " ", remove = FALSE) %>% 
+  mutate(intervention_datetime = ymd_hms(intervention_datetime)) %>% 
+  select(-trash) %>% 
+  mutate(home_winter_id = as.numeric(home_winter_id),
+         home_winter_id = if_else(home == "CH218" & winter_id == 1, 77, home_winter_id),
+         home_winter_id = if_else(home == "CH218" & winter_id == 2, 111, home_winter_id),
+         home_winter_id = as.factor(home_winter_id)) 
+# write_rds(demographics_clean, "Output/demographics_clean.rds")
+```
