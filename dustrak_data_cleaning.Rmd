@@ -1,0 +1,546 @@
+---
+title: "EldersAIR initial PM data work"
+author: "Ethan Walker"
+date: "Started 12 Feb 2020, Updated 12 Feb 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+library(knitr)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+```
+
+# Initial load, format, and save EldersAIR DustTrak (PM) data
+## Files were downloaded from Box: NoonanGroupData > EldersAIR
+```{r}
+##### Read in dusttrack .xlsx files (all areas) #####
+
+
+### NN ###
+# List files
+list_xlsx_files <- list.files("Input/NN/nn_dt_20200210")
+
+# Set working directory and load files in list; extract file name and add as column
+## run next 4 lines together
+setwd("Input/NN/nn_dt_20200210") # set new working directory
+initial_data = tibble(file_name = list_xlsx_files) %>% # use list of files from above
+  mutate(save_data = lapply(file_name, read_xlsx, skip = 28)) %>%
+  unnest(save_data)
+
+
+# Format combined file from above; combine with other PM data below
+nn_pm <- initial_data %>% 
+  separate(file_name, c("home", "trash"), sep = 7, remove = FALSE) %>% 
+  separate(`hh:mm:ss`, c("trash2", "time"), sep = " ", remove = FALSE) %>% 
+  mutate(home = as.character(home),
+         date_pm = ymd(`MM/dd/yyyy`),
+         time_pm = as.character(time),
+         pm = as.numeric(`mg/m^3`),
+         area = "NN") %>% 
+  unite("datetime", c("date_pm", "time_pm"), sep = " ", remove = FALSE) %>% 
+  mutate(datetime_pm = ymd_hms(datetime)) %>% 
+  select(home, datetime_pm, date_pm, time_pm, pm, area) %>% 
+  filter(!is.na(pm))
+
+
+
+### NP ###
+# List files
+list_xlsx_files <- list.files("Input/NP/np_dt_20200210")
+
+# Set working directory and load files in list; extract file name and add as column
+## run next 4 lines together
+setwd("Input/NP/np_dt_20200210") # set new working directory
+initial_data = tibble(file_name = list_xlsx_files) %>% # use list of files from above
+  mutate(save_data = lapply(file_name, read_xlsx, skip = 28)) %>%
+  unnest(save_data)
+
+
+# Format combined file from above; combine with other PM data below
+np_pm <- initial_data %>% 
+  separate(file_name, c("home", "trash"), sep = 7, remove = FALSE) %>% 
+  separate(`hh:mm:ss`, c("trash2", "time"), sep = " ", remove = FALSE) %>% 
+  mutate(home = as.character(home),
+         date_pm = ymd(`MM/dd/yyyy`),
+         time_pm = as.character(time),
+         pm = as.numeric(`mg/m^3`),
+         area = "NP") %>% 
+  unite("datetime", c("date_pm", "time_pm"), sep = " ", remove = FALSE) %>% 
+  mutate(datetime_pm = ymd_hms(datetime)) %>% 
+  select(home, datetime_pm, date_pm, time_pm, pm, area) %>% 
+  filter(!is.na(pm))
+
+
+
+##### Bind files from above #####
+elders_pm <- rbind(nn_pm, np_pm)
+# Save pm dataset as RDS 
+# write_rds(elders_pm, "Output/elders_pm_full_raw.rds")
+```
+
+
+
+################ Past this point is from KidsAIR data cleaning
+################ Use to finalize Elders code once all data is available
+
+
+
+# Load Dusttrak data and do initial clean-up
+```{r}
+# Load full, raw dataset compiled in chunk above
+kids_pm_full <- read_rds("Output/kids_pm_full_raw.rds") 
+# Load and combine data sheets with QAQC comments, etc
+ak_dt_home <- read_csv("Input/AK/ak_dt_home.csv") %>% 
+  mutate(area = "AK")
+ak_dt <- read_xlsx("Input/AK/ak_dustrak.xlsx") %>% 
+  mutate(area = "AK") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, dtid, area, startdate, starttime, stopdate, stoptime)
+nn_dt_home <- read_csv("Input/NN/nn_dt_home.csv") %>% 
+  mutate(area = "NN")
+nn_dt <- read_xlsx("Input/NN/nn_dustrak.xlsx") %>% 
+  mutate(area = "NN") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, dtid, area, startdate, starttime, stopdate, stoptime)
+wmt_dt_home <- read_csv("Input/WMT/wmt_dt_home.csv") %>% 
+  mutate(area = "WMT")
+wmt_dt <- read_xlsx("Input/WMT/wmt_dustrak.xlsx") %>% 
+  mutate(area = "WMT") %>% 
+  rename_all(tolower) %>% 
+  select(homewinterid, dtid, area, startdate, starttime, stopdate, stoptime)
+dt <- rbind(ak_dt, nn_dt, wmt_dt) %>% 
+  mutate(home_winter_id = as.character(homewinterid)) %>% 
+  select(-homewinterid)
+dt_home <- rbind(ak_dt_home, nn_dt_home, wmt_dt_home) %>% 
+  rename_all(tolower) %>% 
+  filter(!is.na(homewinterid)) %>% 
+  mutate(home_winter_id = as.character(homewinterid)) %>% 
+  select(-homewinterid) %>% 
+  left_join(dt, by = c("area", "home_winter_id")) 
+# Join dt_home with full dataset
+kids_pm_joined <- kids_pm_full %>% 
+  left_join(dt_home, by = c("area", "home_winter_id")) %>% 
+  rename(treatment = condition)
+##### Add new variables to Kids PM data #####
+kids_pm_new1 <- kids_pm_joined %>%  
+  #filter(area == "AK") %>% 
+  # apply correction factor to pm and change to ug
+  mutate(pm = pm/1.65,
+         pm = pm*1000) %>% 
+  mutate(home_winter_id = as.character(home_winter_id),
+         area = as.factor(area),
+         pm_date = date,
+         pm_time = time,
+         pm = as.numeric(pm),
+         day_of_week = weekdays(date)) %>% 
+  unite("pm_datetime", date:time, sep = " ") %>% 
+  #select(home_winter_id, area, pm_date, pm_time, pm_datetime, day_of_week, pm) %>% 
+  arrange(area, home_winter_id, pm_date) %>% 
+  group_by(area, home_winter_id) %>% 
+  # new variables summarizing pm2.5 within each home_winter_id
+  mutate(pm_total_observations = n(),
+         # new datetime values to calculate sampling interval
+         min_datetime = first(pm_datetime),
+         max_datetime = last(pm_datetime),
+         min_datetime = ymd_hms(min_datetime),
+         max_datetime = ymd_hms(max_datetime),
+         diff_datetime = interval(min_datetime, max_datetime),
+         # total sampling interval, based on first and last datetimes
+         pm_sample_interval = diff_datetime/86400,
+         # expected number of observations with the sampling interval
+         expected_obs = pm_sample_interval*24*60,
+         # difference between actual and expected observations
+         actual_vs_expected_diff = pm_total_observations - expected_obs,
+         # indicator variable if actual vs expected obs > 10 or greater
+         actual_vs_expected = if_else(actual_vs_expected_diff < 10 &
+                                      actual_vs_expected_diff > -10, 1, 0),
+         pm_mean = mean(pm),
+         # breaking sampling period into days
+         obs = row_number(),
+         sampling_day = if_else(obs < 1441, 1, 0),
+         sampling_day = if_else(obs < 2881 & obs > 1440, 2, sampling_day),
+         sampling_day = if_else(obs < 4321 & obs > 2880, 3, sampling_day),
+         sampling_day = if_else(obs < 5761 & obs > 4320, 4, sampling_day),
+         sampling_day = if_else(obs < 7201 & obs > 5760, 5, sampling_day),
+         sampling_day = if_else(obs < 8641 & obs > 7200, 6, sampling_day),
+         sampling_day = if_else(obs < 10081 & obs > 8640, 7, sampling_day),
+         sampling_day = if_else(obs > 10080, 8, sampling_day)) %>%
+  # calculate pm means for each sampling day
+  group_by(area, home_winter_id, sampling_day) %>% 
+  mutate(pm_mean_daily = mean(pm),
+         pm_sampling_day = sampling_day) %>% 
+  separate(starttime, c("trash1", "starttime"), sep = " ") %>% 
+  separate(stoptime, c("trash2", "stoptime"), sep = " ") %>% 
+  ungroup() %>% 
+  select(-min_datetime, -max_datetime, -diff_datetime, -obs, -sampling_day, 
+         -datetime, -trash1, -trash2) 
+# Save pm dataset as RDS 
+# write_rds(kids_pm_new1, "Output/kids_pm_new1.rds")
+```
+
+# Summarize by ID and Dusttrak ID to look for trends
+```{r}
+# Load data 
+kids_pm <- read_rds("Output/kids_pm_new.rds")
+# summary by home_winter_id
+summary_id <- kids_pm %>% 
+  group_by(area, home_winter_id) %>% 
+  summarise("n" = n(),
+            "Mean PM" = mean(pm, na.rm = TRUE), 
+            "SD PM" = sd(pm, na.rm = TRUE),
+            "Min PM" = min(pm, na.rm = TRUE), 
+            "Median PM" = median(pm, na.rm = TRUE),
+            "Max PM" = max(pm, na.rm = TRUE),
+            "Act vs Exp Diff" = first(as.numeric(actual_vs_expected_diff)),
+            "Act vs Exp" = first(actual_vs_expected),
+            "Comments" = first(qaqccomments))
+ write_csv(summary_id, "output/kids_summary_id.csv")
+# summary by dusttrak id
+summary_dtid <- kids_pm %>% 
+  group_by(dtid) %>% 
+  summarise("n" = n(),
+            "Mean PM" = mean(pm, na.rm = TRUE), 
+            "SD PM" = sd(pm, na.rm = TRUE),
+            "Min PM" = min(pm, na.rm = TRUE), 
+            "Median PM" = median(pm, na.rm = TRUE),
+            "Max PM" = max(pm, na.rm = TRUE))
+```
+
+# Histogram for distribution of PM by individual ID
+```{r}
+# Load data
+kids_pm <- read_rds("Output/kids_pm_new.rds")
+histogram_id <- kids_pm %>% 
+  filter(home_winter_id == "10" & area == "AK") %>% 
+  ggplot() + 
+    geom_histogram(aes(pm), bins = 50) +
+    theme_classic()
+histogram_id
+```
+
+# Function to look at PM data across time
+```{r}
+# Plot PM by datetime to look at trends, gaps, and peaks
+pm_time_plot_function <- function(id, location) {
+pm_time_plot <- kids_pm %>% 
+  filter(home_winter_id == id & area == location) %>% 
+  #filter(pm < 30000) %>% 
+  arrange(pm_datetime) %>% 
+  mutate(pm_sampling_day = as.character(pm_sampling_day),
+         day_of_week = factor(day_of_week,
+                              levels = c("Sunday", "Monday", "Tuesday", "Wednesday", 
+                                         "Thursday", "Friday", "Saturday"))) %>%
+  ggplot() + 
+    geom_point(aes(pm_datetime, pm, color = day_of_week), size = 1.5) +
+    theme_classic() +
+    labs(title = id,
+         y = expression(paste("PM"[2.5], " (", mu, g/m^3, ")")),
+         x = "Datetime",
+         color = "Day of week") +
+    theme(axis.title.y = element_text(size = 12,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.title.x = element_text(size = 12),
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(size = 12, color = "black"),
+          axis.line.x = element_line(colour = "black", size = 1), 
+          axis.line.y = element_line(colour = "black", size = 1), 
+          axis.ticks = element_blank()) +
+    scale_color_manual(values = jv_palette)
+gaps <<- kids_pm %>% 
+  filter(home_winter_id == id & area == location) %>% 
+  mutate(pm_datetime = ymd_hms(pm_datetime),
+         datetime_lead = ymd_hms(lead(pm_datetime)),
+         datetime_1 = seconds(pm_datetime),
+         datetime_2 = seconds(datetime_lead),
+         datetime_diff_minutes = as.numeric(datetime_2 - datetime_1)/60,
+         datetime_diff_hours = as.numeric(datetime_diff_minutes/60)) %>% 
+  arrange(desc(datetime_diff_minutes)) %>% 
+  select(day_of_week, pm_sampling_day, datetime_diff_minutes, datetime_diff_hours, 
+         pm_datetime, datetime_lead)
+pm_desc <<- kids_pm %>% 
+  filter(home_winter_id == id & area == location) %>% 
+  arrange(desc(pm)) %>% 
+  select(pm_datetime, pm, pm_sampling_day)
+pm_time_plot
+}
+```
+
+# Run function from above to look at results
+## Function run for each household to check for odd trends/gaps in the data
+## Notes from this process on uploaded to Box:
+### KidsAIR > Ethan - data cleaning and analysis > pm_cleaning_summary
+```{r}
+# Load data 
+kids_pm <- read_rds("Output/kids_pm_new.rds")
+# Change function input to look at specific home
+# Run all of these lines together
+pm_time_plot_function(id = "129", location = "WMT")
+head(gaps, 25)
+head(pm_desc, 25)
+tail(pm_desc, 25)
+# filter data for a single home
+check_data <- kids_pm %>% 
+  filter(area == "WMT" & home_winter_id == "129") %>% 
+  filter(pm < 0)
+```
+
+# Check sample start times
+```{r}
+# Load data
+kids_pm <- read_rds("Output/kids_pm_new.rds")
+# Checking difference between dustrak start datetime and field data log datetime
+sample_times <- kids_pm %>% 
+  #filter(area == "AK") %>% 
+  group_by(area, home_winter_id) %>% 
+  arrange(pm_datetime) %>% 
+  unite(start_datetime, c("startdate", "starttime"), 
+        sep = " ", remove = FALSE) %>% 
+  mutate(first_datetime = first(pm_datetime),
+         first_datetime = ymd_hms(first_datetime),
+         start_datetime = ymd_hms(start_datetime),
+         time_diff = first_datetime - start_datetime) %>% 
+  distinct(time_diff, .keep_all = TRUE) %>% 
+  select(area, home_winter_id, pm_datetime, first_datetime,
+         start_datetime, time_diff, startdate, starttime) %>% 
+  ungroup() %>% 
+  arrange(area, home_winter_id)
+# write_csv(sample_times, "Output/pm_sample_times_comparison.csv")
+```
+
+# Loading and combining notes from time and PM logs
+## Notes from the process of comparing actual vs expect start times 
+## on uploaded to Box:
+### KidsAIR > Ethan - data cleaning and analysis > pm_cleaning_summary
+```{r}
+time_notes <- read_xlsx("Input/pm_sample_times_comparison.xlsx") %>% 
+  select(area, home_winter_id, first_datetime, start_datetime,
+         time_diff, next_steps_time, check_log_time) 
+ 
+pm_notes <- read_xlsx("Input/kids_summary_id.xlsx") %>% 
+  select(area, home_winter_id, n, further_comments_pm, next_steps_pm, check_log_pm)
+kids_ids <- read_rds("Output/kids_linked_ids.rds") %>% 
+  mutate(home_winter_id = as.numeric(home_winter_id))
+notes_joined <- pm_notes %>% 
+  left_join(time_notes, by = c("area", "home_winter_id")) %>% 
+  left_join(kids_ids, by = c("area", "home_winter_id"))
+# write_csv(notes_joined, "Output/pm_notes_check_logs.csv")
+```
+
+# Fix dusttrak sample start times
+## Notes from above were used to make the following changes in the data
+```{r}
+# Load data 
+kids_pm <- read_rds("Output/kids_pm_new1.rds")
+# Checking difference between dustrak start datetime and field data log datetime
+kids_pm_new2 <- kids_pm %>% 
+  #filter(area == "NN") %>% 
+  group_by(area, home_winter_id) %>% 
+  arrange(pm_datetime) %>% 
+  unite(start_datetime, c("startdate", "starttime"), 
+        sep = " ", remove = FALSE) %>% 
+  mutate(first_datetime = first(pm_datetime),
+         first_datetime = ymd_hms(first_datetime),
+         start_datetime = ymd_hms(start_datetime),
+         time_diff = first_datetime - start_datetime) %>% 
+  #distinct(time_diff, .keep_all = TRUE) %>% 
+  # make general time changes based on ranges
+  mutate(pm_datetime = ymd_hms(pm_datetime),
+         pm_datetime_new = if_else(time_diff > 1800 & time_diff < 5400, 
+                                   pm_datetime - 3600, pm_datetime),
+         pm_datetime_new = if_else(time_diff < -1800 & time_diff > -5400, 
+                                   pm_datetime_new + 3600, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff > 5400 & time_diff < 9000, 
+                                   pm_datetime_new - 7200, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff < -5400 & time_diff > -9000, 
+                                   pm_datetime_new + 7200, pm_datetime_new)) %>% 
+  # make specific time changes
+  mutate(pm_datetime_new = if_else(time_diff == 10903, # WMA457
+                                   pm_datetime_new - 10800, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == (-82721), # WMA440
+                                   pm_datetime_new + 82800, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == 10069, # WMA459
+                                   pm_datetime_new - 9900, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == 9817, # WMA314
+                                   pm_datetime_new - 3600, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff < -31535900, # YKC06-103 
+                                   pm_datetime_new + 31539519, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff < -31532200, # WMA305
+                                   pm_datetime_new - 3600, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == 9120, # WMA228
+                                   pm_datetime_new - 3600, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == (-21497), # WMA130
+                                   pm_datetime_new + 21497, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == 684, # WMA237
+                                   pm_datetime_new + 3600, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == 149793, # WMA238
+                                   pm_datetime_new - 149793, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == -46227, # CH320
+                                   pm_datetime_new + 3600, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == 13514, # TC360 
+                                   pm_datetime_new - 3600, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == -10696, # TC357 
+                                   pm_datetime_new + 10800, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == -43427, # TC355 
+                                   pm_datetime_new + 43200, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == -11388, # TC353 
+                                   pm_datetime_new + 10800, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == -221, # TC351 
+                                   pm_datetime_new + 3600, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == 4999, # CH214 
+                                   pm_datetime_new + 3600, pm_datetime_new),
+         pm_datetime_new = if_else(time_diff == 4061, # WMA203 
+                                   pm_datetime_new + 3600, pm_datetime_new)) %>% 
+  mutate(first_datetime_new = first(pm_datetime_new),
+         first_datetime_new = ymd_hms(first_datetime_new),
+         start_datetime = ymd_hms(start_datetime),
+         time_diff_new = first_datetime_new - start_datetime) %>%  
+  #distinct(time_diff, .keep_all = TRUE) %>%
+  ungroup() %>% 
+  arrange(area, home_winter_id, pm_datetime_new)
+# write_rds(kids_pm_new2, "Output/kids_pm_new2.rds")
+```
+
+# Further cleaning:
+## Remove specific homes from PM dataset
+## Remove extremely high values
+## Change negative values
+```{r}
+# Load data 
+kids_pm <- read_rds("Output/kids_pm_new2.rds")
+kids_pm_new3 <- kids_pm %>%
+  # filtering out specific homes where PM data is not suitable for analysis
+  # removes 119,520 obs
+         # YKC06_105: only 12 hours of data
+  mutate(do_not_use = if_else(area == "AK" & home_winter_id == "39", 1, 0),
+         # YKC06_313: sample hourly instead of every minute
+         do_not_use = if_else(area == "AK" & home_winter_id == "89", 1, do_not_use),
+         # CH_302: sample hourly instead of every minute
+         do_not_use = if_else(area == "NN" & home_winter_id == "127", 1, do_not_use),
+         # CH_304: Home was resampled
+         do_not_use = if_else(area == "NN" & home_winter_id == "1330", 1, do_not_use),
+         # CH_306: sample hourly instead of every minute
+         do_not_use = if_else(area == "NN" & home_winter_id == "134", 1, do_not_use),
+         # CH_307: only 8 datapoints
+         do_not_use = if_else(area == "NN" & home_winter_id == "135", 1, do_not_use),
+         # TC_357: Home was resampled
+         do_not_use = if_else(area == "NN" & home_winter_id == "1510", 1, do_not_use),
+         # CH_322: sample hourly instead of every minute
+         do_not_use = if_else(area == "NN" & home_winter_id == "161", 1, do_not_use),
+         # CH_325: 6300 obs are negative, down to -12.12. Median is negative.
+         do_not_use = if_else(area == "NN" & home_winter_id == "165", 1, do_not_use),
+         # CH_400: Home was resampled
+         do_not_use = if_else(area == "NN" & home_winter_id == "2150", 1, do_not_use),
+         # CH_403: Home was resampled
+         do_not_use = if_else(area == "NN" & home_winter_id == "2210", 1, do_not_use),
+         # CH_108: Only 300 datapoints and no other files found
+         do_not_use = if_else(area == "NN" & home_winter_id == "29", 1, do_not_use),
+         # CH_207: Only 400 datapoints; no other files found
+         do_not_use = if_else(area == "NN" & home_winter_id == "58", 1, do_not_use),
+         # TC_230: Home was resampled
+         do_not_use = if_else(area == "NN" & home_winter_id == "620", 1, do_not_use),
+         # CH_223: Home was resampled
+         do_not_use = if_else(area == "NN" & home_winter_id == "840", 1, do_not_use),
+         # TC_242: 1 day worth of data with lots of gaps
+         do_not_use = if_else(area == "NN" & home_winter_id == "86", 1, do_not_use),
+         # WMA277: Home was resampled
+         do_not_use = if_else(area == "WMT" & home_winter_id == "1910", 1, do_not_use),
+         # WMA305: Home was resampled
+         do_not_use = if_else(area == "WMT" & home_winter_id == "2500", 1, do_not_use),
+         # WMA306: Home was resampled
+         do_not_use = if_else(area == "WMT" & home_winter_id == "2510", 1, do_not_use),
+         # WMA358: Home was resampled
+         do_not_use = if_else(area == "WMT" & home_winter_id == "2860", 1, do_not_use),
+         # WMA448: Home was resampled
+         do_not_use = if_else(area == "WMT" & home_winter_id == "3750", 1, do_not_use),
+         # WMA200: 4700 negative values, down to -4.85. Median is negative
+         do_not_use = if_else(area == "WMT" & home_winter_id == "152", 1, do_not_use),
+         # WMA201: 5000 negative values, down to -10. Median negative. 17 hour gap 
+         do_not_use = if_else(area == "WMT" & home_winter_id == "153", 1, do_not_use),
+         # WMA603: Home was resampled
+         do_not_use = if_else(area == "WMT" & home_winter_id == "5100", 
+                              1, do_not_use)) %>% 
+  filter(do_not_use != 1) %>% 
+  # replace PM > 10,000 with NA (33 obs)
+  mutate(pm = if_else(pm > 10000, 999999, pm)) %>% 
+  replace_with_na(replace = list(pm = 999999)) %>% 
+  # replace PM < 1 (lower DustTrak limit) with 0.5 (lower limit / 2) 
+  # 291,490 obs less than 1; 56,684 obs less than 0 
+  mutate(pm = if_else(pm < 1, 0.5, pm))
+# write_rds(kids_pm_new3, "Output/kids_pm_new3.rds")
+```
+
+# New variables to use for analysis
+```{r}
+# Load data 
+kids_pm <- read_rds("Output/kids_pm_new3.rds")
+cleaning_summary <- read_xlsx("Input/cleaning_summary.xlsx") %>% 
+  select(area, home_winter_id, final_cleaning_pm, sensitivity_analysis_pm)
+kids_pm_new4 <- kids_pm %>% 
+  mutate(home_winter_id = as.numeric(home_winter_id)) %>% 
+  left_join(cleaning_summary, by = c("area", "home_winter_id")) %>% 
+  select(-samplingdate, -samplingtime, -pickupdate, -pickuptime,
+         -dtmin, -dtmax, -dtaverage, -qaqccomments, -data_comments,
+         -pm_sampling_day, -pm_mean_daily) %>% 
+  # create sampling days based on datetime differences
+  group_by(area, home_winter_id) %>% 
+  mutate(pm_datetime_new = if_else(is.na(pm_datetime_new), 
+                                   pm_datetime, pm_datetime_new),
+         first_datetime_new = first(pm_datetime_new),
+         first_datetime_new = ymd_hms(first_datetime_new)) %>% 
+  mutate(datetime_diff = pm_datetime_new - first_datetime_new,
+         sampling_day = if_else(datetime_diff <= 86400, 1, 0),
+         sampling_day = if_else(datetime_diff > 86400 & datetime_diff <= 172800, 
+                                2, sampling_day),
+         sampling_day = if_else(datetime_diff > 172800 & datetime_diff <= 259200, 
+                                3, sampling_day),
+         sampling_day = if_else(datetime_diff > 259200 & datetime_diff <= 345600, 
+                                4, sampling_day),
+         sampling_day = if_else(datetime_diff > 345600 & datetime_diff <= 432000, 
+                                5, sampling_day),
+         sampling_day = if_else(datetime_diff > 432000 & datetime_diff <= 518400, 
+                                6, sampling_day),
+         sampling_day = if_else(datetime_diff > 518400 & datetime_diff <= 604800, 
+                                7, sampling_day),
+         sampling_day = if_else(datetime_diff > 604800 & datetime_diff <= 691200, 
+                                8, sampling_day),
+         sampling_day = if_else(datetime_diff > 691200 & datetime_diff <= 777600, 
+                                9, sampling_day),
+         sampling_day = if_else(datetime_diff > 777600 & datetime_diff <= 864000, 
+                                10, sampling_day),
+         sampling_day = if_else(datetime_diff > 864000, 
+                                11, sampling_day)) %>% 
+  # new vars for daily means and % expected observations for each day
+  group_by(area, home_winter_id, sampling_day) %>% 
+  mutate(pm_mean_daily = mean(pm),
+         percent_daily_obs_pm = n()/1440) %>% 
+  ungroup() %>% 
+  arrange(area, home_winter_id, pm_datetime_new) %>% 
+  select(-first_datetime, -time_diff, -do_not_use)
+  
+test <- kids_pm_new %>% 
+  filter(percent_daily_obs_pm >= 0.9) %>% 
+  summarise(n()/2241695)
+# write_rds(kids_pm_new4, "Output/kids_pm_new4.rds")
+```
+
+# Save cleaned dataset
+```{r}
+kids_pm <- read_rds("Output/kids_pm_new4.rds")
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+kids_pm_new5 <- kids_pm %>% 
+  mutate(home_winter_id = as.character(home_winter_id)) %>% 
+  select(-home, -treatment) %>% 
+  left_join(kids_linked_ids, by = c("area", "home_winter_id"))
+# write_rds(kids_pm_new5, "Output/pm_clean.rds")
+```
