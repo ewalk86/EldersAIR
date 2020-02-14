@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial home/adult data work"
 author: "Ethan Walker"
-date: "Started 10 Feb 2020, Updated 10 Feb 2020"
+date: "Started 10 Feb 2020, Updated 14 Feb 2020"
 output: pdf_document
 ---
 
@@ -22,36 +22,61 @@ library(zoo)
 ```{r}
 # Load files 
 ## Box location: Update Box location once final data loaded
-np_adult_initial <- read_csv("Input/NP/np_adults_20200210.csv") %>% 
+np_adult_initial <- read_csv("Input/NP/np_adults_20200214.csv") %>% 
   rename_all(tolower) %>% 
-  mutate(adult_hwid = as.factor(adulthwid),
+  mutate(adult_id_num = as.factor(adultid),
          home_id = as.factor(homeid),
-         adult_id = as.factor(adultid),
-         home_winter_id = as.factor(homewinterid)) %>% 
-  select(adult_hwid, home_id, adult_id, home_winter_id) 
+         adult_id_char = as.factor(id),
+         hispanic = as.factor(hispanic),
+         race = as.factor(race),
+         gender = as.factor(gender),
+         consent_date = mdy(consentdate)) %>% 
+  select(adult_id_num, home_id, adult_id_char, hispanic, race, gender, consent_date) %>% 
+  arrange(adult_id_num)
+#write_rds(np_adult_initial, "Output/np_adult.rds")
 
 
 ## Box location: Update Box location once final data loaded
-np_home_initial <- read_csv("Input/NP/np_home_20200210.csv") %>% 
+np_homewinter_initial <- read_csv("Input/NP/np_homewinter_20200214.csv") %>% 
   rename_all(tolower) %>% 
   mutate(home_id = as.factor(homeid),
          winter_id = as.factor(winterid),
          home_winter_id = as.factor(homewinterid),
-         intervention_date = ymd(interventiondate),
+         intervention_date = mdy(interventiondate),
          intervention_time = as.character(interventiontime),
-         sampling_date_1 = ymd(samplingdate),
+         sampling_date_1 = mdy(samplingdate),
          sampling_time_1 = as.character(samplingtime),
-         pickup_date_1 = ymd(pickupdate),
+         pickup_date_1 = mdy(pickupdate),
          pickup_time_1 = as.character(pickuptime),
-         sampling_date_2 = ymd(sampling2date),
+         sampling_date_2 = mdy(sampling2date),
          sampling_time_2 = as.character(sampling2time),
-         pickup_date_2 = ymd(pickup2date),
-         pickup_time_2 = as.character(pickup2time),
-         home_qaqc_comments = as.character(qaqchccomments)) %>% 
+         pickup_date_2 = mdy(pickup2date),
+         pickup_time_2 = as.character(pickup2time)) %>% 
   select(home_id, winter_id, home_winter_id, intervention_date, intervention_time,
          sampling_date_1, sampling_time_1, pickup_date_1, pickup_time_1,
-         sampling_date_2, sampling_time_2, pickup_date_2, pickup_time_2,
-         home_qaqc_comments) 
+         sampling_date_2, sampling_time_2, pickup_date_2, pickup_time_2) %>% 
+  filter(!is.na(home_id)) %>% 
+  arrange(home_id, winter_id)
+#write_rds(np_homewinter_initial, "Output/np_homewinter.rds")
+
+
+## Box location: Update Box location once final data loaded
+np_home_initial <- read_csv("Input/NP/np_home_20200214.csv") %>% 
+  rename_all(tolower) %>% 
+  mutate(home_id = as.factor(homeid),
+         home = as.factor(home),
+         treatment = as.factor(txcondition)) %>% 
+  select(home_id, home, treatment)
+#write_rds(np_home_initial, "Output/np_home.rds")
+```
+
+
+# Combine adult, home, homewinter files
+```{r}
+np_ids_linked <- np_homewinter_initial %>% 
+  left_join(np_home_initial, by = c("home_id")) %>% 
+  left_join(np_adult_initial, by = c("home_id")) 
+#write_rds(np_ids_linked, "Output/np_ids_linked.rds")
 ```
 
 

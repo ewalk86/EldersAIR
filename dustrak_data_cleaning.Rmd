@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial PM data work"
 author: "Ethan Walker"
-date: "Started 12 Feb 2020, Updated 12 Feb 2020"
+date: "Started 12 Feb 2020, Updated 14 Feb 2020"
 output: pdf_document
 ---
 
@@ -20,6 +20,33 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
 ```
+
+
+# Load, format, and save DustTrak log file for NP
+```{r}
+## Box location: Update Box location once final data loaded
+np_dustrack_initial <- read_csv("Input/NP/np_dustrack_20200214.csv") %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         dtid = as.factor(DTID),
+         start_date_pm = mdy(StartDate),
+         start_time_pm = as.character(StartTime),
+         stop_date_pm = mdy(StopDate),
+         stop_time_pm = as.character(StopTime),
+         sample_obs = as.numeric(DTLength),
+         sample_ave = as.numeric(DTAverage),
+         sample_min = as.numeric(DTMin),
+         sample_max = as.numeric(DTMax),
+         pm_comments = as.character(Comments),
+         sampling_visit = as.factor(SamplingVisit),
+         area = "NP") %>% 
+  select(home_winter_id, area, dtid, sampling_visit, start_date_pm, start_time_pm,
+         stop_date_pm, stop_time_pm, sample_obs, sample_ave, sample_min,
+         sample_max, pm_comments) %>% 
+  arrange(home_winter_id)
+#write_rds(np_dustrack_initial, "Output/np_dustrack.rds")
+```
+
 
 # Initial load, format, and save EldersAIR DustTrak (PM) data
 ## Files were downloaded from Box: NoonanGroupData > EldersAIR
@@ -87,6 +114,12 @@ np_pm <- initial_data %>%
 elders_pm <- rbind(nn_pm, np_pm)
 # Save pm dataset as RDS 
 # write_rds(elders_pm, "Output/elders_pm_full_raw.rds")
+```
+
+# Initial cleaning steps
+## Remember to add correction factor
+```{r}
+elders_pm_full_raw <- read_rds("Output/elders_pm_full_raw.rds")
 ```
 
 

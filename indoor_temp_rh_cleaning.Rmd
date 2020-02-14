@@ -1,0 +1,73 @@
+---
+title: "EldersAIR initial home/adult data work"
+author: "Ethan Walker"
+date: "Started 14 Feb 2020, Updated 14 Feb 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+```
+
+
+# Load, format, and save indoor temp/rh data for NP
+```{r}
+## Box location: Update Box location once final data loaded
+np_temp_rh_initial <- read_csv("Input/NP/np_qtrack_20200214.csv") %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         rh_indoor_current = as.numeric(RelHumCur),
+         rh_indoor_max = as.numeric(RelHumMax),
+         rh_indoor_min = as.numeric(RelHumMin),
+         temp_indoor_current = as.numeric(TempCCur),
+         temp_indoor_max = as.numeric(TempCMax),
+         temp_indoor_min = as.numeric(TempCMin),
+         sampling_visit = as.factor(SamplingVisit),
+         area = "NP") %>% 
+  # replace -999 and 0 values with NA
+  replace_with_na(replace = list(rh_indoor_current = -999, rh_indoor_max = -999,
+                                 rh_indoor_min = -999, temp_indoor_current = -999,
+                                 temp_indoor_max = -999, temp_indoor_min = -999)) %>% 
+  replace_with_na(replace = list(rh_indoor_current = 0, rh_indoor_max = 0,
+                                 rh_indoor_min = 0, temp_indoor_current = 0,
+                                 temp_indoor_max = 0, temp_indoor_min = 0)) %>% 
+  select(home_winter_id, area, rh_indoor_current, 
+         rh_indoor_max, rh_indoor_min, temp_indoor_current, 
+         temp_indoor_max, temp_indoor_min, sampling_visit) %>% 
+  arrange(home_winter_id)
+#write_rds(np_temp_rh_initial, "Output/np_temp_rh.rds")
+```
+
+
+# Load, format, and save indoor temp/rh data for NN
+```{r}
+
+```
+
+
+# Join temp/rh data from different areas
+```{r}
+np_temp_rh <- read_rds("Output/np_temp_rh.rds")
+nn_temp_rh <- read_rds("Output/nn_temp_rh.rds")
+adult_indoor_temp_rh <- rbind(np_temp_rh, nn_temp_rh)
+# write_rds(adult_indoor_temp_rh, "Output/adult_indoor_temp_rh.rds")
+```
+
+
+# Clean up all temp/rh data
+```{r}
+adult_indoor_temp_rh <- read_rds("Output/adult_indoor_temp_rh.rds")
+
+kids_linked_ids <- read_rds("Output/kids_linked_ids.rds")
+indoor_temp_rh_clean <- kids_indoor_temp_rh %>% 
+  left_join(kids_linked_ids, by = c("area", "home_winter_id"))
+# write_rds(indoor_temp_rh_clean, "Output/indoor_temp_rh_clean.rds")
+```
