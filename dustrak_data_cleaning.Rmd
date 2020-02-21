@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial PM data work"
 author: "Ethan Walker"
-date: "Started 12 Feb 2020, Updated 14 Feb 2020"
+date: "Started 12 Feb 2020, Updated 20 Feb 2020"
 output: pdf_document
 ---
 
@@ -22,17 +22,19 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 ```
 
 
-# Load, format, and save DustTrak log file for NP
+# Load, format, and save Dustrak log files
 ```{r}
 ## Box location: Update Box location once final data loaded
-np_dustrack_initial <- read_csv("Input/NP/np_dustrack_20200214.csv") %>% 
+np_dustrak_initial <- read_xlsx("Input/NP/np_dustrak_20200220.xlsx") %>% 
   # rename variables
+  separate(StartTime, c("trash1", "start_time_pm"), sep = " ", remove = FALSE) %>% 
+  separate(StopTime, c("trash1", "stop_time_pm"), sep = " ", remove = FALSE) %>% 
   mutate(home_winter_id = as.factor(HomeWinterID),
          dtid = as.factor(DTID),
-         start_date_pm = mdy(StartDate),
-         start_time_pm = as.character(StartTime),
-         stop_date_pm = mdy(StopDate),
-         stop_time_pm = as.character(StopTime),
+         start_date_pm = ymd(StartDate),
+         start_time_pm = as.character(start_time_pm),
+         stop_date_pm = ymd(StopDate),
+         stop_time_pm = as.character(stop_time_pm),
          sample_obs = as.numeric(DTLength),
          sample_ave = as.numeric(DTAverage),
          sample_min = as.numeric(DTMin),
@@ -44,7 +46,45 @@ np_dustrack_initial <- read_csv("Input/NP/np_dustrack_20200214.csv") %>%
          stop_date_pm, stop_time_pm, sample_obs, sample_ave, sample_min,
          sample_max, pm_comments) %>% 
   arrange(home_winter_id)
-#write_rds(np_dustrack_initial, "Output/np_dustrack.rds")
+#write_rds(np_dustrak_initial, "Output/np_dustrak.rds")
+
+
+## Box location: Update Box location once final data loaded
+nn_dustrak_initial <- read_xlsx("Input/NN/nn_dustrak_20200220.xlsx") %>% 
+  # rename variables
+  separate(StartTime, c("trash1", "start_time_pm"), sep = " ", remove = FALSE) %>% 
+  separate(StopTime, c("trash1", "stop_time_pm"), sep = " ", remove = FALSE) %>% 
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         dtid = as.factor(DTID),
+         start_date_pm = ymd(StartDate),
+         start_time_pm = as.character(start_time_pm),
+         stop_date_pm = ymd(StopDate),
+         stop_time_pm = as.character(stop_time_pm),
+         sample_obs = as.numeric(DTLength),
+         sample_ave = as.numeric(DTAverage),
+         sample_min = as.numeric(DTMin),
+         sample_max = as.numeric(DTMax),
+         pm_comments = "NA",
+         sampling_visit = as.factor(SamplingVisit),
+         area = "NN") %>% 
+  select(home_winter_id, area, dtid, sampling_visit, start_date_pm, start_time_pm,
+         stop_date_pm, stop_time_pm, sample_obs, sample_ave, sample_min,
+         sample_max, pm_comments) %>% 
+  arrange(home_winter_id)
+#write_rds(nn_dustrak_initial, "Output/nn_dustrak.rds")
+
+
+elders_dustrak_log <- rbind(np_dustrak_initial, nn_dustrak_initial)
+#write_rds(elders_dustrak_log, "Output/elders_dustrak_log.rds")
+
+elders_ids_linked <- read_rds("Output/elders_ids_linked.rds") %>% 
+  filter(winter_id == 1 | winter_id == 2)
+
+
+elders_dustrak_log_new <- elders_dustrak_log %>% 
+  left_join(elders_ids_linked, by = c("area", "home_winter_id")) %>% 
+  arrange(home, winter_id)
+#write_rds(elders_dustrak_log_new, "Output/elders_dustrak_log.rds")
 ```
 
 
@@ -74,10 +114,11 @@ nn_pm_text_space <- initial_data %>%
          time_pm = as.character(`hh:mm:ss`),
          pm = as.numeric(`mg/m^3`),
          area = "NN",
-         file_type = "text") %>% 
+         file_type = "text",
+         winter_id = 1) %>% 
   unite("datetime", c("date_pm", "time_pm"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_pm = ymd_hms(datetime)) %>% 
-  select(home, area, datetime_pm, date_pm, time_pm, pm, file_type) %>% 
+  select(home, area, winter_id, datetime_pm, date_pm, time_pm, pm, file_type) %>% 
   filter(!is.na(pm)) %>% 
   ungroup() %>% 
   arrange(area, home, datetime_pm)
@@ -100,10 +141,11 @@ nn_pm_text_comma <- initial_data %>%
          time_pm = as.character(`hh:mm:ss`),
          pm = as.numeric(`mg/m^3`),
          area = "NN",
-         file_type = "text") %>% 
+         file_type = "text",
+         winter_id = 1) %>% 
   unite("datetime", c("date_pm", "time_pm"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_pm = ymd_hms(datetime)) %>% 
-  select(home, area, datetime_pm, date_pm, time_pm, pm, file_type) %>% 
+  select(home, area, winter_id, datetime_pm, date_pm, time_pm, pm, file_type) %>% 
   filter(!is.na(pm)) %>% 
   ungroup() %>% 
   arrange(area, home, datetime_pm)
@@ -131,10 +173,11 @@ np_pm_text_comma <- initial_data %>%
          time_pm = as.character(time),
          pm = as.numeric(pm),
          area = "NP",
-         file_type = "text") %>% 
+         file_type = "text",
+         winter_id = 1) %>% 
   unite("datetime", c("date_pm", "time_pm"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_pm = ymd_hms(datetime)) %>% 
-  select(home, area, datetime_pm, date_pm, time_pm, pm, file_type) %>% 
+  select(home, area, winter_id, datetime_pm, date_pm, time_pm, pm, file_type) %>% 
   filter(!is.na(pm)) %>% 
   ungroup() %>% 
   arrange(area, home, datetime_pm)
@@ -178,10 +221,11 @@ nn_pm_csv <- initial_data %>%
   separate(datetime_pm, c("date", "time_pm"), sep = " ", remove = FALSE) %>% 
   mutate(date_pm = ymd(date),
          area = "NN",
-         file_type = "csv") %>% 
+         file_type = "csv",
+         winter_id = 1) %>% 
   ungroup() %>% 
   separate(file_name, c("home", "trash"), sep = 7, remove = FALSE) %>% 
-  select(home, area, datetime_pm, date_pm, time_pm, pm, file_type) %>% 
+  select(home, area, winter_id, datetime_pm, date_pm, time_pm, pm, file_type) %>% 
   filter(!is.na(pm)) %>% 
   arrange(area, home, datetime_pm)
 
@@ -219,10 +263,11 @@ np_pm_csv <- initial_data %>%
   separate(datetime_pm, c("date", "time_pm"), sep = " ", remove = FALSE) %>% 
   mutate(date_pm = ymd(date),
          area = "NP",
-         file_type = "csv") %>% 
+         file_type = "csv",
+         winter_id = 1) %>% 
   ungroup() %>% 
   separate(file_name, c("home", "trash"), sep = 7, remove = FALSE) %>% 
-  select(home, area, datetime_pm, date_pm, time_pm, pm, file_type) %>% 
+  select(home, area, winter_id, datetime_pm, date_pm, time_pm, pm, file_type) %>% 
   filter(!is.na(pm)) %>% 
   arrange(area, home, datetime_pm)
 
@@ -242,6 +287,12 @@ elders_pm <- rbind(nn_pm_csv, nn_pm_text_comma, nn_pm_text_space,
 ## Remember to add correction factor
 ```{r}
 elders_pm_full_raw <- read_rds("Output/elders_pm_full_raw.rds")
+elders_dustrak_log <- read_rds("Output/elders_dustrak_log.rds") %>% 
+  filter(winter_id == 1) %>% 
+  arrange(home, sampling_visit) %>% 
+  group_by(home, sampling_visit) %>% 
+  distinct(home, .keep_all = TRUE)
+
 
 elders_pm_new <- elders_pm_full_raw %>%  
   #filter(area == "AK") %>% 
@@ -249,9 +300,87 @@ elders_pm_new <- elders_pm_full_raw %>%
   mutate(pm = pm/1.65,
          pm = pm*1000) %>% 
   mutate(pm = as.numeric(pm),
-         day_of_week = weekdays(date_pm))
+         day_of_week = weekdays(date_pm)) %>% 
+  mutate(home = str_remove(home, "[_]")) %>% 
+  arrange(area, home, date_pm) %>% 
+  group_by(area, home) %>% 
+  mutate(first_datetime = first(datetime_pm),
+         diff_datetime = interval(first_datetime, datetime_pm),
+         sampling_visit = if_else(diff_datetime > 864000, 2, 1),
+         sampling_visit = as.factor(sampling_visit),
+         winter_id = as.factor(winter_id)) %>% 
+  left_join(elders_dustrak_log, c("area", "home", "winter_id", "sampling_visit")) 
 
 
-# write_rds(elders_pm_new, "Output/elders_pm_clean.rds")
+elders_pm_new2 <- elders_pm_new %>%   
+  group_by(area, home, sampling_visit) %>% 
+  # new variables summarizing pm2.5 within each home
+  mutate(pm_total_observations = n(),
+         # new datetime values to calculate sampling interval
+         first_datetime = first(datetime_pm),
+         last_datetime = last(datetime_pm),
+         first_datetime = ymd_hms(first_datetime),
+         last_datetime = ymd_hms(last_datetime),
+         diff_datetime = interval(first_datetime, last_datetime),
+         # total sampling interval, based on first and last datetimes
+         pm_sample_interval = diff_datetime/86400,
+         # expected number of observations with the sampling interval
+         expected_obs = pm_sample_interval*24*60,
+         # difference between actual and expected observations
+         actual_vs_expected_diff = pm_total_observations - expected_obs,
+         # indicator variable if actual vs expected obs > 10 or greater
+         actual_vs_expected = if_else(actual_vs_expected_diff < 10 &
+                                      actual_vs_expected_diff > -10, 1, 0),
+         pm_mean = mean(pm),
+         # breaking sampling period into days
+         obs = row_number(),
+         sampling_day = if_else(obs < 1441, 1, 0),
+         sampling_day = if_else(obs < 2881 & obs > 1440, 2, sampling_day),
+         sampling_day = if_else(obs < 4321 & obs > 2880, 3, sampling_day)) %>%
+  # calculate pm means for each sampling day
+  group_by(area, home, sampling_day) %>% 
+  mutate(pm_mean_daily = mean(pm),
+         pm_sampling_day = sampling_day) %>%
+  unite(start_datetime_pm, c("start_date_pm", "start_time_pm"), sep = " ", remove = FALSE) %>% 
+  mutate(start_datetime_pm = ymd_hms(start_datetime_pm),
+         pm_start_diff = interval(first_datetime, start_datetime_pm),
+         pm_start_diff_hrs = pm_start_diff/3600) %>% 
+  ungroup() %>% 
+  select(-obs, -sampling_day) %>% 
+  arrange(area, home, sampling_visit) %>% 
+  mutate(pm = if_else(pm > 10000, 999999, pm)) %>% 
+  replace_with_na(replace = list(pm = 999999)) %>% 
+  # replace PM < 1 (lower DustTrak limit) with 0.5 (lower limit / 2) 
+  # 291,490 obs less than 1; 56,684 obs less than 0 
+  mutate(pm = if_else(pm < 1, 0.5, pm))
+# write_rds(elders_pm_new2, "Output/elders_pm_clean.rds")
+
+
+pm_summary <- elders_pm_new2 %>% 
+  group_by(area, home, sampling_visit) %>%
+  distinct(sampling_visit, .keep_all = TRUE)
+# write_csv(pm_summary, "Output/elders_pm_summary.csv")
 ```
+
+
+# Quick summary stats to help with further cleaning
+```{r}
+elders_pm <- read_rds("Output/elders_pm_clean.rds")
+
+summary_stats <- elders_pm %>% 
+  group_by(area) %>% 
+  summarize("n" = n(),
+            "Mean PM" = mean(pm, na.rm = TRUE), 
+            "SD PM" = sd(pm, na.rm = TRUE),
+            "Min PM" = min(pm, na.rm = TRUE), 
+            "25%" = quantile(pm, 0.25, na.rm = TRUE),
+            "Median PM" = median(pm, na.rm = TRUE),
+            "75%" = quantile(pm, 0.75, na.rm = TRUE),
+            "Max PM" = max(pm, na.rm = TRUE),
+            "Mean Sample Days" = mean(pm_sample_interval, na.rm = TRUE),
+            "SD Sample Days" = sd(pm_sample_interval, na.rm = TRUE),
+            "Mean Sample Obs" = mean(pm_total_observations, na.rm = TRUE))
+summary_stats
+```
+
 

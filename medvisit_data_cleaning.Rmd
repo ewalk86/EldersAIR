@@ -1,0 +1,111 @@
+---
+title: "EldersAIR initial PM data work"
+author: "Ethan Walker"
+date: "Started 20 Feb 2020, Updated 20 Feb 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+library(knitr)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+
+elders_ids_linked <- read_rds("Output/elders_ids_linked.rds") %>% 
+  filter(winter_id == 1 | winter_id == 2) %>% 
+  arrange(area, adult_id_num)
+```
+
+# Initial load, format, save medical visit data
+```{r}
+## Box location: Update Box location once final data loaded
+np_medvisit_initial <- read_xlsx("Input/NP/np_medicalvisit_20200220.xlsx")
+
+np_medvisit_new <- np_medvisit_initial %>% 
+  mutate(home_winter_id = HomeWinterID,
+         adult_id_num = AdultID,
+         sp02 = as.numeric(Sp02),
+         pr = as.numeric(PR),
+         bp_sys = as.numeric(BPS),
+         bp_dia = as.numeric(BPD),
+         hr = as.numeric(HR),
+         age = as.numeric(Age),
+         gender = as.character(Gender),
+         height_inches = as.numeric(Height),
+         weight_lbs = as.numeric(Weight),
+         fvc = as.numeric(PreFVC),
+         fev1 = as.numeric(PreFEV),
+         fev1_fvc_ratio = as.numeric(fev1/fvc),
+         fvc_pp = as.numeric(PredPreFVC),
+         fev1_pp = as.numeric(PredPreFEV),
+         fev1_fvc_ratio_pp = as.numeric(fev1_pp/fvc_pp),
+         spiro_grade = as.character(PreGrade),
+         spiro_maneuvers = as.numeric(PreManeuvers),
+         spiro_status = as.character(DrStatus),
+         spiro_result = as.character(DrResult),
+         sampling_visit = as.factor(SamplingVisit),
+         area = "NP") %>% 
+  select(home_winter_id:area) %>% 
+  arrange(home_winter_id) %>% 
+  replace_with_na_all(condition = ~.x == 0) %>% 
+  replace_with_na_all(condition = ~.x == -999)
+  
+# fix values after check spiro files
+np_medvisit_new2 <- np_medvisit_new %>% 
+  mutate(fvc = if_else(adult_id_num == "47" & fvc == "1.01", 1.81, fvc),
+         fev1 = if_else(adult_id_num == "55" & fev1 == "2.98", 1.98, fev1),
+         fvc = if_else(adult_id_num == "104" & fvc == "1.2", 1.65, fvc),
+         fev1 = if_else(adult_id_num == "104" & fev1 == "1.2", 1.6, fev1),
+         fvc_pp = if_else(adult_id_num == "104" & fvc_pp == "42", 58, fvc_pp),
+         fev1_pp = if_else(adult_id_num == "104" & fev1_pp == "56", 75, fev1_pp),
+         fev1_fvc_ratio = as.numeric(fev1/fvc),
+         fev1_fvc_ratio_pp = as.numeric(fev1_pp/fvc_pp))
+
+
+## Box location: Update Box location once final data loaded
+nn_medvisit_initial <- read_xlsx("Input/NN/nn_medicalvisit_20200220.xlsx")
+
+nn_medvisit_new <- nn_medvisit_initial %>% 
+  mutate(BPD = if_else(BPD < 50, 0, BPD)) %>% 
+  replace_with_na_all(condition = ~.x %in% c(-999, 0)) %>% 
+  mutate(home_winter_id = HomeWinterID,
+         adult_id_num = AdultID,
+         sp02 = as.numeric(Sp02),
+         pr = as.numeric(PR),
+         bp_sys = as.numeric(BPS),
+         bp_dia = as.numeric(BPD),
+         hr = as.numeric(HR),
+         age = as.numeric(Age),
+         gender = as.character(Gender),
+         height_inches = as.numeric(Height),
+         weight_lbs = as.numeric(Weight),
+         fvc = as.numeric(PreFVC),
+         fev1 = as.numeric(PreFEV),
+         fev1_fvc_ratio = as.numeric(fev1/fvc),
+         fvc_pp = as.numeric(PredPreFVC),
+         fev1_pp = as.numeric(PredPreFEV),
+         fev1_fvc_ratio_pp = as.numeric(fev1_pp/fvc_pp),
+         spiro_grade = as.character(PreGrade),
+         spiro_maneuvers = as.numeric(PreManeuvers),
+         spiro_status = as.character(DrStatus),
+         spiro_result = as.character(DrResult),
+         sampling_visit = as.factor(SamplingVisit),
+         area = "NN") %>% 
+  select(home_winter_id:area) %>% 
+  replace_with_na(replace = list(bp_sys = c(9, 80))) %>% 
+  arrange(home_winter_id) 
+
+# fix values after check spiro files
+nn_medvisit_new2 <- nn_medvisit_new %>% 
+  mutate(age = if_else(adult_id_num == "47" & age == 17, 71, age))
+```
+
