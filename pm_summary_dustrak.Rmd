@@ -1,0 +1,104 @@
+---
+title: "Elders PM Summary"
+author: "Ethan Walker"
+date: "Started 24 Feb 2020, Updated 24 Feb 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, 
+                      include = TRUE, warning = FALSE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readr)
+library(readxl)
+library(knitr)
+library(lubridate)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+```
+
+```{r}
+# Load data
+elders_pm <- read_rds("Output/elders_pm_clean.rds")
+```
+
+# Summary stats
+```{r}
+pm_summary <- elders_pm %>% 
+  #filter(pm < 500) %>% 
+  mutate(pm = if_else(pm > 500, 500, pm)) %>% 
+  group_by(area) %>% 
+  summarize("n" = n(),
+            "Mean PM" = mean(pm, na.rm = TRUE), 
+            "SD PM" = sd(pm, na.rm = TRUE),
+            "Min PM" = min(pm, na.rm = TRUE), 
+            "25%" = quantile(pm, 0.25, na.rm = TRUE),
+            "Median PM" = median(pm, na.rm = TRUE),
+            "75%" = quantile(pm, 0.75, na.rm = TRUE),
+            "Max PM" = max(pm, na.rm = TRUE),
+            "Mean Sample Days" = mean(pm_sample_interval, na.rm = TRUE),
+            "SD Sample Days" = sd(pm_sample_interval, na.rm = TRUE),
+            "Mean Sample Obs" = mean(pm_total_observations, na.rm = TRUE)) %>% 
+  #select(-treatment) %>% 
+  t() 
+kable(pm_summary, digits = 1, align = "c")
+
+
+
+pm_by_day <- elders_pm %>% 
+  mutate(sampling_month = month(pm_datetime_new, abbr = TRUE)) %>% 
+  mutate(day_of_week = factor(day_of_week,
+                                 levels = c("Monday", "Tuesday", "Wednesday", "Thursday",
+                                            "Friday", "Saturday", "Sunday"),
+                                 labels = c("Mon", "Tues", "Wed", "Thur", "Fri", "Sat", "Sun"))) %>% 
+  #filter(pm < 500) %>% 
+  mutate(pm = if_else(pm > 500, 500, pm)) %>% 
+  group_by(area, day_of_week) %>% 
+  summarize("Mean PM" = mean(pm, na.rm = TRUE), 
+            "SD PM" = sd(pm, na.rm = TRUE),
+            "Min PM" = min(pm, na.rm = TRUE), 
+            "25%" = quantile(pm, 0.25, na.rm = TRUE),
+            "Median PM" = median(pm, na.rm = TRUE),
+            "75%" = quantile(pm, 0.75, na.rm = TRUE),
+            "Max PM" = max(pm, na.rm = TRUE))
+pm_by_day
+
+
+
+summary_stats <- elders_pm %>% 
+  filter(winter_id == 1) %>% 
+  group_by(area) %>% 
+  distinct(home) %>% 
+  summarize(n())
+summary_stats
+```
+
+
+# Boxplots for PM by study area
+```{r, fig.height=6, fig.width=5}
+boxplots_kids_pm <- pm_clean %>% 
+  filter(winter_id == 1 & treatment == "Placebo") %>% 
+  filter(pm < 500) %>% 
+  ggplot(aes(area, pm)) +
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    stat_summary(fun.y=mean, geom="point", shape=17, size=3, color="red") +
+    theme_minimal() +
+    ylim(0, 500) +
+    #geom_hline(yintercept = 50, color = "red", size = 1.2) +
+    labs(y = expression(paste("PM"[2.5], " (", mu, g/m^3, ")"))) +
+    #labs(aes(x = "", y = paste("48-hour indoor PM "[2.5], " (", mu, g/m^3, ")"))) +
+    theme(axis.text.x = element_text(size = 16, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank())
+boxplots_kids_pm
+```

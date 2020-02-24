@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial PM data work"
 author: "Ethan Walker"
-date: "Started 20 Feb 2020, Updated 21 Feb 2020"
+date: "Started 20 Feb 2020, Updated 24 Feb 2020"
 output: pdf_document
 ---
 
@@ -123,6 +123,10 @@ nn_medvisit_new2 <- nn_medvisit_new %>%
          fev1 = if_else(adult_id_num == "77" & fev1 == 0.81, 2.38, fev1),
          fvc_pp = if_else(adult_id_num == "77" & fvc_pp == 57, 76, fvc_pp),
          fev1_pp = if_else(adult_id_num == "77" & fev1_pp == 49, 73, fev1_pp),
+         fvc = if_else(adult_id_num == "55" & fvc == 1.13, 1.7, fvc),
+         fev1 = if_else(adult_id_num == "55" & fev1 == 1.12, 1.18, fev1),
+         fvc_pp = if_else(adult_id_num == "55" & fvc_pp == 0.35, 82, fvc_pp),
+         fev1_pp = if_else(adult_id_num == "55" & fev1_pp == 2.31, 77, fev1_pp),
          fvc_pp = if_else(adult_id_num == "77" & fvc_pp == 21, 77, fvc_pp),
          fev1_pp = if_else(adult_id_num == "77" & fev1_pp == 27, 79, fev1_pp),
          fvc = if_else(adult_id_num == "79" & fvc == 1.59, 1.66, fvc),
@@ -130,6 +134,10 @@ nn_medvisit_new2 <- nn_medvisit_new %>%
          fvc_pp = if_else(adult_id_num == "79" & fvc_pp == 89, 93, fvc_pp),
          fev1_pp = if_else(adult_id_num == "79" & fev1_pp == 123, 91, fev1_pp),
          fvc = if_else(adult_id_num == "61" & fvc == 3.07, 3.43, fvc),
+         fvc_pp = if_else(fvc_pp < 1, fvc_pp*1000, fvc_pp),
+         fev1_pp = if_else(fev1_pp < 1, fev1_pp*1000, fev1_pp),
+         fvc_pp = if_else(fvc_pp < 10, (fvc/fvc_pp)*100, fvc_pp),
+         fev1_pp = if_else(fev1_pp < 10, (fev1/fev1_pp)*100, fev1_pp),
          weight_lbs = if_else(adult_id_num == "61" & weight_lbs == 3.43, 127, weight_lbs),
          height_inches = if_else(height_inches == 5, 60, height_inches),
          bp_sys = if_else(adult_id_num == "9" & bp_sys == 94, 104, bp_sys),
@@ -141,7 +149,11 @@ nn_medvisit_new2 <- nn_medvisit_new %>%
   #% predicted values are a mess
 
 
-elders_medvisit <- rbind(np_medvisit_new2, nn_medvisit_new2)
+elders_medvisit <- rbind(np_medvisit_new2, nn_medvisit_new2) %>% 
+  mutate(bmi = (weight_lbs/(height_inches^2)*703),
+         home_winter_id = as.factor(home_winter_id),
+         adult_id_num = as.factor(adult_id_num)) %>% 
+  left_join(elders_ids_linked, by = c("area", "home_winter_id", "adult_id_num"))
 
 #write_rds(elders_medvisit, "Output/elders_medvisit_clean.rds")
 ```
@@ -149,11 +161,13 @@ elders_medvisit <- rbind(np_medvisit_new2, nn_medvisit_new2)
 
 # Summary stats to help with further data cleaning
 ```{r}
-elders_medvisit <- read_rds("Output/elders_medvisit_clean.rds")
+elders_medvisit <- read_rds("Output/elders_medvisit_clean.rds") 
 
 medvisit_summary_function <- function(data, var) {
   
   medvisit_summary <- data %>% 
+    filter(winter_id == 1) %>% 
+    filter(spiro_status == "Acceptable") %>% 
     select(area, var) %>% 
     group_by(area) %>% 
     summarize_all(list(mean=mean, sd=sd, min=min, med=median, max=max), na.rm = TRUE)
@@ -169,8 +183,22 @@ medvisit_summary_function(elders_medvisit, "hr")
 medvisit_summary_function(elders_medvisit, "age")
 medvisit_summary_function(elders_medvisit, "height_inches")
 medvisit_summary_function(elders_medvisit, "weight_lbs")
+medvisit_summary_function(elders_medvisit, "bmi")
 medvisit_summary_function(elders_medvisit, "fvc")
 medvisit_summary_function(elders_medvisit, "fev1")
 medvisit_summary_function(elders_medvisit, "fev1_fvc_ratio")
+medvisit_summary_function(elders_medvisit, "fvc_pp")
+medvisit_summary_function(elders_medvisit, "fev1_pp")
+medvisit_summary_function(elders_medvisit, "fev1_fvc_ratio_pp")
+
+
+summary_stats <- elders_medvisit %>% 
+  filter(winter_id == 1) %>% 
+  #filter(spiro_status == "Acceptable") %>% 
+  filter(!is.na(bp_sys)) %>% 
+  group_by(area) %>% 
+  distinct(home) %>% 
+  summarize(n())
+summary_stats
 ```
 
