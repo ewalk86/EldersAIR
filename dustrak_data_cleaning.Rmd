@@ -348,7 +348,7 @@ elders_pm_new2 <- elders_pm_new %>%
   ungroup() %>% 
   select(-obs, -sampling_day) %>% 
   arrange(area, home, sampling_visit) 
-# write_rds(elders_pm_new2, "Output/elders_pm_clean.rds")
+# write_rds(elders_pm_new2, "Output/elders_pm_new.rds")
 
 
 pm_summary <- elders_pm_new2 %>% 
@@ -361,7 +361,7 @@ pm_summary <- elders_pm_new2 %>%
 # Check sample start times and PM values
 ```{r}
 # Load data 
-elders_pm <- read_rds("Output/elders_pm_clean.rds")
+elders_pm <- read_rds("Output/elders_pm_new.rds")
 
 
 # Checking difference between dustrak start datetime and field data log datetime
@@ -472,7 +472,7 @@ check_data <- kids_pm %>%
 # Fix PM data after checking odd values and time differences
 ```{r}
 # Load data 
-elders_pm <- read_rds("Output/elders_pm_clean.rds")
+elders_pm <- read_rds("Output/elders_pm_new.rds")
 
 pm_sample_times_comparison <- read_xlsx("Input/pm_sample_times_comparison.xlsx") %>% 
   select(area, home, winter_id, sampling_visit, cleaning_comments, 
@@ -516,7 +516,7 @@ elders_pm_new <- elders_pm %>%
   select(home, area, winter_id, sampling_visit, pm, file_type, day_of_week,
          pm_datetime_new, first_datetime, dtid, pm_total_observations, 
          pm_sample_interval, expected_obs, actual_vs_expected, 
-         actual_vs_expected_diff, pm_mean, pm_mean_daily) %>% 
+         actual_vs_expected_diff, pm_mean, pm_mean_daily, pm_sampling_day) %>% 
   left_join(pm_sample_times_comparison, c("area", "home", "winter_id", "sampling_visit")) %>% 
   left_join(elders_ids_linked, c("area", "home", "winter_id")) %>% 
   ungroup() %>% 

@@ -1,0 +1,121 @@
+---
+title: "EldersAIR initial stove grades/usage data work"
+author: "Ethan Walker"
+date: "Started 25 Feb 2020, Updated 25 Feb 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+```
+
+
+# Load, format, and save stove grades data
+```{r}
+## Box location: Update Box location once final data loaded
+np_stove_initial <- read_xlsx("Input/NP/np_stove_20200225.xlsx") %>% 
+  # rename variables
+  mutate(home_id = as.factor(HomeID),
+         home_winter_id = as.factor(HomeWinterID),
+         stove_grade = as.factor(Score1),
+         area = "NP") %>% 
+  select(home_id, home_winter_id, area, stove_grade) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+
+## Box location: Update Box location once final data loaded
+nn_stove_initial <- read_xlsx("Input/NN/nn_stove_20200225.xlsx") %>% 
+  # rename variables
+  mutate(home_id = as.factor(HomeID),
+         home_winter_id = as.factor(HomeWinterID),
+         stove_grade = as.factor(Score1),
+         area = "NN") %>% 
+  select(home_id, home_winter_id, area, stove_grade) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+
+# Combine locations and save
+elders_stove_grades <- rbind(np_stove_initial, nn_stove_initial)
+
+#write_rds(elders_stove_grades, "Output/elders_stove_grades.rds")
+```
+
+
+# Clean up all stove grades data
+```{r}
+elders_stove_grades <- read_rds("Output/elders_stove_grades.rds")
+
+elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
+
+elders_stove_grades_clean <- elders_stove_grades %>% 
+  left_join(elders_ids_linked, by = c("area", "home_id", "home_winter_id")) %>% 
+  filter(!is.na(home_winter_id)) 
+
+# write_rds(elders_stove_grades_clean, "Output/elders_stove_grades_clean.rds")
+
+elders_stove_grades_clean <- read_rds("Output/elders_stove_grades_clean.rds")
+```
+
+
+##########################################
+
+
+# Load, format, and save stove usage data
+```{r}
+## Box location: Update Box location once final data loaded
+np_stove_initial <- read_xlsx("Input/NP/np_woodstoveusage_20200225.xlsx") %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         burn_level = as.factor(Burning),
+         wood_type = as.factor(Wood),
+         wood_type_other = as.character(WhOtherWood),
+         sampling_visit = as.factor(SamplingVisit),
+         area = "NP") %>% 
+  select(home_winter_id, area, sampling_visit, burn_level, wood_type, wood_type_other) %>% 
+  arrange(home_winter_id, sampling_visit)
+
+
+## Box location: Update Box location once final data loaded
+nn_stove_initial <- read_xlsx("Input/NN/nn_woodstoveusage_20200225.xlsx") %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         burn_level = as.factor(Burning),
+         wood_type = as.factor(Wood),
+         wood_type_other = as.character(WhOtherWood),
+         sampling_visit = as.factor(SamplingVisit),
+         area = "NN") %>% 
+  select(home_winter_id, area, sampling_visit, burn_level, wood_type, wood_type_other) %>% 
+  arrange(home_winter_id, sampling_visit)
+
+
+# Combine locations and save
+elders_stove_usage <- rbind(np_stove_initial, nn_stove_initial)
+
+#write_rds(elders_stove_usage, "Output/elders_stove_usage.rds")
+```
+
+
+# Clean up all stove usage data
+```{r}
+elders_stove_usage <- read_rds("Output/elders_stove_usage.rds")
+
+elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
+
+elders_stove_usage_clean <- elders_stove_usage %>% 
+  left_join(elders_ids_linked, by = c("area", "home_winter_id")) %>% 
+  filter(!is.na(burn_level)) 
+
+# write_rds(elders_stove_usage_clean, "Output/elders_stove_usage_clean.rds")
+
+elders_stove_usage_clean <- read_rds("Output/elders_stove_usage_clean.rds")
+```

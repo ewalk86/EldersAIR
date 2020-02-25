@@ -1,0 +1,223 @@
+---
+title: "EldersAIR initial home characteristics/activity data work"
+author: "Ethan Walker"
+date: "Started 25 Feb 2020, Updated 25 Feb 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+```
+
+
+# Load, format, and save home characteristics data
+```{r}
+## Box location: Update Box location once final data loaded
+np_homechar_initial <- read_xlsx("Input/NP/np_homechar_20200225.xlsx") %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         residents_total = as.numeric(Residents),
+         residents_over55 = as.numeric(Over55),
+         residents_smoke = as.factor(Smoke),
+         residents_smoke_inside = as.factor(SmokeInside),
+         home_type = as.factor(HomeType),
+         home_year_built = as.numeric(YearHomeBuilt),
+         home_sqft = as.numeric(SqFootage),
+         home_floors = as.numeric(NumFloors),
+         home_bedrooms = as.numeric(NumBedrooms),
+         home_windows = as.numeric(NumWindows),
+         home_pets = as.numeric(NumPets),
+         home_furry = as.numeric(NumFurryPets),
+         primary_heat = as.factor(PrimaryHeat),
+         secondary_heat = as.factor(SecondaryHeat),
+         stove_model = as.character(WoodstoveModel),
+         stove_age = as.factor(WoodstoveAge),
+         stove_cert = as.factor(WoodstoveEPACert),
+         wood_collect = as.factor(WhenGet),
+         wood_collect_method = as.factor(AcquireFrom),
+         wood_cords = as.numeric(Cords),
+         chimney_clean = as.factor(ChimneyCleaned),
+         home_damp = as.factor(Damp),
+         home_mold = as.factor(Mold),
+         home_fireplace = as.factor(ExistingFireplace),
+         home_furnace = as.factor(ExistingFurnace),
+         home_woodstove = as.factor(ExistingWoodstove),
+         home_insert = as.factor(ExistingInsert),
+         area = "NP") %>% 
+  select(home_winter_id, area, residents_total, residents_over55,
+         residents_smoke, residents_smoke_inside,
+         home_type, home_year_built, home_sqft, home_floors, home_bedrooms,
+         home_windows, home_pets, home_furry, primary_heat,
+         secondary_heat, stove_model, stove_age, stove_cert, wood_collect,
+         wood_collect_method, wood_cords, chimney_clean,
+         home_damp, home_mold, home_fireplace, home_furnace,
+         home_woodstove, home_insert) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+
+## Box location: Update Box location once final data loaded
+nn_homechar_initial <- read_xlsx("Input/NN/nn_homechar_20200225.xlsx") %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         residents_total = as.numeric(Residents),
+         residents_over55 = as.numeric(Over55),
+         residents_smoke = as.factor(Smoke),
+         residents_smoke_inside = as.factor(SmokeInside),
+         home_type = as.factor(HomeType),
+         home_year_built = as.numeric(YearHomeBuilt),
+         home_sqft = as.numeric(SqFootage),
+         home_floors = as.numeric(NumFloors),
+         home_bedrooms = as.numeric(NumBedrooms),
+         home_windows = as.numeric(NumWindows),
+         home_pets = as.numeric(NumPets),
+         home_furry = as.numeric(NumFurryPets),
+         primary_heat = as.factor(PrimaryHeat),
+         secondary_heat = as.factor(SecondaryHeat),
+         stove_model = as.character(WoodstoveModel),
+         stove_age = as.factor(WoodstoveAge),
+         stove_cert = as.factor(WoodstoveEPACert),
+         wood_collect = as.factor(WhenGet),
+         wood_collect_method = as.factor(AcquireFrom),
+         wood_cords = as.numeric(Cords),
+         chimney_clean = as.factor(ChimneyCleaned),
+         home_damp = as.factor(Damp),
+         home_mold = as.factor(Mold),
+         home_fireplace = as.factor(ExistingFireplace),
+         home_furnace = as.factor(ExistingFurnace),
+         home_woodstove = as.factor(ExistingWoodstove),
+         home_insert = as.factor(ExistingInsert),
+         area = "NN") %>% 
+  select(home_winter_id, area, residents_total, residents_over55,
+         residents_smoke, residents_smoke_inside,
+         home_type, home_year_built, home_sqft, home_floors, home_bedrooms,
+         home_windows, home_pets, home_furry, primary_heat,
+         secondary_heat, stove_model, stove_age, stove_cert, wood_collect,
+         wood_collect_method, wood_cords, chimney_clean,
+         home_damp, home_mold, home_fireplace, home_furnace,
+         home_woodstove, home_insert) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id)
+
+
+# Combine locations and save
+elders_home_char <- rbind(np_homechar_initial, nn_homechar_initial)
+
+#write_rds(elders_home_char, "Output/elders_home_char.rds")
+```
+
+
+# Clean up all home characteristics data
+```{r}
+elders_home_char <- read_rds("Output/elders_home_char.rds")
+
+elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
+
+elders_home_char_clean <- elders_home_char %>% 
+  left_join(elders_ids_linked, by = c("area", "home_winter_id")) %>% 
+  filter(!is.na(home_winter_id)) %>% 
+  replace_with_na(replace = list(home_year_built = 0)) %>% 
+  replace_with_na(replace = list(home_floors = 0)) %>% 
+  replace_with_na(replace = list(home_windows = 0)) %>% 
+  replace_with_na(replace = list(residents_total = 0)) %>% 
+  replace_with_na(replace = list(residents_over55 = 0)) %>% 
+  replace_with_na(replace = list(wood_cords = 0)) %>% 
+  replace_with_na(replace = list(home_sqft = 0))
+
+# write_rds(elders_home_char_clean, "Output/elders_home_char_clean.rds")
+
+elders_home_char_clean <- read_rds("Output/elders_home_char_clean.rds")
+```
+
+
+##########################################
+
+
+# Load, format, and save home activity data
+```{r}
+## Box location: Update Box location once final data loaded
+np_homeactivity_initial <- read_xlsx("Input/NP/np_homeactivity_20200225.xlsx") %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         home_act_day = as.factor(Day),
+         home_act_gas = as.factor(Gas),
+         home_act_elect = as.factor(Electrical),
+         home_act_propane = as.factor(Propane),
+         home_act_oil = as.factor(Oil),
+         home_act_other = as.factor(Other),
+         home_act_smoking = as.factor(Smoking),
+         home_act_incense = as.factor(Incense),
+         home_act_candle = as.factor(Candle),
+         home_act_kerosene = as.factor(Kerosene),
+         home_act_windows = as.factor(OpenWindows),
+         home_act_door = as.factor(OpenDoor),
+         home_act_sweep = as.factor(Sweeping),
+         sampling_visit = as.factor(SamplingVisit),
+         area = "NP") %>% 
+  select(home_winter_id, area, sampling_visit, home_act_day,
+         home_act_gas, home_act_elect, home_act_propane,
+         home_act_oil, home_act_other, home_act_smoking,
+         home_act_incense, home_act_candle, home_act_kerosene,
+         home_act_windows, home_act_door, home_act_sweep) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id, home_act_day)
+
+
+## Box location: Update Box location once final data loaded
+nn_homeactivity_initial <- read_xlsx("Input/NN/nn_homeactivity_20200225.xlsx") %>% 
+  # rename variables
+  mutate(home_winter_id = as.factor(HomeWinterID),
+         home_act_day = as.factor(Day),
+         home_act_gas = as.factor(Gas),
+         home_act_elect = as.factor(Electrical),
+         home_act_propane = as.factor(Propane),
+         home_act_oil = as.factor(Oil),
+         home_act_other = as.factor(Other),
+         home_act_smoking = as.factor(Smoking),
+         home_act_incense = as.factor(Incense),
+         home_act_candle = as.factor(Candle),
+         home_act_kerosene = as.factor(Kerosene),
+         home_act_windows = as.factor(OpenWindows),
+         home_act_door = as.factor(OpenDoor),
+         home_act_sweep = as.factor(Sweeping),
+         sampling_visit = as.factor(SamplingVisit),
+         area = "NN") %>% 
+  select(home_winter_id, area, sampling_visit, home_act_day,
+         home_act_gas, home_act_elect, home_act_propane,
+         home_act_oil, home_act_other, home_act_smoking,
+         home_act_incense, home_act_candle, home_act_kerosene,
+         home_act_windows, home_act_door, home_act_sweep) %>% 
+  ungroup() %>% 
+  arrange(home_winter_id, home_act_day)
+
+
+# Combine locations and save
+elders_home_activity <- rbind(np_homeactivity_initial, nn_homeactivity_initial)
+
+#write_rds(elders_home_activity, "Output/elders_home_activity.rds")
+```
+
+
+# Clean up all home activity data
+```{r}
+elders_home_activity <- read_rds("Output/elders_home_activity.rds")
+
+elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
+
+elders_home_activity_clean <- elders_home_activity %>% 
+  left_join(elders_ids_linked, by = c("area", "home_winter_id")) %>% 
+  filter(!is.na(home_winter_id)) 
+
+# write_rds(elders_home_activity_clean, "Output/elders_home_activity_clean.rds")
+
+elders_home_activity_clean <- read_rds("Output/elders_home_activity_clean.rds")
+```
+

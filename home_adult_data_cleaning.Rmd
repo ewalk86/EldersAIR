@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial home/adult data work"
 author: "Ethan Walker"
-date: "Started 10 Feb 2020, Updated 20 Feb 2020"
+date: "Started 10 Feb 2020, Updated 25 Feb 2020"
 output: pdf_document
 ---
 
@@ -27,12 +27,9 @@ np_adult_initial <- read_xlsx("Input/NP/np_adult_20200220.xlsx") %>%
   mutate(adult_id_num = as.factor(adultid),
          home_id = as.factor(homeid),
          adult_id_char = as.factor(id),
-         hispanic = as.factor(hispanic),
-         race = as.factor(race),
-         gender = as.factor(gender),
          consent_date = ymd(consentdate),
          area = "NP") %>% 
-  select(adult_id_num, home_id, area, adult_id_char, hispanic, race, gender, consent_date) %>% 
+  select(adult_id_num, home_id, area, adult_id_char, consent_date) %>% 
   arrange(adult_id_num)
 
 ## Box location: Update Box location once final data loaded
@@ -41,15 +38,52 @@ nn_adult_initial <- read_xlsx("Input/NN/nn_adult_20200220.xlsx") %>%
   mutate(adult_id_num = as.factor(adultid),
          home_id = as.factor(homeid),
          adult_id_char = as.factor(id),
-         hispanic = as.factor(hispanic),
-         race = as.factor(race),
-         gender = as.factor(gender),
          consent_date = ymd(consentdate),
          area = "NN") %>% 
-  select(adult_id_num, home_id, area, adult_id_char, hispanic, race, gender, consent_date) %>% 
+  select(adult_id_num, home_id, area, adult_id_char, consent_date) %>% 
   arrange(adult_id_num)
 
 elders_adult <- rbind(np_adult_initial, nn_adult_initial)
+
+
+# Load files 
+## Box location: Update Box location once final data loaded
+np_demographics_initial <- read_xlsx("Input/NP/np_demographics_20200225.xlsx") %>% 
+  rename_all(tolower) %>% 
+  mutate(adult_id_num = as.factor(adultid),
+         home_winter_id = as.factor(homewinterid),
+         gender = factor(gender),
+         hispanic = factor(hispanic),
+         race = factor(race),
+         income = factor(income),
+         education = factor(education),
+         total_residents = as.numeric(totalres),
+         residents_under18 = as.numeric(undereighteen),
+         age_nov1 = as.numeric(agenov1),
+         area = "NP") %>% 
+  select(adult_id_num, home_winter_id, area, gender, hispanic, race, income, 
+         education, total_residents, residents_under18, age_nov1) %>% 
+  arrange(adult_id_num)
+
+## Box location: Update Box location once final data loaded
+nn_demographics_initial <- read_xlsx("Input/NN/nn_demographics_20200225.xlsx") %>% 
+  rename_all(tolower) %>% 
+  mutate(adult_id_num = as.factor(adultid),
+         home_winter_id = as.factor(homewinterid),
+         gender = factor(gender),
+         hispanic = factor(hispanic),
+         race = factor(race),
+         income = factor(income),
+         education = factor(education),
+         total_residents = as.numeric(totalres),
+         residents_under18 = as.numeric(undereighteen),
+         age_nov1 = as.numeric(agenov1),
+         area = "NN") %>% 
+  select(adult_id_num, home_winter_id, area, gender, hispanic, race, income, 
+         education, total_residents, residents_under18, age_nov1) %>% 
+  arrange(adult_id_num)
+
+elders_demographics <- rbind(np_demographics_initial, nn_demographics_initial)
 
 
 ## Box location: Update Box location once final data loaded
@@ -135,11 +169,16 @@ elders_home <- rbind(np_home_initial, nn_home_initial)
 
 # Combine adult, home, homewinter files
 ```{r}
-elders_ids_linked <- elders_homewinter %>% 
+elders_ids_linked <- elders_homewinter %>%
+  filter(winter_id != 3) %>% 
+  left_join(elders_demographics, by = c("area", "home_winter_id")) %>% 
   left_join(elders_home, by = c("area", "home_id")) %>% 
-  left_join(elders_adult, by = c("area", "home_id")) %>% 
-  mutate(home = str_remove(home, "[_]"))
+  left_join(elders_adult, by = c("area", "home_id", "adult_id_num")) %>% 
+  mutate(home = str_remove(home, "[_]")) %>% 
+  arrange(area, home, winter_id)
 #write_rds(elders_ids_linked, "Output/elders_ids_linked.rds")
+
+elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
 ```
 
 
