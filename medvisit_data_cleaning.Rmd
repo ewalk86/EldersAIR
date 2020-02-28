@@ -145,31 +145,43 @@ nn_medvisit_new2 <- nn_medvisit_new %>%
          fev1_fvc_ratio = as.numeric(fev1/fvc),
          fev1_fvc_ratio_pp = as.numeric(fev1_pp/fvc_pp))
 
-# Check: 
-  #% predicted values are a mess
 
 
 elders_medvisit <- rbind(np_medvisit_new2, nn_medvisit_new2) %>% 
+  select(-gender) %>% 
   mutate(bmi = (weight_lbs/(height_inches^2)*703),
          home_winter_id = as.factor(home_winter_id),
          adult_id_num = as.factor(adult_id_num)) %>% 
   left_join(elders_ids_linked, by = c("area", "home_winter_id", "adult_id_num"))
 
 #write_rds(elders_medvisit, "Output/elders_medvisit_clean.rds")
+
+
+
+save_var_names <- data.frame(t(elders_medvisit)) %>% 
+  rownames_to_column() %>% 
+  select(rowname)
+
+write_csv(save_var_names, "Output/medvisit_var_names.csv")
 ```
 
 
 # Summary stats to help with further data cleaning
 ```{r}
-elders_medvisit <- read_rds("Output/elders_medvisit_clean.rds") 
+elders_medvisit <- read_rds("Output/elders_medvisit_clean.rds") %>% 
+  mutate(hypertension = if_else(bp_sys >= 140 | bp_dia >= 90, 1, 0),
+         hypertension = as.numeric(hypertension),
+         obstruction = if_else(fev1_fvc_ratio < 0.7 | fev1_pp < 75, 1, 0),
+         obstruction = as.numeric(obstruction))
 
 medvisit_summary_function <- function(data, var) {
   
   medvisit_summary <- data %>% 
     filter(winter_id == 1) %>% 
     filter(spiro_status == "Acceptable") %>% 
-    select(area, var) %>% 
-    group_by(area) %>% 
+    select(var) %>% 
+    #select(area, var) %>% 
+    #group_by(area) %>% 
     summarize_all(list(mean=mean, sd=sd, min=min, med=median, max=max), na.rm = TRUE)
   medvisit_summary
   
@@ -190,6 +202,7 @@ medvisit_summary_function(elders_medvisit, "fev1_fvc_ratio")
 medvisit_summary_function(elders_medvisit, "fvc_pp")
 medvisit_summary_function(elders_medvisit, "fev1_pp")
 medvisit_summary_function(elders_medvisit, "fev1_fvc_ratio_pp")
+medvisit_summary_function(elders_medvisit, "hypertension")
 
 
 summary_stats <- elders_medvisit %>% 
@@ -199,6 +212,20 @@ summary_stats <- elders_medvisit %>%
   group_by(area) %>% 
   distinct(home) %>% 
   summarize(n())
+summary_stats
+
+summary_stats <- elders_medvisit %>% 
+  filter(winter_id == 1) %>% 
+  #filter(spiro_status == "Acceptable") %>% 
+  filter(!is.na(hypertension)) %>% 
+  summarize(sum(hypertension)/n())
+summary_stats
+
+summary_stats <- elders_medvisit %>% 
+  filter(winter_id == 1) %>% 
+  filter(spiro_status == "Acceptable") %>% 
+  filter(!is.na(obstruction)) %>% 
+  summarize(sum(obstruction)/n())
 summary_stats
 ```
 

@@ -75,6 +75,14 @@ summary_stats <- elders_pm %>%
   distinct(home) %>% 
   summarize(n())
 summary_stats
+
+summary_stats <- elders_pm %>% 
+  filter(winter_id == 1) %>% 
+  mutate(mean_threshold_25 = if_else(pm_mean >= 25, 1, 0),
+         mean_threshold_25 = as.numeric(mean_threshold_25)) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  summarize(sum(mean_threshold_25)/n())
+summary_stats
 ```
 
 

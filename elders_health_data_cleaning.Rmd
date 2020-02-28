@@ -1,0 +1,181 @@
+---
+title: "Elders health and elder files data cleaning"
+author: "Ethan Walker"
+date: "Started 28 Feb 2020, Updated 28 Feb 2020"
+output: pdf_document 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, 
+                      include = TRUE, warning = FALSE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+library(knitr)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+```
+
+```{r}
+# Load data
+elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
+```
+
+
+################# At Home Log ###############
+
+# Load and merge files from different locations
+```{r}
+nn_athomelog_initial <- read_xlsx("Input/NN/nn_athome_20200225.xlsx") %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         adult_id_num = as.character(AdultID),
+         area = "NN",
+         sampling_visit = as.numeric(SamplingVisit),
+         at_home_day = as.factor(Day),
+         at_home_7 = as.factor(AtHome1),
+         at_home_8 = as.factor(AtHome2),
+         at_home_9 = as.factor(AtHome3),
+         at_home_10 = as.factor(AtHome4),
+         at_home_11 = as.factor(AtHome5),
+         at_home_12 = as.factor(AtHome6),
+         at_home_13 = as.factor(AtHome7),
+         at_home_14 = as.factor(AtHome8),
+         at_home_15 = as.factor(AtHome9),
+         at_home_16 = as.factor(AtHome10),
+         at_home_17 = as.factor(AtHome11),
+         at_home_18 = as.factor(AtHome12),
+         at_home_19 = as.factor(AtHome13),
+         at_home_20 = as.factor(AtHome14),
+         at_home_21 = as.factor(AtHome15),
+         at_home_22 = as.factor(AtHome16)) %>% 
+  select(home_winter_id:at_home_22)
+
+
+
+np_athomelog_initial <- read_xlsx("Input/NP/np_athomelog_20200225.xlsx") %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         adult_id_num = as.character(AdultID),
+         area = "NP",
+         sampling_visit = as.numeric(SamplingVisit),
+         at_home_day = as.factor(Day),
+         at_home_7 = as.factor(AtHome1),
+         at_home_8 = as.factor(AtHome2),
+         at_home_9 = as.factor(AtHome3),
+         at_home_10 = as.factor(AtHome4),
+         at_home_11 = as.factor(AtHome5),
+         at_home_12 = as.factor(AtHome6),
+         at_home_13 = as.factor(AtHome7),
+         at_home_14 = as.factor(AtHome8),
+         at_home_15 = as.factor(AtHome9),
+         at_home_16 = as.factor(AtHome10),
+         at_home_17 = as.factor(AtHome11),
+         at_home_18 = as.factor(AtHome12),
+         at_home_19 = as.factor(AtHome13),
+         at_home_20 = as.factor(AtHome14),
+         at_home_21 = as.factor(AtHome15),
+         at_home_22 = as.factor(AtHome16)) %>% 
+  select(home_winter_id:at_home_22)     
+
+
+# Combine logs from all areas
+elders_at_home_log <- rbind(nn_athomelog_initial, np_athomelog_initial) %>% 
+  left_join(elders_ids_linked, c("area", "home_winter_id", "adult_id_num"))
+# write_rds(elders_at_home_log, "Output/elders_at_home_log.rds")
+
+save_var_names <- data.frame(t(elders_at_home_log)) %>% 
+  rownames_to_column() %>% 
+  select(rowname)
+
+write_csv(save_var_names, "Output/at_home_var_names.csv")
+```
+
+
+
+################# Health History ###############
+
+# Load and merge files from different locations
+```{r}
+nn_healthhistory_initial <- read_xlsx("Input/NN/nn_healthhistory_20200225.xlsx") %>% 
+  rename_all(~str_replace_all(., "Date", "_date")) %>% 
+  rename_all(tolower) %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         adult_id_num = as.character(adultid),
+         area = "NN",
+         rheum_arth = ra,
+         rheum_arth_date = ra_date) %>% 
+  select(-id:-homewinterid, -ra, -ra_date, -whatmissing:-ignorereason) %>% 
+  select(home_winter_id, adult_id_num, area, rheum_arth, rheum_arth_date,
+         lupus:cigarspipes)
+         
+
+
+np_healthhistory_initial <- read_xlsx("Input/NP/np_healthhistory_20200225.xlsx") %>% 
+  rename_all(~str_replace_all(., "Date", "_date")) %>% 
+  rename_all(tolower) %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         adult_id_num = as.character(adultid),
+         area = "NP",
+         rheum_arth = ra,
+         rheum_arth_date = ra_date) %>% 
+  select(-id:-homewinterid, -ra, -ra_date, -whatmissing:-ignoremissingdata) %>% 
+  select(home_winter_id, adult_id_num, area, rheum_arth, rheum_arth_date,
+         lupus:cigarspipes)  
+
+
+# Combine logs from all areas
+elders_health_hx <- rbind(nn_healthhistory_initial, np_healthhistory_initial) %>% 
+  left_join(elders_ids_linked, c("area", "home_winter_id", "adult_id_num"))
+# write_rds(elders_health_hx, "Output/elders_health_hx.rds")
+
+
+save_var_names <- data.frame(t(elders_health_hx)) %>% 
+  rownames_to_column() %>% 
+  select(rowname)
+
+write_csv(save_var_names, "Output/health_hx_var_names.csv")
+```
+
+
+
+################# Health Extra ###############
+
+# Load and merge files from different locations
+```{r}
+nn_healthextra_initial <- read_xlsx("Input/NN/nn_healthextra_20200225.xlsx") %>% 
+  rename_all(tolower) %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         adult_id_num = as.character(adultid),
+         area = "NN",
+         sampling_visit = samplingvisit) %>% 
+  select( home_winter_id, adult_id_num, sampling_visit, area, cold2m:bronch2mdr) 
+         
+
+
+np_healthextra_initial <- read_xlsx("Input/NP/np_healthextra_20200225.xlsx") %>% 
+  rename_all(tolower) %>% 
+  mutate(home_winter_id = as.character(homewinterid),
+         adult_id_num = as.character(adultid),
+         area = "NP",
+         sampling_visit = samplingvisit) %>% 
+  select( home_winter_id, adult_id_num, sampling_visit, area, cold2m:bronch2mdr)  
+
+
+# Combine logs from all areas
+elders_health_extra <- rbind(nn_healthextra_initial, np_healthextra_initial) %>% 
+  left_join(elders_ids_linked, c("area", "home_winter_id", "adult_id_num"))
+# write_rds(elders_health_extra, "Output/elders_health_extra.rds")
+
+
+
+save_var_names <- data.frame(t(elders_health_extra)) %>% 
+  rownames_to_column() %>% 
+  select(rowname)
+
+write_csv(save_var_names, "Output/health_extra_var_names.csv")
+```
