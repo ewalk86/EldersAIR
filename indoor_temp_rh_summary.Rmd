@@ -1,0 +1,136 @@
+---
+title: "Elders indoor temp/RH summary"
+author: "Ethan Walker"
+date: "Started 5 March 2020, Updated 5 March 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, 
+                      include = TRUE, warning = FALSE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readr)
+library(knitr)
+```
+
+```{r}
+# Load data
+indoor_temp_rh_clean <- read_rds("Output/elders_temp_rh_clean.rds")
+elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
+elders_pm <- read_rds("Output/elders_pm_clean.rds")
+```
+
+# Summary stats
+```{r}
+temp_rh_summary <- indoor_temp_rh_clean %>%
+  filter(winter_id == 1) %>% 
+  group_by(area) %>% 
+  summarize_if(is.numeric, list(mean = mean, sd = sd, min = min, 
+                                med = median, max = max), na.rm = TRUE) %>% 
+  select(-area) %>% 
+  t() 
+kable(temp_rh_summary, col.names = c("Navajo", "Nez Perce"), 
+      digits = 1, align = "c")
+```
+
+
+```{r, fig.height=6, fig.width=5}
+# Boxplot function
+boxplots_temp_rh_function <- function(data, variable){
+
+boxplots_temp_rh <- data %>% 
+  filter(winter_id == 1) %>% 
+  select(area, variable) %>% 
+  rename(plot_var = variable) %>% 
+  na.exclude() %>% 
+  ggplot(aes(area, plot_var)) +
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    stat_summary(fun.y=mean, geom="point", shape=17, size=3, color="red") +
+    theme_minimal() +
+    theme(axis.text.x = element_text(size = 16, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank())
+boxplots_temp_rh
+
+}
+```
+
+## Current indoor humidity (%)
+```{r}
+boxplots_temp_rh_function(indoor_temp_rh_clean, "rh_indoor_current")
+```
+
+## Max indoor humidity (%)
+```{r}
+boxplots_temp_rh_function(indoor_temp_rh_clean, "rh_indoor_max")
+```
+
+## Min indoor humidity (%)
+```{r}
+boxplots_temp_rh_function(indoor_temp_rh_clean, "rh_indoor_min")
+```
+
+## Current indoor temperature (C)
+```{r}
+boxplots_temp_rh_function(indoor_temp_rh_clean, "temp_indoor_current")
+```
+
+## Max indoor temperature (C)
+```{r}
+boxplots_temp_rh_function(indoor_temp_rh_clean, "temp_indoor_max")
+```
+
+## Min indoor temperature (C)
+```{r}
+boxplots_temp_rh_function(indoor_temp_rh_clean, "temp_indoor_min")
+```
+
+
+#### Abstract/manuscript tables ####
+
+# Filter for homes that have PM data
+```{r}
+# 93 Winter 1 placebo homes have PM data
+pm_homes_placebo <- pm_clean %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  group_by(area, home) %>% 
+  mutate(initial_obs = if_else(pm_datetime_new == first_datetime_new, 1, 0)) %>% 
+  filter(initial_obs == 1) %>% 
+  mutate(pm_home = "true") %>% 
+  select(area, home, home_winter_id, pm_home) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+
+temp_rh_filtered <- indoor_temp_rh_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+```
+
+# Summarize home data
+```{r}
+# Summarize numeric vars
+kids_temp_rh <- temp_rh_filtered %>%  
+  distinct(home, .keep_all = TRUE) %>%  
+  group_by(area) %>% 
+  summarize("Mean" = mean(rh_indoor_min, na.rm = TRUE), 
+            "SD" = sd(rh_indoor_min, na.rm = TRUE),
+            "min" = min(rh_indoor_min, na.rm = TRUE), 
+            "med" = median(rh_indoor_min, na.rm = TRUE), 
+            "max" = max(rh_indoor_min, na.rm = TRUE))
+kable(kids_temp_rh, digits = 1, align = "c")
+
+```
+

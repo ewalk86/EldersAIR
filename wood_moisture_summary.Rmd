@@ -1,0 +1,146 @@
+---
+title: "Elders Moisture Summary"
+author: "Ethan Walker"
+date: "Started 5 March 2020, Updated 5 March 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, 
+                      include = TRUE, warning = FALSE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(lubridate)
+library(readr)
+library(knitr)
+```
+
+```{r}
+# Load data
+moisture_clean <- read_rds("Output/elders_moisture_clean.rds")
+elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
+elders_pm <- read_rds("Output/elders_pm_clean.rds")
+```
+
+# Moisture content summary stats
+## Average of 3 measurements
+```{r}
+summary_moisture <- moisture_clean %>%
+  filter(winter_id == 1) %>% 
+  group_by(area) %>% 
+  summarize(mean = mean(moisture_ave, na.rm = TRUE), 
+            SD = sd(moisture_ave, na.rm = TRUE),
+            median = median(moisture_ave, na.rm = TRUE),
+            min = min(moisture_ave, na.rm = TRUE), 
+            max = max(moisture_ave, na.rm = TRUE)) %>%
+  select(-area) %>% 
+  t() 
+kable(summary_moisture, col.names = c("Navajo", "Nez Perce"), 
+      digits = 1, align = "c")
+```
+
+# Was wood split?
+```{r}
+wood_split <- moisture_clean %>% 
+  filter(winter_id == 1) %>% 
+  filter(!is.na(moisture_split)) %>% 
+  group_by(area, moisture_split) %>% 
+  summarise(n = n())
+kable(wood_split, align = "c")
+```
+
+# Boxplots
+```{r, fig.height=6, fig.width=5}
+boxplots_moisture <- moisture_clean %>% 
+  filter(winter_id == 1) %>% 
+  select(area, moisture_ave) %>% 
+  na.exclude() %>% 
+  ggplot(aes(area, moisture_ave)) +
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    stat_summary(fun.y=mean, geom="point", shape=17, size=3, color="red") +
+    theme_minimal() +
+    ylim(0, 50) +
+    #geom_hline(yintercept = 50, color = "red", size = 1.2) +
+    labs(y = "Mean moisture content (%)") +
+    #labs(aes(x = "", y = paste("48-hour indoor PM "[2.5], " (", mu, g/m^3, ")"))) +
+    theme(axis.text.x = element_text(size = 16, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank())
+boxplots_moisture
+```
+
+
+#### Abstract/manuscript tables ####
+
+# Filter for homes that have PM data
+```{r}
+# 93 Winter 1 placebo homes have PM data
+pm_homes_placebo <- pm_clean %>% 
+  filter(winter_id == 1) %>% 
+  filter(treatment == "Placebo") %>% 
+  group_by(area, home) %>% 
+  mutate(initial_obs = if_else(pm_datetime_new == first_datetime_new, 1, 0)) %>% 
+  filter(initial_obs == 1) %>% 
+  mutate(pm_home = "true") %>% 
+  select(area, home, home_winter_id, pm_home, first_datetime_new) %>% 
+  separate(first_datetime_new, c("first_date", "first_time"), sep = " ", remove = TRUE) %>% 
+  ungroup() %>% 
+  arrange(area, home)
+
+moisture_filtered <- moisture_clean %>% 
+  # change to correct joining data of interest
+  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  filter(pm_home == "true") %>% 
+  filter(winter_id == 1) %>% 
+  ungroup() %>%
+  arrange(area, home)
+
+moisture_filtered_time <- moisture_filtered %>% 
+  # fix wrong date
+  mutate(moisture_date = as.character(moisture_date),
+         moisture_date = if_else(home == "CH220" & moisture_date == "2014-04-10",
+                                 "2017-04-10", moisture_date),
+         moisture_date = ymd(moisture_date)) %>% 
+  mutate(moisture_date = ymd(moisture_date),
+         first_date = ymd(first_date),
+         time_diff = moisture_date - first_date,
+         time_diff = as.numeric(abs(time_diff))) %>% 
+  group_by(home) %>% 
+  mutate(time_diff_rank = if_else(time_diff == min(time_diff, na.rm = TRUE), 1, 0)) %>%
+  ungroup() %>% 
+  filter(time_diff_rank == 1)
+```
+
+# Summarize home data
+```{r}
+# Summarize numeric vars
+kids_moisture <- moisture_filtered_time %>%  
+  group_by(area) %>% 
+  summarize("Mean" = mean(moisture_ave, na.rm = TRUE), 
+            "SD" = sd(moisture_ave, na.rm = TRUE),
+            "min" = min(moisture_ave, na.rm = TRUE), 
+            "med" = median(moisture_ave, na.rm = TRUE), 
+            "max" = max(moisture_ave, na.rm = TRUE))
+kable(kids_moisture, digits = 1, align = "c")
+
+# Summarize numeric vars
+kids_moisture <- moisture_filtered_time %>%  
+  group_by(area) %>% 
+  summarize("Mean" = mean(time_diff, na.rm = TRUE), 
+            "SD" = sd(time_diff, na.rm = TRUE),
+            "min" = min(time_diff, na.rm = TRUE), 
+            "med" = median(time_diff, na.rm = TRUE), 
+            "max" = max(time_diff, na.rm = TRUE))
+kable(kids_moisture, digits = 1, align = "c")
+
+table(moisture_filtered$area, moisture_filtered$moisture_split)
+```
+
