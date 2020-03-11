@@ -1,7 +1,7 @@
 ---
 title: "Elders PM Summary"
 author: "Ethan Walker"
-date: "Started 24 Feb 2020, Updated 24 Feb 2020"
+date: "Started 24 Feb 2020, Updated 10 March 2020"
 output: pdf_document
 ---
 
@@ -29,6 +29,7 @@ elders_pm <- read_rds("Output/elders_pm_clean.rds")
 # Summary stats
 ```{r}
 pm_summary <- elders_pm %>% 
+  filter(winter_id == 1) %>% 
   #filter(pm < 500) %>% 
   mutate(pm = if_else(pm > 500, 500, pm)) %>% 
   group_by(area) %>% 
@@ -41,8 +42,7 @@ pm_summary <- elders_pm %>%
             "75%" = quantile(pm, 0.75, na.rm = TRUE),
             "Max PM" = max(pm, na.rm = TRUE),
             "Mean Sample Days" = mean(pm_sample_interval, na.rm = TRUE),
-            "SD Sample Days" = sd(pm_sample_interval, na.rm = TRUE),
-            "Mean Sample Obs" = mean(pm_total_observations, na.rm = TRUE)) %>% 
+            "SD Sample Days" = sd(pm_sample_interval, na.rm = TRUE)) %>% 
   #select(-treatment) %>% 
   t() 
 kable(pm_summary, digits = 1, align = "c")
@@ -50,6 +50,7 @@ kable(pm_summary, digits = 1, align = "c")
 
 
 pm_by_day <- elders_pm %>% 
+  filter(winter_id == 1) %>% 
   mutate(sampling_month = month(pm_datetime_new, abbr = TRUE)) %>% 
   mutate(day_of_week = factor(day_of_week,
                                  levels = c("Monday", "Tuesday", "Wednesday", "Thursday",
@@ -57,7 +58,7 @@ pm_by_day <- elders_pm %>%
                                  labels = c("Mon", "Tues", "Wed", "Thur", "Fri", "Sat", "Sun"))) %>% 
   #filter(pm < 500) %>% 
   mutate(pm = if_else(pm > 500, 500, pm)) %>% 
-  group_by(area, day_of_week) %>% 
+  group_by(sampling_month) %>% 
   summarize("Mean PM" = mean(pm, na.rm = TRUE), 
             "SD PM" = sd(pm, na.rm = TRUE),
             "Min PM" = min(pm, na.rm = TRUE), 

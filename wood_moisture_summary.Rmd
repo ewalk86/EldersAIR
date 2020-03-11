@@ -1,7 +1,7 @@
 ---
 title: "Elders Moisture Summary"
 author: "Ethan Walker"
-date: "Started 5 March 2020, Updated 5 March 2020"
+date: "Started 5 March 2020, Updated 10 March 2020"
 output: pdf_document
 ---
 
@@ -27,6 +27,14 @@ elders_pm <- read_rds("Output/elders_pm_clean.rds")
 # Moisture content summary stats
 ## Average of 3 measurements
 ```{r}
+moisture_n <- moisture_clean %>% 
+  filter(winter_id == 1) %>% 
+  group_by(area) %>%
+  filter(!is.na(moisture_ave)) %>% 
+  distinct(home) %>% 
+  summarize(n())
+
+
 summary_moisture <- moisture_clean %>%
   filter(winter_id == 1) %>% 
   group_by(area) %>% 
@@ -39,6 +47,17 @@ summary_moisture <- moisture_clean %>%
   t() 
 kable(summary_moisture, col.names = c("Navajo", "Nez Perce"), 
       digits = 1, align = "c")
+
+
+summary_moisture <- moisture_clean %>%
+  filter(winter_id == 1) %>% 
+  summarize(mean = mean(moisture_ave, na.rm = TRUE), 
+            SD = sd(moisture_ave, na.rm = TRUE),
+            median = median(moisture_ave, na.rm = TRUE),
+            min = min(moisture_ave, na.rm = TRUE), 
+            max = max(moisture_ave, na.rm = TRUE)) %>%
+  t() 
+kable(summary_moisture, digits = 1, align = "c")
 ```
 
 # Was wood split?
@@ -83,37 +102,31 @@ boxplots_moisture
 # Filter for homes that have PM data
 ```{r}
 # 93 Winter 1 placebo homes have PM data
-pm_homes_placebo <- pm_clean %>% 
+pm_homes <- elders_pm %>% 
   filter(winter_id == 1) %>% 
-  filter(treatment == "Placebo") %>% 
-  group_by(area, home) %>% 
-  mutate(initial_obs = if_else(pm_datetime_new == first_datetime_new, 1, 0)) %>% 
+  group_by(area, home, sampling_visit) %>% 
+  mutate(initial_obs = if_else(pm_datetime_new == first_datetime, 1, 0)) %>% 
   filter(initial_obs == 1) %>% 
   mutate(pm_home = "true") %>% 
-  select(area, home, home_winter_id, pm_home, first_datetime_new) %>% 
-  separate(first_datetime_new, c("first_date", "first_time"), sep = " ", remove = TRUE) %>% 
+  select(area, home, home_winter_id, sampling_visit, pm_home, first_datetime) %>% 
+  separate(first_datetime, c("first_date", "first_time"), sep = " ", remove = TRUE) %>% 
   ungroup() %>% 
   arrange(area, home)
 
 moisture_filtered <- moisture_clean %>% 
   # change to correct joining data of interest
-  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  left_join(pm_homes, by = c("area", "home", "home_winter_id")) %>% 
   filter(pm_home == "true") %>% 
   filter(winter_id == 1) %>% 
   ungroup() %>%
   arrange(area, home)
 
 moisture_filtered_time <- moisture_filtered %>% 
-  # fix wrong date
-  mutate(moisture_date = as.character(moisture_date),
-         moisture_date = if_else(home == "CH220" & moisture_date == "2014-04-10",
-                                 "2017-04-10", moisture_date),
-         moisture_date = ymd(moisture_date)) %>% 
   mutate(moisture_date = ymd(moisture_date),
          first_date = ymd(first_date),
          time_diff = moisture_date - first_date,
          time_diff = as.numeric(abs(time_diff))) %>% 
-  group_by(home) %>% 
+  group_by(home, sampling_visit) %>% 
   mutate(time_diff_rank = if_else(time_diff == min(time_diff, na.rm = TRUE), 1, 0)) %>%
   ungroup() %>% 
   filter(time_diff_rank == 1)
@@ -133,14 +146,12 @@ kable(kids_moisture, digits = 1, align = "c")
 
 # Summarize numeric vars
 kids_moisture <- moisture_filtered_time %>%  
-  group_by(area) %>% 
+  #group_by(area) %>% 
   summarize("Mean" = mean(time_diff, na.rm = TRUE), 
             "SD" = sd(time_diff, na.rm = TRUE),
             "min" = min(time_diff, na.rm = TRUE), 
             "med" = median(time_diff, na.rm = TRUE), 
             "max" = max(time_diff, na.rm = TRUE))
 kable(kids_moisture, digits = 1, align = "c")
-
-table(moisture_filtered$area, moisture_filtered$moisture_split)
 ```
 

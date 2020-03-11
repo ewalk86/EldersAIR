@@ -34,6 +34,14 @@ temp_rh_summary <- indoor_temp_rh_clean %>%
   t() 
 kable(temp_rh_summary, col.names = c("Navajo", "Nez Perce"), 
       digits = 1, align = "c")
+
+
+temp_rh_n <- indoor_temp_rh_clean %>% 
+  filter(winter_id == 1) %>% 
+  group_by(area, home) %>%
+  filter(!is.na(temp_indoor_current)) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  count()
 ```
 
 

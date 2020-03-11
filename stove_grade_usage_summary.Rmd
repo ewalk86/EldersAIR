@@ -1,7 +1,7 @@
 ---
 title: "Elders stove grades and usage summary"
 author: "Ethan Walker"
-date: "Started 5 March 2020, Updated 5 March 2020"
+date: "Started 5 March 2020, Updated 10 March 2020"
 output: pdf_document 
 ---
 
@@ -37,10 +37,15 @@ elders_pm <- read_rds("Output/elders_pm_clean.rds")
 # Summarize factor vars
 ## Use this as a quick look at all vars
 table_list <- stove_use_clean %>% 
-  #filter(area == "WMT") %>% 
   filter(winter_id == 1) %>%  
-  select(burn_level, wood_type, wood_type_other) 
-lapply(table_list, table)
+  filter(!is.na(burn_level)) %>% 
+  select(area, sampling_visit, burn_level, wood_type, wood_type_other) 
+#lapply(table_list, table)
+
+
+table(table_list$wood_type)
+table(table_list$area, table_list$wood_type)
+table(table_list$area, table_list$burn_level, table_list$sampling_visit)
 ```
 
 # Summary of stove grades
@@ -210,16 +215,21 @@ kable(kids_use)
 # stove grade table
 stove_grades_filtered <- stove_grades_clean %>% 
   # change to correct joining data of interest
-  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
+  #left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
   arrange(area, home, winter_id) %>% 
   group_by(home) %>% 
-  mutate(stove_grade = if_else(is.na(stove_grade), lead(stove_grade), stove_grade)) %>% 
-  filter(pm_home == "true") %>% 
-  filter(winter_id == 1) %>%
-  filter(!is.na(stove_grade)) %>% 
+  #mutate(stove_grade = if_else(is.na(stove_grade), lead(stove_grade), stove_grade)) %>% 
+  #filter(pm_home == "true") %>% 
+  #filter(winter_id == 1) %>%
+  group_by(home, winter_id) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  #filter(!is.na(stove_grade)) %>% 
   ungroup() %>% 
+  filter(!is.na(stove_grade)) %>% 
   arrange(area, home)
 
+table(stove_grades_filtered$stove_grade)
 table(stove_grades_filtered$stove_grade, stove_grades_filtered$area)
+table(stove_grades_filtered$stove_grade, stove_grades_filtered$area, stove_grades_filtered$winter_id)
 ```
 

@@ -124,6 +124,8 @@ elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
 elders_home_char_clean <- elders_home_char %>% 
   left_join(elders_ids_linked, by = c("area", "home_winter_id")) %>% 
   filter(!is.na(home_winter_id)) %>% 
+  mutate(home_sqft = if_else(home_sqft<200, 0, home_sqft)) %>% 
+  mutate(home_year_built = if_else(home_year_built<100, 0, home_year_built)) %>% 
   replace_with_na(replace = list(home_year_built = 0)) %>% 
   replace_with_na(replace = list(home_floors = 0)) %>% 
   replace_with_na(replace = list(home_windows = 0)) %>% 

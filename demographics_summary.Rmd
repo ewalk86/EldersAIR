@@ -1,0 +1,71 @@
+---
+title: "EldersAIR: demographics summary"
+author: "Ethan Walker"
+date: "Started 6 March 2020, Updated 10 March 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+```
+
+# Load individual datasets
+```{r}
+elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
+elders_pm <- read_rds("Output/elders_pm_clean.rds")
+```
+
+##### For Winter 1, there were 145 homes with demographic data (76 NN and 69 NP)
+##### and 150 participants with demographic data (79 NN and 71 NP)
+##### 5 homes had 2 participants (3 NN and 2 NP); all other homes had 1 participant
+
+# Filter for homes that have PM data
+```{r}
+demographics_filtered <- elders_ids_linked %>% 
+  filter(winter_id == 1) %>% 
+  filter(!is.na(gender)) 
+```
+
+# Summarize demographics data
+```{r}
+# Summarize numeric vars: total_residents, residents_under18, age_nov1
+elders_dems <- demographics_filtered %>%  
+  #group_by(area) %>% 
+  summarize("Mean" = mean(age_nov1, na.rm = TRUE), 
+            "SD" = sd(age_nov1, na.rm = TRUE),
+            "min" = min(age_nov1, na.rm = TRUE), 
+            "max" = max(age_nov1, na.rm = TRUE))
+kable(elders_dems, digits = 1, align = "c")
+
+
+
+# summarize factor vars: gender, hispanic, race, education, income
+total_dems <- demographics_filtered %>%  
+  group_by(education) %>% 
+  summarize(n = n(), percent = (n()/150)*100)
+total_dems
+
+nn_dems <- demographics_filtered %>%  
+  filter(area == "NN") %>% 
+  group_by(education) %>% 
+  summarize(n = n(), percent = (n()/79)*100)
+nn_dems
+
+np_dems <- demographics_filtered %>%  
+  filter(area == "NP") %>% 
+  group_by(education) %>% 
+  summarize(n = n(), percent = (n()/71)*100)
+np_dems
+
+## Select specific var to assess individually/grouped by area
+table(demographics_filtered$education, demographics_filtered$area, useNA = "ifany")
+```
+

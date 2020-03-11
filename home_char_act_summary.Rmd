@@ -1,7 +1,7 @@
 ---
 title: "Elders home characteristics/activity summary"
 author: "Ethan Walker"
-date: "Started 5 March 2020, Updated 5 March 2020"
+date: "Started 5 March 2020, Updated 10 March 2020"
 output:
   pdf_document: default
   word_document: default
@@ -32,32 +32,36 @@ elders_pm <- read_rds("Output/elders_pm_clean.rds")
 
 # Summary data for home characteristics
 ```{r}
-# Summarize numeric vars
+# Summarize numeric vars: home_sqft, home_year_built, home_bedrooms, home_windows,
+# home_pets, home_furry, wood_cords
 home_char_summary <- home_char_clean %>% 
-  #filter(winter_id == 1 | winter_id == 2) %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  group_by(area) %>% 
+  filter(winter_id == 1) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  #group_by(area) %>% 
   summarize("N" = n(),
-            "Mean Sqft" = mean(home_sqft, na.rm = TRUE), 
-            "SD Sqft" = sd(home_sqft, na.rm = TRUE), 
-            "Min Sqft" = min(home_sqft, na.rm = TRUE), 
-            "Median Sqft" = median(home_sqft, na.rm = TRUE), 
-            "Max Sqft" = max(home_sqft, na.rm = TRUE))
+            "Mean" = mean(wood_cords, na.rm = TRUE), 
+            "SD" = sd(wood_cords, na.rm = TRUE), 
+            "Min" = min(wood_cords, na.rm = TRUE), 
+            "Median" = median(wood_cords, na.rm = TRUE), 
+            "Max" = max(wood_cords, na.rm = TRUE))
 kable(home_char_summary, digits = 1, align = "c")
 
 # Summarize factor vars
 ## Use this as a quick look at all vars
 table_list <- home_char_clean %>%  
-  filter(winter_id == 1 | winter_id == 2) %>% 
-  filter(residents_total != 0) %>% 
+  filter(winter_id == 1) %>%  
+  distinct(home, .keep_all = TRUE) %>% 
   #filter(area == "WMT") %>% 
-  select(-home_winter_id, -home_sqft, -stove_model, -home_id, -home, -treatment) 
+  select(area, residents_smoke, residents_smoke_inside, home_type, home_floors,
+         primary_heat, secondary_heat, stove_age, stove_cert, wood_collect,
+         wood_collect_method, chimney_clean, home_damp, home_mold, home_fireplace,
+         home_furnace, home_woodstove)
 #lapply(table_list, table)
 
 ## Select specific var to assess individually/group by area
-table(table_list$winter_id, table_list$area, table_list$home_type, useNA = "ifany")
+table(table_list$area, table_list$wood_collect_method, useNA = "ifany")
 
-table(home_char_summary$stove_age)
+table(table_list$wood_collect_method, useNA = "ifany")
 ```
 
 # Summary data for home activity
@@ -66,13 +70,16 @@ table(home_char_summary$stove_age)
 ## Use this as a quick look at all vars
 table_list <- home_act_clean %>% 
   filter(winter_id == 1) %>% 
-  #filter(area == "WMT") %>% 
-  select(-home_winter_id, -home_id, -home, -treatment, 
-         -intervention_date:-adult_id_num, -adult_id_char, -consent_date) 
-lapply(table_list, table)
+  select(area, home_act_elect, home_act_gas, home_act_oil, home_act_other,
+         home_act_propane, home_act_smoking, home_act_incense, home_act_candle,
+         home_act_kerosene, home_act_windows, home_act_door, home_act_sweep) 
+  #lapply(table_list, table)
+
 
 ## Select specific var to assess individually/group by area
-#table(table_list$home_act_sweep, table_list$area, useNA = "ifany")
+table(table_list$area, table_list$home_act_elect, useNA = "ifany")
+
+table(table_list$home_furnace, useNA = "ifany")
 ```
 
 # Home characteristics summary plots
