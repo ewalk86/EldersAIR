@@ -1,0 +1,160 @@
+---
+title: "EldersAIR Health History Summary"
+author: "Ethan Walker"
+date: "Started 11 March 2020, Updated 11 March 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+library(knitr)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+```
+
+# Load data
+```{r}
+elders_ids_linked <- read_rds("Output/elders_ids_linked.rds") %>% 
+  filter(winter_id == 1 | winter_id == 2) %>% 
+  arrange(area, adult_id_num)
+
+elders_at_home_log <- read_rds("Output/elders_at_home_log.rds")
+elders_health_hx <- read_rds("Output/elders_health_hx.rds")
+elders_health_extra <- read_rds("Output/elders_health_extra.rds")
+```
+
+# Health history summary stats 
+```{r}
+health_hx_function <- function(data, var, title_label, y_label) {
+  
+  home_plot <- data %>% 
+  filter(winter_id == 1) %>% 
+  select(area, var) %>% 
+  rename(plot_var = var) %>% 
+  filter(!is.na(plot_var)) %>% 
+  ggplot() +
+    geom_bar(aes(plot_var, fill = area)) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(size = 16, colour = "black", 
+                                     angle = 40, vjust = 0.7, hjust = 0.7),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          title = element_text(size = 18, colour = "black"),
+          legend.text = element_text(size = 14, colour = "black"),
+          legend.title = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(),
+          panel.grid = element_blank()) +
+    labs(title = title_label) +
+    ylab(y_label) +
+    scale_fill_manual(values = jv_palette)
+  home_plot
+  
+}
+
+health_hx_function(elders_health_hx, "rheum_arth", "Rheumatoid Arth", "count")
+health_hx_function(elders_health_hx, "lupus", "Lupus", "count")
+health_hx_function(elders_health_hx, "scleroderma", "Scleroderma", "count")
+health_hx_function(elders_health_hx, "psoriasis", "Psoriasis", "count")
+health_hx_function(elders_health_hx, "asthma", "Asthma", "count")
+health_hx_function(elders_health_hx, "eczema", "Eczema", "count")
+health_hx_function(elders_health_hx, "emphysema", "Emphysema", "count")
+health_hx_function(elders_health_hx, "chronicbronchitis", "Chronic bronchitis", "count")
+health_hx_function(elders_health_hx, "copd", "COPD", "count")
+health_hx_function(elders_health_hx, "sarcoidosis", "Sarcoidosis", "count")
+health_hx_function(elders_health_hx, "scleroderma", "Scleroderma", "count")
+health_hx_function(elders_health_hx, "hayfever", "Hayfever", "count")
+health_hx_function(elders_health_hx, "allergies", "Allergies", "count")
+health_hx_function(elders_health_hx, "gerd", "GERD", "count")
+health_hx_function(elders_health_hx, "chrohns", "Chrohns", "count")
+health_hx_function(elders_health_hx, "colitis", "Colitis", "count")
+health_hx_function(elders_health_hx, "sleepapnea", "Sleep apnea", "count")
+health_hx_function(elders_health_hx, "kidneyfailure", "Kidney failure", "count")
+health_hx_function(elders_health_hx, "pleuraleffusion", "Pleural effusion", "count")
+health_hx_function(elders_health_hx, "pleurisy", "Pleurisy", "count")
+health_hx_function(elders_health_hx, "pneumonia", "Pneumonia", "count")
+health_hx_function(elders_health_hx, "pneumothorax", "Pneumothorax", "count")
+health_hx_function(elders_health_hx, "empyema", "Empyema", "count")
+health_hx_function(elders_health_hx, "brokenribs", "Broken ribs", "count")
+health_hx_function(elders_health_hx, "coronaryarterydisease", "Coronary artery disease", "count")
+health_hx_function(elders_health_hx, "angina", "Angina", "count")
+health_hx_function(elders_health_hx, "heartattack", "Heart attack", "count")
+health_hx_function(elders_health_hx, "chf", "CHF", "count")
+health_hx_function(elders_health_hx, "abnormalhr", "Abnormal HR", "count")
+health_hx_function(elders_health_hx, "pacemaker", "Pacemaker", "count")
+health_hx_function(elders_health_hx, "icd", "Cardiac defibrillator", "count")
+health_hx_function(elders_health_hx, "valvedisease", "Valve disease", "count")
+health_hx_function(elders_health_hx, "hypertension", "Hypertension", "count")
+health_hx_function(elders_health_hx, "circlegs", "Circulation problems in legs", "count")
+health_hx_function(elders_health_hx, "circhead", "Circulation problems in head/neck", "count")
+health_hx_function(elders_health_hx, "stroke", "Stroke", "count")
+health_hx_function(elders_health_hx, "diabetes", "Diabetes", "count")
+health_hx_function(elders_health_hx, "thyroiddisease", "Thyroid disease", "count")
+health_hx_function(elders_health_hx, "anemia", "Anemia", "count")
+health_hx_function(elders_health_hx, "cancer", "Cancer", "count")
+health_hx_function(elders_health_hx, "tobusenow", "Tobacco use now", "count")
+health_hx_function(elders_health_hx, "tobuseever", "Tobacco use ever", "count")
+health_hx_function(elders_health_hx, "agefirst", "Age started smoking", "count")
+health_hx_function(elders_health_hx, "agequit", "Age quit smoking", "count")
+health_hx_function(elders_health_hx, "nowperday", "cigarettes per day now", "count")
+health_hx_function(elders_health_hx, "aveperday", "Average smoked per day", "count")
+health_hx_function(elders_health_hx, "peakperday", "Peak smoked per day", "count")
+health_hx_function(elders_health_hx, "cigarspipes", "Current/past cigar/pipe use", "count")
+```
+
+
+# Health extra summary stats 
+```{r}
+health_hx_function <- function(data, var, title_label, y_label) {
+  
+  home_plot <- data %>% 
+  filter(winter_id == 1) %>% 
+  select(area, var) %>% 
+  rename(plot_var = var) %>% 
+  filter(!is.na(plot_var)) %>% 
+  ggplot() +
+    geom_bar(aes(plot_var, fill = area)) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(size = 16, colour = "black", 
+                                     angle = 40, vjust = 0.7, hjust = 0.7),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          title = element_text(size = 18, colour = "black"),
+          legend.text = element_text(size = 14, colour = "black"),
+          legend.title = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(),
+          panel.grid = element_blank()) +
+    labs(title = title_label) +
+    ylab(y_label) +
+    scale_fill_manual(values = jv_palette)
+  home_plot
+  
+}
+
+health_hx_function(elders_health_extra, "cold2m", "Cold in past 2mo", "count")
+health_hx_function(elders_health_extra, "cold2mdr", "Physician diagnosed cold", "count")
+health_hx_function(elders_health_extra, "flu2m", "Flu in past 2mo", "count")
+health_hx_function(elders_health_extra, "flu2mdr", "Physician diagnosed flu", "count")
+health_hx_function(elders_health_extra, "throatinf2m", "Throat infction in past 2mo", "count")
+health_hx_function(elders_health_extra, "throatinf2mdr", "Physician diagnosed throat infection", "count")
+health_hx_function(elders_health_extra, "pneu2m", "Pneumonia in past 2mo", "count")
+health_hx_function(elders_health_extra, "pneu2mdr", "Physician diagnosed pneumonia", "count")
+health_hx_function(elders_health_extra, "bronch2m", "Bronchitis in past 2mo", "count")
+health_hx_function(elders_health_extra, "bronch2mdr", "Physician diagnosed bronchitis", "count")
+health_hx_function(elders_health_extra, "antibiotic2m", "Antibiotics in past 2mo", "count")
+health_hx_function(elders_health_extra, "respmeds2m", "Other respiratory meds in past 2mo", "count")
+```

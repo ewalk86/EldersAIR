@@ -1,0 +1,167 @@
+---
+title: "EldersAIR Med Visit Summary"
+author: "Ethan Walker"
+date: "Started 11 March 2020, Updated 11 March 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+library(knitr)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+```
+
+# Load data
+```{r}
+elders_ids_linked <- read_rds("Output/elders_ids_linked.rds") %>% 
+  filter(winter_id == 1 | winter_id == 2) %>% 
+  arrange(area, adult_id_num)
+
+elders_medvisit <- read_rds("Output/elders_medvisit_clean.rds") %>% 
+  mutate(hypertension = if_else(bp_sys >= 140 | bp_dia >= 90, 1, 0),
+         hypertension = as.numeric(hypertension),
+         obstruction = if_else(fev1_fvc_ratio < 0.7 | fev1_pp < 75, 1, 0),
+         obstruction = as.numeric(obstruction))
+```
+
+
+# Summary stats 
+```{r}
+medvisit_summary_function <- function(data, var, title_label, y_label) {
+  
+  medvisit_summary <- data %>% 
+    filter(winter_id == 1) %>% 
+    #select(var) %>% 
+    select(area, var) %>% 
+    group_by(area) %>% 
+    summarize_all(list(mean=mean, sd=sd, min=min, med=median, max=max), na.rm = TRUE)
+  medvisit_summary <<- medvisit_summary
+  
+  medvisit_plot <- data %>% 
+    filter(winter_id == 1) %>% 
+    select(area, var) %>% 
+    rename(plot_var = var) %>% 
+    filter(!is.na(plot_var)) %>% 
+    ggplot(aes(area, plot_var)) +
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red",
+                 position=position_nudge(x = -0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=mean, geom="text", 
+                 size=7, position=position_nudge(x = -0.3, y = 0)) +
+    stat_summary(fun.y=median, geom="point", shape=16, size=4, color="blue",
+                 position=position_nudge(x = 0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=median, geom="text", 
+                 size=7, position=position_nudge(x = 0.3, y = 0)) +
+    theme_minimal() +
+    labs(title = title_label, subtitle = "Mean = Red, Median = Blue") +
+    ylab(y_label) +
+    theme(title = element_text(size = 20, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) 
+  medvisit_plot
+  
+}
+
+medvisit_summary_function(elders_medvisit, "sp02", "Sp02", "%")
+medvisit_summary_function(elders_medvisit, "pr", "Sp02 pulse rate", "beats/min")
+medvisit_summary_function(elders_medvisit, "bp_sys", "Systolic blood pressure", "mmHg")
+medvisit_summary_function(elders_medvisit, "bp_dia", "Diastolic blood pressure", "mmHg")
+medvisit_summary_function(elders_medvisit, "hr", "Heart rate from BP", "beats/min")
+medvisit_summary_function(elders_medvisit, "age", "Age", "years")
+medvisit_summary_function(elders_medvisit, "height_inches", "Height", "inches")
+medvisit_summary_function(elders_medvisit, "weight_lbs", "Weight", "pounds")
+medvisit_summary_function(elders_medvisit, "bmi", "BMI", "kg/m2")
+```
+
+
+```{r}
+medvisit_summary_function <- function(data, var, title_label, y_label) {
+  
+  medvisit_summary <- data %>% 
+    filter(winter_id == 1) %>% 
+    filter(spiro_status == "Acceptable") %>% 
+    #select(var) %>% 
+    select(area, var) %>% 
+    group_by(area) %>% 
+    summarize_all(list(mean=mean, sd=sd, min=min, med=median, max=max), na.rm = TRUE)
+  medvisit_summary <<- medvisit_summary
+  
+  medvisit_plot <- data %>% 
+    filter(winter_id == 1) %>% 
+    filter(spiro_status == "Acceptable") %>% 
+    select(area, var) %>% 
+    rename(plot_var = var) %>% 
+    na.exclude() %>% 
+    ggplot(aes(area, plot_var)) +
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red",
+                 position=position_nudge(x = -0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=mean, geom="text", 
+                 size=7, position=position_nudge(x = -0.3, y = 0)) +
+    stat_summary(fun.y=median, geom="point", shape=16, size=4, color="blue",
+                 position=position_nudge(x = 0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=median, geom="text", 
+                 size=7, position=position_nudge(x = 0.3, y = 0)) +
+    theme_minimal() +
+    labs(title = title_label, subtitle = "Mean = Red, Median = Blue") +
+    ylab(y_label) +
+    theme(title = element_text(size = 20, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) 
+  medvisit_plot
+  
+}
+
+medvisit_summary_function(elders_medvisit, "fvc", "Forced vital capacity", "liters")
+medvisit_summary_function(elders_medvisit, "fev1", "Forced expiratory volume", "liters")
+medvisit_summary_function(elders_medvisit, "fev1_fvc_ratio", "FEV1/FVC ratio", " ")
+medvisit_summary_function(elders_medvisit, "fvc_pp", "FVC percent predicted", "%")
+medvisit_summary_function(elders_medvisit, "fev1_pp", "FEV1 percent predicted", "%")
+```
+
+
+```{r}
+summary_stats <- elders_medvisit %>% 
+  filter(winter_id == 1) %>% 
+  #filter(spiro_status == "Acceptable") %>% 
+  filter(!is.na(bp_sys)) %>% 
+  group_by(area) %>% 
+  distinct(home) %>% 
+  summarize(n())
+summary_stats
+
+summary_stats <- elders_medvisit %>% 
+  filter(winter_id == 1) %>% 
+  filter(!is.na(hypertension)) %>% 
+  summarize(sum(hypertension)/n())
+summary_stats
+
+summary_stats <- elders_medvisit %>% 
+  filter(winter_id == 1) %>% 
+  filter(spiro_status == "Acceptable") %>% 
+  filter(!is.na(obstruction)) %>% 
+  summarize(sum(obstruction)/n())
+summary_stats
+```
