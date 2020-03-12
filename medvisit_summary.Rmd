@@ -1,12 +1,12 @@
 ---
 title: "EldersAIR Med Visit Summary"
 author: "Ethan Walker"
-date: "Started 11 March 2020, Updated 11 March 2020"
+date: "Started 11 March 2020, Updated 12 March 2020"
 output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ```
 
 ```{r, message=FALSE}
@@ -21,8 +21,10 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
                   "#FF3366", "#33CC99", "#33999")
 ```
 
-# Load data
+
 ```{r}
+# Load data
+
 elders_ids_linked <- read_rds("Output/elders_ids_linked.rds") %>% 
   filter(winter_id == 1 | winter_id == 2) %>% 
   arrange(area, adult_id_num)
@@ -34,9 +36,34 @@ elders_medvisit <- read_rds("Output/elders_medvisit_clean.rds") %>%
          obstruction = as.numeric(obstruction))
 ```
 
-
-# Summary stats 
+# Cardiovascular outcomes from Med visit
 ```{r}
+medvisit_plot <- elders_medvisit %>% 
+  filter(winter_id == 1) %>% 
+  select(area, sp02, pr, bp_sys, bp_dia, hr, age, height_inches,
+         weight_lbs, bmi) %>% 
+  pivot_longer(cols = c("sp02":"bmi"), names_to = "var") %>% 
+  filter(!is.na(value)) %>% 
+  ggplot(aes(area, value)) +
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +theme_minimal() +
+    theme(strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) +
+    facet_wrap(~var, scales = "free_y")
+medvisit_plot
+```
+
+
+
+```{r}
+# Cardio plot function
+
 medvisit_summary_function <- function(data, var, title_label, y_label) {
   
   medvisit_summary <- data %>% 
@@ -58,11 +85,11 @@ medvisit_summary_function <- function(data, var, title_label, y_label) {
     stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red",
                  position=position_nudge(x = -0.1, y = 0)) +
     stat_summary(aes(label=round(..y.., digits = 1)), fun.y=mean, geom="text", 
-                 size=7, position=position_nudge(x = -0.3, y = 0)) +
+                 size=7, position=position_nudge(x = -0.35, y = 0)) +
     stat_summary(fun.y=median, geom="point", shape=16, size=4, color="blue",
                  position=position_nudge(x = 0.1, y = 0)) +
     stat_summary(aes(label=round(..y.., digits = 1)), fun.y=median, geom="text", 
-                 size=7, position=position_nudge(x = 0.3, y = 0)) +
+                 size=7, position=position_nudge(x = 0.35, y = 0)) +
     theme_minimal() +
     labs(title = title_label, subtitle = "Mean = Red, Median = Blue") +
     ylab(y_label) +
@@ -90,7 +117,34 @@ medvisit_summary_function(elders_medvisit, "bmi", "BMI", "kg/m2")
 ```
 
 
+# Spirometry outcomes from Med visit
+## Using only observations when spiro session graded as "acceptable"
 ```{r}
+medvisit_plot <- elders_medvisit %>% 
+  filter(winter_id == 1) %>% 
+  filter(spiro_status == "Acceptable") %>% 
+  select(area, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp) %>% 
+  pivot_longer(cols = c("fvc":"fev1_pp"), names_to = "var") %>% 
+  filter(!is.na(value)) %>% 
+  ggplot(aes(area, value)) +
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +theme_minimal() +
+    theme(strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) +
+    facet_wrap(~var, scales = "free_y")
+medvisit_plot
+```
+
+
+```{r}
+# Spiro plot function
+
 medvisit_summary_function <- function(data, var, title_label, y_label) {
   
   medvisit_summary <- data %>% 

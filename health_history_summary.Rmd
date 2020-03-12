@@ -1,12 +1,12 @@
 ---
 title: "EldersAIR Health History Summary"
 author: "Ethan Walker"
-date: "Started 11 March 2020, Updated 11 March 2020"
+date: "Started 11 March 2020, Updated 12 March 2020"
 output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ```
 
 ```{r, message=FALSE}
@@ -21,8 +21,10 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
                   "#FF3366", "#33CC99", "#33999")
 ```
 
-# Load data
+
 ```{r}
+# Load data
+
 elders_ids_linked <- read_rds("Output/elders_ids_linked.rds") %>% 
   filter(winter_id == 1 | winter_id == 2) %>% 
   arrange(area, adult_id_num)
@@ -32,11 +34,51 @@ elders_health_hx <- read_rds("Output/elders_health_hx.rds")
 elders_health_extra <- read_rds("Output/elders_health_extra.rds")
 ```
 
-# Health history summary stats 
+
+# Health history summary plots
+```{r, fig.height=24, fig.width=12}
+health_hx_plot <- elders_health_hx %>% 
+  filter(winter_id == 1) %>% 
+  select(area, rheum_arth, lupus, scleroderma, psoriasis, asthma, eczema, emphysema,
+         chronicbronchitis, copd, sarcoidosis, hayfever, allergies, gerd, chrohns,
+         colitis, sleepapnea, kidneyfailure, pleuraleffusion, pleurisy, pneumonia,
+         pneumothorax, empyema, brokenribs, coronaryarterydisease, angina, 
+         heartattack, chf, abnormalhr, pacemaker, icd, valvedisease, hypertension,
+         circlegs, circhead, stroke, diabetes, thyroiddisease, anemia, cancer,
+         tobusenow, tobuseever, cigarspipes) %>% 
+  pivot_longer(cols = c("rheum_arth":"cigarspipes"), names_to = "var") %>% 
+  filter(!is.na(value)) %>% 
+  mutate(value = factor(value, levels = c("No", "Yes", "Not Sure", "Refused"))) %>% 
+  ggplot() +
+    geom_bar(aes(value, fill = area)) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(size = 16, colour = "black", 
+                                     angle = 40, vjust = 0.7, hjust = 0.7),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          strip.text = element_text(size = 16, colour = "black"),
+          legend.text = element_text(size = 14, colour = "black"),
+          legend.title = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(),
+          panel.grid = element_blank()) +
+    #labs(title = title_label) +
+    #ylab(y_label) +
+    scale_fill_manual(values = jv_palette) +
+    facet_wrap(~var, ncol = 4)
+health_hx_plot
+```
+
+
+
 ```{r}
+# Health history summary stats function
+
 health_hx_function <- function(data, var, title_label, y_label) {
   
-  home_plot <- data %>% 
+  health_hx_plot <- data %>% 
   filter(winter_id == 1) %>% 
   select(area, var) %>% 
   rename(plot_var = var) %>% 
@@ -59,7 +101,7 @@ health_hx_function <- function(data, var, title_label, y_label) {
     labs(title = title_label) +
     ylab(y_label) +
     scale_fill_manual(values = jv_palette)
-  home_plot
+  health_hx_plot
   
 }
 
@@ -73,7 +115,6 @@ health_hx_function(elders_health_hx, "emphysema", "Emphysema", "count")
 health_hx_function(elders_health_hx, "chronicbronchitis", "Chronic bronchitis", "count")
 health_hx_function(elders_health_hx, "copd", "COPD", "count")
 health_hx_function(elders_health_hx, "sarcoidosis", "Sarcoidosis", "count")
-health_hx_function(elders_health_hx, "scleroderma", "Scleroderma", "count")
 health_hx_function(elders_health_hx, "hayfever", "Hayfever", "count")
 health_hx_function(elders_health_hx, "allergies", "Allergies", "count")
 health_hx_function(elders_health_hx, "gerd", "GERD", "count")
@@ -114,11 +155,13 @@ health_hx_function(elders_health_hx, "cigarspipes", "Current/past cigar/pipe use
 ```
 
 
-# Health extra summary stats 
+
 ```{r}
+# Health extra summary stats 
+
 health_hx_function <- function(data, var, title_label, y_label) {
   
-  home_plot <- data %>% 
+  health_hx_plot <- data %>% 
   filter(winter_id == 1) %>% 
   select(area, var) %>% 
   rename(plot_var = var) %>% 
@@ -141,7 +184,7 @@ health_hx_function <- function(data, var, title_label, y_label) {
     labs(title = title_label) +
     ylab(y_label) +
     scale_fill_manual(values = jv_palette)
-  home_plot
+  health_hx_plot
   
 }
 

@@ -1,7 +1,7 @@
 ---
 title: "Elders PM Summary"
 author: "Ethan Walker"
-date: "Started 24 Feb 2020, Updated 10 March 2020"
+date: "Started 24 Feb 2020, Updated 12 March 2020"
 output: pdf_document
 ---
 
@@ -51,14 +51,13 @@ kable(pm_summary, digits = 1, align = "c")
 
 pm_by_day <- elders_pm %>% 
   filter(winter_id == 1) %>% 
-  mutate(sampling_month = month(pm_datetime_new, abbr = TRUE)) %>% 
   mutate(day_of_week = factor(day_of_week,
                                  levels = c("Monday", "Tuesday", "Wednesday", "Thursday",
                                             "Friday", "Saturday", "Sunday"),
                                  labels = c("Mon", "Tues", "Wed", "Thur", "Fri", "Sat", "Sun"))) %>% 
   #filter(pm < 500) %>% 
   mutate(pm = if_else(pm > 500, 500, pm)) %>% 
-  group_by(sampling_month) %>% 
+  group_by(day_of_week) %>% 
   summarize("Mean PM" = mean(pm, na.rm = TRUE), 
             "SD PM" = sd(pm, na.rm = TRUE),
             "Min PM" = min(pm, na.rm = TRUE), 
@@ -69,13 +68,29 @@ pm_by_day <- elders_pm %>%
 pm_by_day
 
 
+pm_by_month <- elders_pm %>% 
+  filter(winter_id == 1) %>% 
+  mutate(sampling_month = month(pm_datetime_new, abbr = TRUE)) %>%
+  #filter(pm < 500) %>% 
+  mutate(pm = if_else(pm > 500, 500, pm)) %>% 
+  group_by(sampling_month) %>% 
+  summarize("Mean PM" = mean(pm, na.rm = TRUE), 
+            "SD PM" = sd(pm, na.rm = TRUE),
+            "Min PM" = min(pm, na.rm = TRUE), 
+            "25%" = quantile(pm, 0.25, na.rm = TRUE),
+            "Median PM" = median(pm, na.rm = TRUE),
+            "75%" = quantile(pm, 0.75, na.rm = TRUE),
+            "Max PM" = max(pm, na.rm = TRUE))
+pm_by_month
+
+
 
 summary_stats <- elders_pm %>% 
   filter(winter_id == 1) %>% 
   group_by(area) %>% 
   distinct(home) %>% 
   summarize(n())
-summary_stats
+#summary_stats
 
 summary_stats <- elders_pm %>% 
   filter(winter_id == 1) %>% 
@@ -83,25 +98,33 @@ summary_stats <- elders_pm %>%
          mean_threshold_25 = as.numeric(mean_threshold_25)) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   summarize(sum(mean_threshold_25)/n())
-summary_stats
+#summary_stats
 ```
 
 
 # Boxplots for PM by study area
-```{r, fig.height=6, fig.width=5}
-boxplots_kids_pm <- pm_clean %>% 
-  filter(winter_id == 1 & treatment == "Placebo") %>% 
-  filter(pm < 500) %>% 
+```{r}
+boxplots_pm <- elders_pm %>% 
+  filter(winter_id == 1) %>% 
+  mutate(pm = if_else(pm > 500, 500, pm)) %>% 
   ggplot(aes(area, pm)) +
     geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
                fatten = 1, outlier.size = 1.5, width = 0.35) +
-    stat_summary(fun.y=mean, geom="point", shape=17, size=3, color="red") +
+    stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red",
+                 position=position_nudge(x = -0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=mean, geom="text", 
+                 size=7, position=position_nudge(x = -0.35, y = 0)) +
+    stat_summary(fun.y=median, geom="point", shape=16, size=4, color="blue",
+                 position=position_nudge(x = 0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=median, geom="text", 
+                 size=7, position=position_nudge(x = 0.35, y = 0)) +
     theme_minimal() +
-    ylim(0, 500) +
+    #ylim(0, 250) +
     #geom_hline(yintercept = 50, color = "red", size = 1.2) +
     labs(y = expression(paste("PM"[2.5], " (", mu, g/m^3, ")"))) +
-    #labs(aes(x = "", y = paste("48-hour indoor PM "[2.5], " (", mu, g/m^3, ")"))) +
+    labs(title = "Area PM2.5, Winter 1", subtitle = "Mean = Red, Median = Blue") +
     theme(axis.text.x = element_text(size = 16, colour = "black"),
+          title = element_text(size = 18, colour = "black"),
           axis.text.y = element_text(size = 16, colour = "black"),
           axis.title.y = element_text(size = 16,
                                       margin = margin(t = 0, r = 20, b = 0, l = 0)),
@@ -109,5 +132,38 @@ boxplots_kids_pm <- pm_clean %>%
           axis.line.x = element_line(colour = "black", size = 1.2), 
           axis.line.y = element_line(colour = "black", size = 1.2), 
           axis.ticks = element_blank())
-boxplots_kids_pm
+boxplots_pm
+
+
+
+boxplots_pm <- elders_pm %>% 
+  filter(winter_id == 1) %>% 
+  mutate(pm = if_else(pm > 500, 500, pm)) %>% 
+  ggplot(aes(area, log(pm))) +
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red",
+                 position=position_nudge(x = -0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=mean, geom="text", 
+                 size=7, position=position_nudge(x = -0.35, y = 0)) +
+    stat_summary(fun.y=median, geom="point", shape=16, size=4, color="blue",
+                 position=position_nudge(x = 0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=median, geom="text", 
+                 size=7, position=position_nudge(x = 0.35, y = 0)) +
+    theme_minimal() +
+    #ylim(0, 250) +
+    #geom_hline(yintercept = 50, color = "red", size = 1.2) +
+    labs(y = expression(paste("PM"[2.5], " (", mu, g/m^3, ")"))) +
+    labs(title = "Area PM2.5 (log transformed), Winter 1",
+         subtitle = "Mean = Red, Median = Blue") +
+    theme(axis.text.x = element_text(size = 16, colour = "black"),
+          title = element_text(size = 18, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank())
+boxplots_pm
 ```

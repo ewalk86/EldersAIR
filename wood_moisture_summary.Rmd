@@ -1,7 +1,7 @@
 ---
 title: "Elders Moisture Summary"
 author: "Ethan Walker"
-date: "Started 5 March 2020, Updated 10 March 2020"
+date: "Started 5 March 2020, Updated 12 March 2020"
 output: pdf_document
 ---
 
@@ -24,17 +24,21 @@ elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
 elders_pm <- read_rds("Output/elders_pm_clean.rds")
 ```
 
+
+```{r}
 # Moisture content summary stats
 ## Average of 3 measurements
-```{r}
+
 moisture_n <- moisture_clean %>% 
   filter(winter_id == 1) %>% 
   group_by(area) %>%
   filter(!is.na(moisture_ave)) %>% 
   distinct(home) %>% 
   summarize(n())
+```
 
-
+# Moisture content by area
+```{r}
 summary_moisture <- moisture_clean %>%
   filter(winter_id == 1) %>% 
   group_by(area) %>% 
@@ -47,8 +51,10 @@ summary_moisture <- moisture_clean %>%
   t() 
 kable(summary_moisture, col.names = c("Navajo", "Nez Perce"), 
       digits = 1, align = "c")
+```
 
-
+# Moisture content total
+```{r}
 summary_moisture <- moisture_clean %>%
   filter(winter_id == 1) %>% 
   summarize(mean = mean(moisture_ave, na.rm = TRUE), 
@@ -70,7 +76,6 @@ wood_split <- moisture_clean %>%
 kable(wood_split, align = "c")
 ```
 
-# Boxplots
 ```{r, fig.height=6, fig.width=5}
 boxplots_moisture <- moisture_clean %>% 
   filter(winter_id == 1) %>% 
@@ -79,16 +84,24 @@ boxplots_moisture <- moisture_clean %>%
   ggplot(aes(area, moisture_ave)) +
     geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
                fatten = 1, outlier.size = 1.5, width = 0.35) +
-    stat_summary(fun.y=mean, geom="point", shape=17, size=3, color="red") +
+    stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red",
+                 position=position_nudge(x = -0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=mean, geom="text", 
+                 size=7, position=position_nudge(x = -0.35, y = 0)) +
+    stat_summary(fun.y=median, geom="point", shape=16, size=4, color="blue",
+                 position=position_nudge(x = 0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=median, geom="text", 
+                 size=7, position=position_nudge(x = 0.35, y = 0)) +
     theme_minimal() +
     ylim(0, 50) +
     #geom_hline(yintercept = 50, color = "red", size = 1.2) +
-    labs(y = "Mean moisture content (%)") +
+    labs(title = "Mean wood moisture content" , y = "%") +
     #labs(aes(x = "", y = paste("48-hour indoor PM "[2.5], " (", mu, g/m^3, ")"))) +
     theme(axis.text.x = element_text(size = 16, colour = "black"),
           axis.text.y = element_text(size = 16, colour = "black"),
           axis.title.y = element_text(size = 16,
                                       margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          title = element_text(size = 18, colour = "black"),
           axis.title.x = element_blank(),
           axis.line.x = element_line(colour = "black", size = 1.2), 
           axis.line.y = element_line(colour = "black", size = 1.2), 
@@ -97,11 +110,14 @@ boxplots_moisture
 ```
 
 
+
+```{r}
 #### Abstract/manuscript tables ####
 
 # Filter for homes that have PM data
-```{r}
-# 93 Winter 1 placebo homes have PM data
+
+
+
 pm_homes <- elders_pm %>% 
   filter(winter_id == 1) %>% 
   group_by(area, home, sampling_visit) %>% 
@@ -132,26 +148,26 @@ moisture_filtered_time <- moisture_filtered %>%
   filter(time_diff_rank == 1)
 ```
 
-# Summarize home data
-```{r}
+
+```{r, include=FALSE}
 # Summarize numeric vars
-kids_moisture <- moisture_filtered_time %>%  
+elders_moisture <- moisture_filtered_time %>%  
   group_by(area) %>% 
   summarize("Mean" = mean(moisture_ave, na.rm = TRUE), 
             "SD" = sd(moisture_ave, na.rm = TRUE),
             "min" = min(moisture_ave, na.rm = TRUE), 
             "med" = median(moisture_ave, na.rm = TRUE), 
             "max" = max(moisture_ave, na.rm = TRUE))
-kable(kids_moisture, digits = 1, align = "c")
+kable(elders_moisture, digits = 1, align = "c")
 
 # Summarize numeric vars
-kids_moisture <- moisture_filtered_time %>%  
+elders_moisture <- moisture_filtered_time %>%  
   #group_by(area) %>% 
   summarize("Mean" = mean(time_diff, na.rm = TRUE), 
             "SD" = sd(time_diff, na.rm = TRUE),
             "min" = min(time_diff, na.rm = TRUE), 
             "med" = median(time_diff, na.rm = TRUE), 
             "max" = max(time_diff, na.rm = TRUE))
-kable(kids_moisture, digits = 1, align = "c")
+kable(elders_moisture, digits = 1, align = "c")
 ```
 

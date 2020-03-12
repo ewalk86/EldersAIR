@@ -1,7 +1,7 @@
 ---
 title: "Elders home characteristics/activity summary"
 author: "Ethan Walker"
-date: "Started 5 March 2020, Updated 10 March 2020"
+date: "Started 5 March 2020, Updated 12 March 2020"
 output:
   pdf_document: default
   word_document: default
@@ -30,8 +30,7 @@ elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
 elders_pm <- read_rds("Output/elders_pm_clean.rds")
 ```
 
-# Summary data for home characteristics
-```{r}
+```{r, include=FALSE}
 # Summarize numeric vars: home_sqft, home_year_built, home_bedrooms, home_windows,
 # home_pets, home_furry, wood_cords
 home_char_summary <- home_char_clean %>% 
@@ -64,8 +63,7 @@ table(table_list$area, table_list$wood_collect_method, useNA = "ifany")
 table(table_list$wood_collect_method, useNA = "ifany")
 ```
 
-# Summary data for home activity
-```{r}
+```{r, include=FALSE}
 # Summarize factor vars
 ## Use this as a quick look at all vars
 table_list <- home_act_clean %>% 
@@ -137,6 +135,39 @@ home_char_function(home_char_clean, "home_insert")
 ```
 
 # Home activity summary plots
+
+```{r, fig.height=10, fig.width=8}
+home_act_plot <- home_act_clean %>% 
+  filter(winter_id == 1) %>% 
+  select(area, home_act_gas, home_act_elect, home_act_propane, home_act_oil, 
+         home_act_smoking, home_act_incense, home_act_candle, home_act_kerosene,
+         home_act_windows, home_act_door, home_act_sweep) %>% 
+  pivot_longer(cols = c("home_act_gas":"home_act_sweep"), names_to = "var") %>% 
+  filter(!is.na(value)) %>% 
+  mutate(value = factor(value, levels = c("No", "Yes"))) %>% 
+  ggplot() +
+    geom_bar(aes(value, fill = area)) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(size = 16, colour = "black", 
+                                     angle = 40, vjust = 0.7, hjust = 0.7),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          strip.text = element_text(size = 16, colour = "black"),
+          legend.text = element_text(size = 14, colour = "black"),
+          legend.title = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(),
+          panel.grid = element_blank()) +
+    #labs(title = title_label) +
+    #ylab(y_label) +
+    scale_fill_manual(values = jv_palette) +
+    facet_wrap(~var, ncol = 2)
+home_act_plot
+```
+
+
 ```{r}
 home_act_function <- function(data, variable) {
 
@@ -179,82 +210,4 @@ home_act_function(home_act_clean, "home_act_door")
 home_act_function(home_act_clean, "home_act_sweep")
 ```
 
-#### Abstract/manuscript tables ####
-
-# Filter for homes that have PM data
-```{r}
-# 93 Winter 1 placebo homes have PM data
-pm_homes_placebo <- pm_clean %>% 
-  filter(winter_id == 1) %>% 
-  filter(treatment == "Placebo") %>% 
-  group_by(area, home) %>% 
-  mutate(initial_obs = if_else(pm_datetime_new == first_datetime_new, 1, 0)) %>% 
-  filter(initial_obs == 1) %>% 
-  mutate(pm_home = "true") %>% 
-  select(area, home, home_winter_id, pm_home) %>% 
-  ungroup() %>% 
-  arrange(area, home)
-
-home_char_filtered <- home_char_clean %>% 
-  # change to correct joining data of interest
-  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
-  filter(pm_home == "true") %>% 
-  filter(winter_id == 1) %>% 
-  ungroup() %>% 
-  arrange(area, home)
-
-home_act_filtered <- home_act_clean %>% 
-  # change to correct joining data of interest
-  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
-  filter(pm_home == "true") %>% 
-  filter(winter_id == 1) %>% 
-  ungroup() %>% 
-  arrange(area, home)
-```
-
-# Summarize home data
-```{r}
-# Summarize numeric vars
-kids_char <- home_char_filtered %>%  
-  distinct(home, .keep_all = TRUE) %>%  
-  group_by(area) %>% 
-  summarize("Mean" = mean(home_furry, na.rm = TRUE), 
-            "SD" = sd(home_furry, na.rm = TRUE),
-            "min" = min(home_furry, na.rm = TRUE), 
-            "max" = max(home_furry, na.rm = TRUE))
-kable(kids_char, digits = 1, align = "c")
-
-
-home_char_filtered %>% 
-  count(stove_age)
-
-
-# Summarize factor vars
-alaska_char <- home_act_filtered %>%  
-  #distinct(home, .keep_all = TRUE) %>% 
-  filter(area == "AK") %>% 
-  group_by(home_act_sweep) %>% 
-  #summarize(n = n(), percent = (n()/10)*100)
-  summarize(n = n(), percent = (n()/60)*100)
-alaska_char
-
-navajo_char <- home_act_filtered %>%  
-  #distinct(home, .keep_all = TRUE) %>% 
-  filter(area == "NN") %>% 
-  group_by(home_act_sweep) %>% 
-  #summarize(n = n(), percent = (n()/23)*100)
-  summarize(n = n(), percent = (n()/138)*100)
-navajo_char
-
-montana_char <- home_act_filtered %>%  
-  #distinct(home, .keep_all = TRUE) %>% 
-  filter(area == "WMT") %>% 
-  group_by(home_act_sweep) %>% 
-  #summarize(n = n(), percent = (n()/60)*100)
-  summarize(n = n(), percent = (n()/360)*100)
-montana_char
-
-kids_char <- rbind(alaska_char, navajo_char, montana_char)
-kids_char
-```
 

@@ -1,7 +1,7 @@
 ---
 title: "Elders indoor temp/RH summary"
 author: "Ethan Walker"
-date: "Started 5 March 2020, Updated 5 March 2020"
+date: "Started 5 March 2020, Updated 12 March 2020"
 output: pdf_document
 ---
 
@@ -20,11 +20,12 @@ library(knitr)
 # Load data
 indoor_temp_rh_clean <- read_rds("Output/elders_temp_rh_clean.rds")
 elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
-elders_pm <- read_rds("Output/elders_pm_clean.rds")
 ```
 
+
+```{r, include=FALSE}
 # Summary stats
-```{r}
+
 temp_rh_summary <- indoor_temp_rh_clean %>%
   filter(winter_id == 1) %>% 
   group_by(area) %>% 
@@ -45,100 +46,54 @@ temp_rh_n <- indoor_temp_rh_clean %>%
 ```
 
 
-```{r, fig.height=6, fig.width=5}
-# Boxplot function
-boxplots_temp_rh_function <- function(data, variable){
-
-boxplots_temp_rh <- data %>% 
-  filter(winter_id == 1) %>% 
-  select(area, variable) %>% 
-  rename(plot_var = variable) %>% 
-  na.exclude() %>% 
-  ggplot(aes(area, plot_var)) +
+```{r}
+temp_rh_summary_function <- function(data, var, title_label, y_label) {
+  
+  temp_rh_summary <- data %>% 
+    filter(winter_id == 1) %>% 
+    #select(var) %>% 
+    select(area, var) %>% 
+    group_by(area) %>% 
+    summarize_all(list(mean=mean, sd=sd, min=min, med=median, max=max), na.rm = TRUE)
+  temp_rh_summary <<- temp_rh_summary
+  
+  temp_rh_summary_plot <- data %>% 
+    filter(winter_id == 1) %>% 
+    select(area, var) %>% 
+    rename(plot_var = var) %>% 
+    filter(!is.na(plot_var)) %>% 
+    ggplot(aes(area, plot_var)) +
     geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
                fatten = 1, outlier.size = 1.5, width = 0.35) +
-    stat_summary(fun.y=mean, geom="point", shape=17, size=3, color="red") +
+    stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red",
+                 position=position_nudge(x = -0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=mean, geom="text", 
+                 size=7, position=position_nudge(x = -0.35, y = 0)) +
+    stat_summary(fun.y=median, geom="point", shape=16, size=4, color="blue",
+                 position=position_nudge(x = 0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=median, geom="text", 
+                 size=7, position=position_nudge(x = 0.35, y = 0)) +
     theme_minimal() +
-    theme(axis.text.x = element_text(size = 16, colour = "black"),
+    labs(title = title_label, subtitle = "Mean = Red, Median = Blue") +
+    ylab(y_label) +
+    theme(title = element_text(size = 20, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black"),
           axis.text.y = element_text(size = 16, colour = "black"),
-          axis.title.y = element_blank(),
+          axis.title.y = element_text(size = 16, colour = "black"),
           axis.title.x = element_blank(),
           axis.line.x = element_line(colour = "black", size = 1.2), 
           axis.line.y = element_line(colour = "black", size = 1.2), 
-          axis.ticks = element_blank())
-boxplots_temp_rh
-
+          axis.ticks = element_blank()) 
+  temp_rh_summary_plot
+  
 }
+
+temp_rh_summary_function(indoor_temp_rh_clean, "temp_indoor_current", "Current indoor temp", "degrees C")
+temp_rh_summary_function(indoor_temp_rh_clean, "temp_indoor_min", "Min indoor temp", "degrees C")
+temp_rh_summary_function(indoor_temp_rh_clean, "temp_indoor_max", "Max indoor temp", "degrees C")
+temp_rh_summary_function(indoor_temp_rh_clean, "rh_indoor_current", "Current indoor RH", "%")
+temp_rh_summary_function(indoor_temp_rh_clean, "rh_indoor_min", "Min indoor RH", "%")
+temp_rh_summary_function(indoor_temp_rh_clean, "rh_indoor_max", "Max indoor RH", "%")
 ```
 
-## Current indoor humidity (%)
-```{r}
-boxplots_temp_rh_function(indoor_temp_rh_clean, "rh_indoor_current")
-```
-
-## Max indoor humidity (%)
-```{r}
-boxplots_temp_rh_function(indoor_temp_rh_clean, "rh_indoor_max")
-```
-
-## Min indoor humidity (%)
-```{r}
-boxplots_temp_rh_function(indoor_temp_rh_clean, "rh_indoor_min")
-```
-
-## Current indoor temperature (C)
-```{r}
-boxplots_temp_rh_function(indoor_temp_rh_clean, "temp_indoor_current")
-```
-
-## Max indoor temperature (C)
-```{r}
-boxplots_temp_rh_function(indoor_temp_rh_clean, "temp_indoor_max")
-```
-
-## Min indoor temperature (C)
-```{r}
-boxplots_temp_rh_function(indoor_temp_rh_clean, "temp_indoor_min")
-```
-
-
-#### Abstract/manuscript tables ####
-
-# Filter for homes that have PM data
-```{r}
-# 93 Winter 1 placebo homes have PM data
-pm_homes_placebo <- pm_clean %>% 
-  filter(winter_id == 1) %>% 
-  filter(treatment == "Placebo") %>% 
-  group_by(area, home) %>% 
-  mutate(initial_obs = if_else(pm_datetime_new == first_datetime_new, 1, 0)) %>% 
-  filter(initial_obs == 1) %>% 
-  mutate(pm_home = "true") %>% 
-  select(area, home, home_winter_id, pm_home) %>% 
-  ungroup() %>% 
-  arrange(area, home)
-
-temp_rh_filtered <- indoor_temp_rh_clean %>% 
-  # change to correct joining data of interest
-  left_join(pm_homes_placebo, by = c("area", "home", "home_winter_id")) %>% 
-  filter(pm_home == "true") %>% 
-  filter(winter_id == 1) %>% 
-  ungroup() %>% 
-  arrange(area, home)
-```
-
-# Summarize home data
-```{r}
-# Summarize numeric vars
-kids_temp_rh <- temp_rh_filtered %>%  
-  distinct(home, .keep_all = TRUE) %>%  
-  group_by(area) %>% 
-  summarize("Mean" = mean(rh_indoor_min, na.rm = TRUE), 
-            "SD" = sd(rh_indoor_min, na.rm = TRUE),
-            "min" = min(rh_indoor_min, na.rm = TRUE), 
-            "med" = median(rh_indoor_min, na.rm = TRUE), 
-            "max" = max(rh_indoor_min, na.rm = TRUE))
-kable(kids_temp_rh, digits = 1, align = "c")
-
-```
 

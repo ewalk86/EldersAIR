@@ -1,12 +1,12 @@
 ---
 title: "EldersAIR: demographics summary"
 author: "Ethan Walker"
-date: "Started 6 March 2020, Updated 10 March 2020"
+date: "Started 6 March 2020, Updated 12 March 2020"
 output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ```
 
 ```{r, message=FALSE}
@@ -15,27 +15,138 @@ library(readxl)
 library(naniar)
 library(lubridate)
 library(zoo)
+library(knitr)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
 ```
 
-# Load individual datasets
+
 ```{r}
+# Load individual datasets
+
 elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
 elders_pm <- read_rds("Output/elders_pm_clean.rds")
 ```
 
-##### For Winter 1, there were 145 homes with demographic data (76 NN and 69 NP)
-##### and 150 participants with demographic data (79 NN and 71 NP)
-##### 5 homes had 2 participants (3 NN and 2 NP); all other homes had 1 participant
+## For Winter 1, there were 145 homes with demographic data (76 NN and 69 NP)
+## and 150 participants with demographic data (79 NN and 71 NP)
+## 5 homes had 2 participants (3 NN and 2 NP); all other homes had 1 participant
 
-# Filter for homes that have PM data
+
 ```{r}
+# Filter for Winter 1; remove NAs
+
 demographics_filtered <- elders_ids_linked %>% 
   filter(winter_id == 1) %>% 
-  filter(!is.na(gender)) 
+  filter(!is.na(gender)) %>% 
+  mutate(income = factor(income,
+                         levels = c("Less than $20,000", "$20,000 to $29,999",
+                                    "$30,000 to $39,999", "$40,000 to $49,999",
+                                    "$50,000 to $74,999", "$75,000 to $99,999",
+                                    "$100,000 or more")),
+         education = factor(education,
+                            levels = c("Less than high school",
+                                       "High school diploma or GED",
+                                       "Some college",
+                                       "College degree")))
 ```
 
-# Summarize demographics data
+
 ```{r}
+# Demographics summary stats function
+
+demographics_function <- function(data, var, title_label, y_label) {
+  
+  demographics_plot <- data %>% 
+  filter(winter_id == 1) %>% 
+  select(area, var) %>% 
+  rename(plot_var = var) %>% 
+  filter(!is.na(plot_var)) %>% 
+  ggplot() +
+    geom_bar(aes(plot_var, fill = area)) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(size = 16, colour = "black", 
+                                     angle = 40, vjust = 0.7, hjust = 0.7),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          title = element_text(size = 18, colour = "black"),
+          legend.text = element_text(size = 14, colour = "black"),
+          legend.title = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(),
+          panel.grid = element_blank()) +
+    labs(title = title_label) +
+    ylab(y_label) +
+    scale_fill_manual(values = jv_palette)
+  demographics_plot
+  
+}
+
+demographics_function(demographics_filtered, "gender", "Participant sex", "count")
+demographics_function(demographics_filtered, "hispanic", "Hispanic ethnicity", "count")
+demographics_function(demographics_filtered, "race", "Participant race", "count")
+demographics_function(demographics_filtered, "income", "Household income", "count")
+demographics_function(demographics_filtered, "education", "Participant education", "count")
+demographics_function(demographics_filtered, "total_residents", "Total residents", "count")
+demographics_function(demographics_filtered, "residents_under18", "Residents under 18", "count")
+```
+
+
+```{r}
+demo_summary_function <- function(data, var, title_label, y_label) {
+  
+  demo_summary <- data %>% 
+    filter(winter_id == 1) %>% 
+    #select(var) %>% 
+    select(area, var) %>% 
+    group_by(area) %>% 
+    summarize_all(list(mean=mean, sd=sd, min=min, med=median, max=max), na.rm = TRUE)
+  demo_summary <<- demo_summary
+  
+  demo_plot <- data %>% 
+    filter(winter_id == 1) %>% 
+    select(area, var) %>% 
+    rename(plot_var = var) %>% 
+    filter(!is.na(plot_var)) %>% 
+    ggplot(aes(area, plot_var)) +
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red",
+                 position=position_nudge(x = -0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=mean, geom="text", 
+                 size=7, position=position_nudge(x = -0.35, y = 0)) +
+    stat_summary(fun.y=median, geom="point", shape=16, size=4, color="blue",
+                 position=position_nudge(x = 0.1, y = 0)) +
+    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=median, geom="text", 
+                 size=7, position=position_nudge(x = 0.35, y = 0)) +
+    theme_minimal() +
+    labs(title = title_label, subtitle = "Mean = Red, Median = Blue") +
+    ylab(y_label) +
+    theme(title = element_text(size = 20, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) 
+  demo_plot
+  
+}
+
+demo_summary_function(demographics_filtered, "age_nov1", "Age, Nov 1", "years")
+demo_summary_function(demographics_filtered, "total_residents", "Total residents", "count")
+demo_summary_function(demographics_filtered, "residents_under18", "Residents under 18", "count")
+```
+
+
+
+```{r, include=FALSE}
+# Summarize demographics data
+
 # Summarize numeric vars: total_residents, residents_under18, age_nov1
 elders_dems <- demographics_filtered %>%  
   #group_by(area) %>% 
