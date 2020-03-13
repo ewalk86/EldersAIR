@@ -7,5 +7,7 @@
 *.csv
 *.docx
 *.tex
+*.pptx
 Input
 Output
+demographics_summary.pptx

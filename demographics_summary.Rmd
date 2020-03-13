@@ -2,7 +2,7 @@
 title: "EldersAIR: demographics summary"
 author: "Ethan Walker"
 date: "Started 6 March 2020, Updated 12 March 2020"
-output: pdf_document
+output: powerpoint_presentation
 ---
 
 ```{r setup, include=FALSE}
@@ -29,9 +29,9 @@ elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
 elders_pm <- read_rds("Output/elders_pm_clean.rds")
 ```
 
-## For Winter 1, there were 145 homes with demographic data (76 NN and 69 NP)
-## and 150 participants with demographic data (79 NN and 71 NP)
-## 5 homes had 2 participants (3 NN and 2 NP); all other homes had 1 participant
+For Winter 1, there were 145 homes with demographic data (76 NN and 69 NP)
+and 150 participants with demographic data (79 NN and 71 NP)
+5 homes had 2 participants (3 NN and 2 NP); all other homes had 1 participant
 
 
 ```{r}
@@ -51,6 +51,7 @@ demographics_filtered <- elders_ids_linked %>%
                                        "Some college",
                                        "College degree")))
 ```
+
 
 
 ```{r}
@@ -85,14 +86,42 @@ demographics_function <- function(data, var, title_label, y_label) {
   
 }
 
+```
+
+```{r}
 demographics_function(demographics_filtered, "gender", "Participant sex", "count")
+```
+
+
+```{r}
 demographics_function(demographics_filtered, "hispanic", "Hispanic ethnicity", "count")
+```
+
+
+```{r}
 demographics_function(demographics_filtered, "race", "Participant race", "count")
+```
+
+
+```{r}
 demographics_function(demographics_filtered, "income", "Household income", "count")
+```
+
+
+```{r}
 demographics_function(demographics_filtered, "education", "Participant education", "count")
+```
+
+
+```{r}
 demographics_function(demographics_filtered, "total_residents", "Total residents", "count")
+```
+
+
+```{r}
 demographics_function(demographics_filtered, "residents_under18", "Residents under 18", "count")
 ```
+
 
 
 ```{r}
