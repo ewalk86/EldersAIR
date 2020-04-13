@@ -23,8 +23,13 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 ```
 
 ```{r}
+input_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/Input/")
+output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/Output/")
+input_file <- c("elders_ids_linked.rds")
+output_file <- c("elders_ids_linked.rds")
+
 # Load data
-elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
+elders_ids_linked <- read_rds(paste0(output_path, input_file))
 ```
 
 
