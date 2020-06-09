@@ -21,11 +21,15 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
                   "#FF3366", "#33CC99", "#33999")
 ```
 
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+```
+
 
 # Load, format, and save Dustrak log files
 ```{r}
 ## Box location: Update Box location once final data loaded
-np_dustrak_initial <- read_xlsx("Input/NP/np_dustrak_20200220.xlsx") %>% 
+np_dustrak_initial <- read_xlsx(paste0(file_path, "Input/NP/np_dustrak_20200220.xlsx")) %>% 
   # rename variables
   separate(StartTime, c("trash1", "start_time_pm"), sep = " ", remove = FALSE) %>% 
   separate(StopTime, c("trash1", "stop_time_pm"), sep = " ", remove = FALSE) %>% 
@@ -46,11 +50,11 @@ np_dustrak_initial <- read_xlsx("Input/NP/np_dustrak_20200220.xlsx") %>%
          stop_date_pm, stop_time_pm, sample_obs, sample_ave, sample_min,
          sample_max, pm_comments) %>% 
   arrange(home_winter_id)
-#write_rds(np_dustrak_initial, "Output/np_dustrak.rds")
+#write_rds(np_dustrak_initial, paste0(file_path, "Output/np_dustrak.rds"))
 
 
 ## Box location: Update Box location once final data loaded
-nn_dustrak_initial <- read_xlsx("Input/NN/nn_dustrak_20200220.xlsx") %>% 
+nn_dustrak_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_dustrak_20200220.xlsx")) %>% 
   # rename variables
   separate(StartTime, c("trash1", "start_time_pm"), sep = " ", remove = FALSE) %>% 
   separate(StopTime, c("trash1", "stop_time_pm"), sep = " ", remove = FALSE) %>% 
@@ -71,20 +75,20 @@ nn_dustrak_initial <- read_xlsx("Input/NN/nn_dustrak_20200220.xlsx") %>%
          stop_date_pm, stop_time_pm, sample_obs, sample_ave, sample_min,
          sample_max, pm_comments) %>% 
   arrange(home_winter_id)
-#write_rds(nn_dustrak_initial, "Output/nn_dustrak.rds")
+#write_rds(nn_dustrak_initial, paste0(file_path, "Output/nn_dustrak.rds"))
 
 
 elders_dustrak_log <- rbind(np_dustrak_initial, nn_dustrak_initial)
-#write_rds(elders_dustrak_log, "Output/elders_dustrak_log.rds")
+#write_rds(elders_dustrak_log, paste0(file_path, "Output/elders_dustrak_log.rds"))
 
-elders_ids_linked <- read_rds("Output/elders_ids_linked.rds") %>% 
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) %>% 
   filter(winter_id == 1 | winter_id == 2)
 
 
 elders_dustrak_log_new <- elders_dustrak_log %>% 
   left_join(elders_ids_linked, by = c("area", "home_winter_id")) %>% 
   arrange(home, winter_id)
-#write_rds(elders_dustrak_log_new, "Output/elders_dustrak_log.rds")
+#write_rds(elders_dustrak_log_new, paste0(file_path, "Output/elders_dustrak_log.rds"))
 ```
 
 
@@ -96,11 +100,11 @@ elders_dustrak_log_new <- elders_dustrak_log %>%
 
 ### NN ###
 # List files
-list_text_files <- list.files("Input/NN/nn_dustrak/pre_20200218/text")
+list_text_files <- list.files(paste0(file_path, "Input/NN/nn_dustrak/pre_20200218/text"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 4 lines together
-setwd("Input/NN/nn_dustrak/pre_20200218/text") # set new working directory
+setwd(paste0(file_path, "Input/NN/nn_dustrak/pre_20200218/text")) # set new working directory
 initial_data = tibble(file_name = list_text_files) %>% # use list of files from above
   mutate(save_data = lapply(file_name, read_delim, delim = " ", skip = 28)) %>%
   unnest(save_data)
@@ -127,7 +131,7 @@ nn_pm_text_space <- initial_data %>%
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 4 lines together
-setwd("Input/NN/nn_dustrak/pre_20200218/text") # set new working directory
+setwd(paste0(file_path, "Input/NN/nn_dustrak/pre_20200218/text")) # set new working directory
 initial_data = tibble(file_name = list_text_files) %>% # use list of files from above
   mutate(save_data = lapply(file_name, read_delim, delim = ",", skip = 28)) %>%
   unnest(save_data)
@@ -154,11 +158,11 @@ nn_pm_text_comma <- initial_data %>%
 
 ### NP ###
 # List files
-list_text_files <- list.files("Input/NP/np_dustrak/pre_20200218/text")
+list_text_files <- list.files(paste0(file_path, "Input/NP/np_dustrak/pre_20200218/text"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 4 lines together
-setwd("Input/NP/np_dustrak/pre_20200218/text") # set new working directory
+setwd(paste0(file_path, "Input/NP/np_dustrak/pre_20200218/text")) # set new working directory
 initial_data = tibble(file_name = list_text_files) %>% # use list of files from above
   mutate(save_data = lapply(file_name, read_delim, delim = ",", skip = 29,
                             col_names = c("date", "time", "pm"))) %>%
@@ -190,11 +194,11 @@ np_pm_text_comma <- initial_data %>%
 
 ### NN ###
 # List files
-list_csv_files <- list.files("Input/NN/nn_dustrak/pre_20200218/csv")
+list_csv_files <- list.files(paste0(file_path, "Input/NN/nn_dustrak/pre_20200218/csv"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 4 lines together
-setwd("Input/NN/nn_dustrak/pre_20200218/csv") # set new working directory
+setwd(paste0(file_path, "Input/NN/nn_dustrak/pre_20200218/csv")) # set new working directory
 initial_data = tibble(file_name = list_csv_files) %>% # use list of files from above
   mutate(save_data = lapply(file_name, read_csv)) %>%
   unnest(save_data)
@@ -232,11 +236,11 @@ nn_pm_csv <- initial_data %>%
 
 ### NP ###
 # List files
-list_csv_files <- list.files("Input/NP/np_dustrak/pre_20200218/csv")
+list_csv_files <- list.files(paste0(file_path, "Input/NP/np_dustrak/pre_20200218/csv"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 4 lines together
-setwd("Input/NP/np_dustrak/pre_20200218/csv") # set new working directory
+setwd(paste0(file_path, "Input/NP/np_dustrak/pre_20200218/csv")) # set new working directory
 initial_data = tibble(file_name = list_csv_files) %>% # use list of files from above
   mutate(save_data = lapply(file_name, read_csv)) %>%
   unnest(save_data)
@@ -280,14 +284,14 @@ elders_pm <- rbind(nn_pm_csv, nn_pm_text_comma, nn_pm_text_space,
   arrange(area, home, datetime_pm) %>% 
   ungroup()
 # Save pm dataset as RDS 
-# write_rds(elders_pm, "Output/elders_pm_full_raw.rds")
+# write_rds(elders_pm, paste0(file_path, "Output/elders_pm_full_raw.rds"))
 ```
 
 # Initial cleaning steps
 ## Remember to add correction factor
 ```{r}
-elders_pm_full_raw <- read_rds("Output/elders_pm_full_raw.rds")
-elders_dustrak_log <- read_rds("Output/elders_dustrak_log.rds") %>% 
+elders_pm_full_raw <- read_rds(paste0(file_path, "Output/elders_pm_full_raw.rds"))
+elders_dustrak_log <- read_rds(paste0(file_path, "Output/elders_dustrak_log.rds")) %>% 
   filter(winter_id == 1) %>% 
   arrange(home, sampling_visit) %>% 
   group_by(home, sampling_visit) %>% 
@@ -348,20 +352,20 @@ elders_pm_new2 <- elders_pm_new %>%
   ungroup() %>% 
   select(-obs, -sampling_day) %>% 
   arrange(area, home, sampling_visit) 
-# write_rds(elders_pm_new2, "Output/elders_pm_new.rds")
+# write_rds(elders_pm_new2, paste0(file_path, "Output/elders_pm_new.rds"))
 
 
 pm_summary <- elders_pm_new2 %>% 
   group_by(area, home, sampling_visit) %>%
   distinct(sampling_visit, .keep_all = TRUE)
-# write_csv(pm_summary, "Output/elders_pm_summary.csv")
+# write_csv(pm_summary, paste0(file_path, "Output/elders_pm_summary.csv"))
 ```
 
 
 # Check sample start times and PM values
 ```{r}
 # Load data 
-elders_pm <- read_rds("Output/elders_pm_new.rds")
+elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_new.rds"))
 
 
 # Checking difference between dustrak start datetime and field data log datetime
@@ -379,14 +383,14 @@ sample_times <- elders_pm %>%
          starttime_diff) %>% 
   distinct(sampling_visit, .keep_all = TRUE) %>% 
   arrange(area, home, home_winter_id, sampling_visit)
-# write_csv(sample_times, "Output/pm_sample_times_comparison.csv")
+# write_csv(sample_times, paste0(file_path, "Output/pm_sample_times_comparison.csv"))
 ```
 
 
 # Histogram for distribution of PM by individual ID
 ```{r}
 # Load data 
-elders_pm <- read_rds("Output/elders_pm_clean.rds")
+elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds"))
 
 
 histogram_id <- elders_pm %>% 
@@ -454,7 +458,7 @@ pm_time_plot
 ### EldersAIR > Ethan - data cleaning and analysis > pm_cleaning_summary
 ```{r}
 # Load data 
-elders_pm <- read_rds("Output/elders_pm_clean.rds")
+elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds"))
 
 # Change function input to look at specific home
 # Run all of these lines together
@@ -472,15 +476,15 @@ check_data <- kids_pm %>%
 # Fix PM data after checking odd values and time differences
 ```{r}
 # Load data 
-elders_pm <- read_rds("Output/elders_pm_new.rds")
+elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_new.rds"))
 
-pm_sample_times_comparison <- read_xlsx("Input/pm_sample_times_comparison.xlsx") %>% 
+pm_sample_times_comparison <- read_xlsx(paste0(file_path, "Input/pm_sample_times_comparison.xlsx")) %>% 
   select(area, home, winter_id, sampling_visit, cleaning_comments, 
          next_steps, sensitivity_analysis) %>% 
   mutate(winter_id = as.factor(winter_id),
          sampling_visit = as.factor(sampling_visit))
 
-elders_ids_linked <- read_rds("Output/elders_ids_linked.rds") %>% 
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) %>% 
   filter(winter_id == 1) %>% 
   select(area, home, winter_id, home_winter_id, home_id, treatment) %>% 
   distinct(home, .keep_all = TRUE)
@@ -523,6 +527,6 @@ elders_pm_new <- elders_pm %>%
   arrange(area, home, winter_id, sampling_visit)
 
 
-#write_rds(elders_pm_new, "Output/elders_pm_clean.rds")
+#write_rds(elders_pm_new, paste0(file_path, "Output/elders_pm_clean.rds"))
 ```
 

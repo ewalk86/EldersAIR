@@ -24,9 +24,10 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 
 ```{r}
 # Load individual datasets
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
-elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
-elders_pm <- read_rds("Output/elders_pm_clean.rds")
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
+elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds"))
 ```
 
 For Winter 1, there were 145 homes with demographic data (76 NN and 69 NP)

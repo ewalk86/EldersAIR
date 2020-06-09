@@ -17,12 +17,16 @@ library(lubridate)
 library(zoo)
 ```
 
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+```
+
 
 # Load, format, and save home and adult overview/demographic data 
 ```{r}
 # Load files 
 ## Box location: Update Box location once final data loaded
-np_adult_initial <- read_xlsx("Input/NP/np_adult_20200220.xlsx") %>% 
+np_adult_initial <- read_xlsx(paste0(file_path, "Input/NP/np_adult_20200220.xlsx")) %>% 
   rename_all(tolower) %>% 
   mutate(adult_id_num = as.factor(adultid),
          home_id = as.factor(homeid),
@@ -33,7 +37,7 @@ np_adult_initial <- read_xlsx("Input/NP/np_adult_20200220.xlsx") %>%
   arrange(adult_id_num)
 
 ## Box location: Update Box location once final data loaded
-nn_adult_initial <- read_xlsx("Input/NN/nn_adult_20200220.xlsx") %>% 
+nn_adult_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_adult_20200220.xlsx")) %>% 
   rename_all(tolower) %>% 
   mutate(adult_id_num = as.factor(adultid),
          home_id = as.factor(homeid),
@@ -48,7 +52,7 @@ elders_adult <- rbind(np_adult_initial, nn_adult_initial)
 
 # Load files 
 ## Box location: Update Box location once final data loaded
-np_demographics_initial <- read_xlsx("Input/NP/np_demographics_20200225.xlsx") %>% 
+np_demographics_initial <- read_xlsx(paste0(file_path, "Input/NP/np_demographics_20200225.xlsx")) %>% 
   rename_all(tolower) %>% 
   mutate(adult_id_num = as.factor(adultid),
          home_winter_id = as.factor(homewinterid),
@@ -66,7 +70,7 @@ np_demographics_initial <- read_xlsx("Input/NP/np_demographics_20200225.xlsx") %
   arrange(adult_id_num)
 
 ## Box location: Update Box location once final data loaded
-nn_demographics_initial <- read_xlsx("Input/NN/nn_demographics_20200225.xlsx") %>% 
+nn_demographics_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_demographics_20200225.xlsx")) %>% 
   rename_all(tolower) %>% 
   mutate(adult_id_num = as.factor(adultid),
          home_winter_id = as.factor(homewinterid),
@@ -87,7 +91,7 @@ elders_demographics <- rbind(np_demographics_initial, nn_demographics_initial)
 
 
 ## Box location: Update Box location once final data loaded
-np_homewinter_initial <- read_xlsx("Input/NP/np_homewinter_20200220.xlsx") %>% 
+np_homewinter_initial <- read_xlsx(paste0(file_path, "Input/NP/np_homewinter_20200220.xlsx")) %>% 
   rename_all(tolower) %>% 
   separate(interventiontime, c("trash1", "intervention_time"), sep = " ", remove = FALSE) %>%
   separate(samplingtime, c("trash1", "sampling_time_1"), sep = " ", remove = FALSE) %>%
@@ -115,7 +119,7 @@ np_homewinter_initial <- read_xlsx("Input/NP/np_homewinter_20200220.xlsx") %>%
   arrange(home_id, winter_id)
 
 ## Box location: Update Box location once final data loaded
-nn_homewinter_initial <- read_xlsx("Input/NN/nn_homewinter_20200220.xlsx") %>% 
+nn_homewinter_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_homewinter_20200220.xlsx")) %>% 
   rename_all(tolower) %>% 
   separate(interventiontime, c("trash1", "intervention_time"), sep = " ", remove = FALSE) %>%
   separate(samplingtime, c("trash1", "sampling_time_1"), sep = " ", remove = FALSE) %>%
@@ -146,7 +150,7 @@ elders_homewinter <- rbind(np_homewinter_initial, nn_homewinter_initial)
 
 
 ## Box location: Update Box location once final data loaded
-np_home_initial <- read_xlsx("Input/NP/np_home_20200220.xlsx") %>% 
+np_home_initial <- read_xlsx(paste0(file_path, "Input/NP/np_home_20200220.xlsx")) %>% 
   rename_all(tolower) %>% 
   mutate(home_id = as.factor(homeid),
          home = as.factor(home),
@@ -155,7 +159,7 @@ np_home_initial <- read_xlsx("Input/NP/np_home_20200220.xlsx") %>%
   select(home_id, home, treatment, area)
 
 ## Box location: Update Box location once final data loaded
-nn_home_initial <- read_xlsx("Input/NN/nn_home_20200220.xlsx") %>% 
+nn_home_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_home_20200220.xlsx")) %>% 
   rename_all(tolower) %>% 
   mutate(home_id = as.factor(homeid),
          home = as.factor(home),
@@ -176,9 +180,9 @@ elders_ids_linked <- elders_homewinter %>%
   left_join(elders_adult, by = c("area", "home_id", "adult_id_num")) %>% 
   mutate(home = str_remove(home, "[_]")) %>% 
   arrange(area, home, winter_id)
-#write_rds(elders_ids_linked, "Output/elders_ids_linked.rds")
+#write_rds(elders_ids_linked, paste0(file_path, "Output/elders_ids_linked.rds"))
 
-elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
 ```
 
 

@@ -17,11 +17,15 @@ library(lubridate)
 library(zoo)
 ```
 
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+```
+
 
 # Load, format, and save stove grades data
 ```{r}
 ## Box location: Update Box location once final data loaded
-np_stove_initial <- read_xlsx("Input/NP/np_stove_20200225.xlsx") %>% 
+np_stove_initial <- read_xlsx(paste0(file_path, "Input/NP/np_stove_20200225.xlsx")) %>% 
   # rename variables
   mutate(home_id = as.factor(HomeID),
          home_winter_id = as.factor(HomeWinterID),
@@ -33,7 +37,7 @@ np_stove_initial <- read_xlsx("Input/NP/np_stove_20200225.xlsx") %>%
 
 
 ## Box location: Update Box location once final data loaded
-nn_stove_initial <- read_xlsx("Input/NN/nn_stove_20200225.xlsx") %>% 
+nn_stove_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_stove_20200225.xlsx")) %>% 
   # rename variables
   mutate(home_id = as.factor(HomeID),
          home_winter_id = as.factor(HomeWinterID),
@@ -47,23 +51,23 @@ nn_stove_initial <- read_xlsx("Input/NN/nn_stove_20200225.xlsx") %>%
 # Combine locations and save
 elders_stove_grades <- rbind(np_stove_initial, nn_stove_initial)
 
-#write_rds(elders_stove_grades, "Output/elders_stove_grades.rds")
+#write_rds(elders_stove_grades, paste0(file_path, "Output/elders_stove_grades.rds"))
 ```
 
 
 # Clean up all stove grades data
 ```{r}
-elders_stove_grades <- read_rds("Output/elders_stove_grades.rds")
+elders_stove_grades <- read_rds(paste0(file_path, "Output/elders_stove_grades.rds"))
 
-elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
 
 elders_stove_grades_clean <- elders_stove_grades %>% 
   left_join(elders_ids_linked, by = c("area", "home_id", "home_winter_id")) %>% 
   filter(!is.na(home_winter_id)) 
 
-# write_rds(elders_stove_grades_clean, "Output/elders_stove_grades_clean.rds")
+# write_rds(elders_stove_grades_clean, paste0(file_path, "Output/elders_stove_grades_clean.rds"))
 
-elders_stove_grades_clean <- read_rds("Output/elders_stove_grades_clean.rds")
+elders_stove_grades_clean <- read_rds(paste0(file_path, "Output/elders_stove_grades_clean.rds"))
 ```
 
 
@@ -73,7 +77,7 @@ elders_stove_grades_clean <- read_rds("Output/elders_stove_grades_clean.rds")
 # Load, format, and save stove usage data
 ```{r}
 ## Box location: Update Box location once final data loaded
-np_stove_initial <- read_xlsx("Input/NP/np_woodstoveusage_20200225.xlsx") %>% 
+np_stove_initial <- read_xlsx(paste0(file_path, "Input/NP/np_woodstoveusage_20200225.xlsx")) %>% 
   # rename variables
   mutate(home_winter_id = as.factor(HomeWinterID),
          burn_level = as.factor(Burning),
@@ -86,7 +90,7 @@ np_stove_initial <- read_xlsx("Input/NP/np_woodstoveusage_20200225.xlsx") %>%
 
 
 ## Box location: Update Box location once final data loaded
-nn_stove_initial <- read_xlsx("Input/NN/nn_woodstoveusage_20200225.xlsx") %>% 
+nn_stove_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_woodstoveusage_20200225.xlsx")) %>% 
   # rename variables
   mutate(home_winter_id = as.factor(HomeWinterID),
          burn_level = as.factor(Burning),
@@ -101,21 +105,21 @@ nn_stove_initial <- read_xlsx("Input/NN/nn_woodstoveusage_20200225.xlsx") %>%
 # Combine locations and save
 elders_stove_usage <- rbind(np_stove_initial, nn_stove_initial)
 
-#write_rds(elders_stove_usage, "Output/elders_stove_usage.rds")
+#write_rds(elders_stove_usage, paste0(file_path, "Output/elders_stove_usage.rds"))
 ```
 
 
 # Clean up all stove usage data
 ```{r}
-elders_stove_usage <- read_rds("Output/elders_stove_usage.rds")
+elders_stove_usage <- read_rds(paste0(file_path, "Output/elders_stove_usage.rds"))
 
-elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
 
 elders_stove_usage_clean <- elders_stove_usage %>% 
   left_join(elders_ids_linked, by = c("area", "home_winter_id")) %>% 
   filter(!is.na(burn_level)) 
 
-# write_rds(elders_stove_usage_clean, "Output/elders_stove_usage_clean.rds")
+# write_rds(elders_stove_usage_clean, paste0(file_path, "Output/elders_stove_usage_clean.rds"))
 
-elders_stove_usage_clean <- read_rds("Output/elders_stove_usage_clean.rds")
+elders_stove_usage_clean <- read_rds(paste0(file_path, "Output/elders_stove_usage_clean.rds"))
 ```

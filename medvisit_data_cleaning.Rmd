@@ -19,8 +19,12 @@ library(knitr)
 jv_palette <- c("#330099","#CC0066","#FF6633", 
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
+```
 
-elders_ids_linked <- read_rds("Output/elders_ids_linked.rds") %>% 
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) %>% 
   filter(winter_id == 1 | winter_id == 2) %>% 
   arrange(area, adult_id_num)
 ```
@@ -28,7 +32,7 @@ elders_ids_linked <- read_rds("Output/elders_ids_linked.rds") %>%
 # Initial load, format, save medical visit data
 ```{r}
 ## Box location: Update Box location once final data loaded
-np_medvisit_initial <- read_xlsx("Input/NP/np_medicalvisit_20200220.xlsx")
+np_medvisit_initial <- read_xlsx(paste0(file_path, "Input/NP/np_medicalvisit_20200220.xlsx"))
 
 np_medvisit_new <- np_medvisit_initial %>% 
   mutate(home_winter_id = HomeWinterID,
@@ -76,7 +80,7 @@ np_medvisit_new2 <- np_medvisit_new %>%
 
 
 ## Box location: Update Box location once final data loaded
-nn_medvisit_initial <- read_xlsx("Input/NN/nn_medicalvisit_20200220.xlsx")
+nn_medvisit_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_medicalvisit_20200220.xlsx"))
 
 nn_medvisit_new <- nn_medvisit_initial %>% 
   mutate(home_winter_id = HomeWinterID,
@@ -162,13 +166,13 @@ save_var_names <- data.frame(t(elders_medvisit)) %>%
   rownames_to_column() %>% 
   select(rowname)
 
-write_csv(save_var_names, "Output/medvisit_var_names.csv")
+write_csv(save_var_names, paste0(file_path, "Output/medvisit_var_names.csv"))
 ```
 
 
 # Summary stats to help with further data cleaning
 ```{r}
-elders_medvisit <- read_rds("Output/elders_medvisit_clean.rds") %>% 
+elders_medvisit <- read_rds(paste0(file_path, "Output/elders_medvisit_clean.rds")) %>% 
   mutate(hypertension = if_else(bp_sys >= 140 | bp_dia >= 90, 1, 0),
          hypertension = as.numeric(hypertension),
          obstruction = if_else(fev1_fvc_ratio < 0.7 | fev1_pp < 75, 1, 0),

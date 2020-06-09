@@ -21,11 +21,15 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
                   "#FF3366", "#33CC99", "#33999")
 ```
 
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+```
+
 
 # Load, format, and save micropem log files
 ```{r}
 ## Box location: Update Box location once final data loaded
-np_micropem_initial <- read_xlsx("Input/NP/np_micropem_20200225.xlsx") %>% 
+np_micropem_initial <- read_xlsx(paste0(file_path, "Input/NP/np_micropem_20200225.xlsx")) %>% 
   # rename variables
   separate(StartTime, c("trash1", "start_time_pm"), sep = " ", remove = FALSE) %>% 
   separate(StopTime, c("trash1", "stop_time_pm"), sep = " ", remove = FALSE) %>% 
@@ -47,11 +51,11 @@ np_micropem_initial <- read_xlsx("Input/NP/np_micropem_20200225.xlsx") %>%
          start_date_pm, start_time_pm, stop_date_pm, stop_time_pm, sample_obs, 
          file_name) %>% 
   arrange(home_winter_id)
-#write_rds(np_micropem_initial, "Output/np_micropem_log.rds")
+#write_rds(np_micropem_initial, paste0(file_path, "Output/np_micropem_log.rds"))
 
 
 ## Box location: Update Box location once final data loaded
-nn_micropem_initial <- read_xlsx("Input/NN/nn_micropem_20200225.xlsx") %>% 
+nn_micropem_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_micropem_20200225.xlsx")) %>% 
   # rename variables
   separate(StartTime, c("trash1", "start_time_pm"), sep = " ", remove = FALSE) %>% 
   separate(StopTime, c("trash1", "stop_time_pm"), sep = " ", remove = FALSE) %>% 
@@ -73,13 +77,13 @@ nn_micropem_initial <- read_xlsx("Input/NN/nn_micropem_20200225.xlsx") %>%
          start_date_pm, start_time_pm, stop_date_pm, stop_time_pm, sample_obs, 
          file_name) %>% 
   arrange(home_winter_id)
-#write_rds(nn_micropem_initial, "Output/nn_micropem_log.rds")
+#write_rds(nn_micropem_initial, paste0(file_path, "Output/nn_micropem_log.rds"))
 
 
 elders_micropem_log <- rbind(np_micropem_initial, nn_micropem_initial)
-#write_rds(elders_dustrak_log, "Output/elders_dustrak_log.rds")
+#write_rds(elders_dustrak_log, paste0(file_path, "Output/elders_dustrak_log.rds"))
 
-elders_ids_linked <- read_rds("Output/elders_ids_linked.rds") %>% 
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) %>% 
   filter(winter_id == 1 | winter_id == 2)
 
 
@@ -89,7 +93,7 @@ elders_micropem_log_new <- elders_micropem_log %>%
   unite(start_datetime_pm, c("start_date_pm", "start_time_pm"), sep = " ", remove = FALSE) %>% 
   unite(stop_datetime_pm, c("stop_date_pm", "stop_time_pm"), sep = " ", remove = FALSE) %>% 
   arrange(home, winter_id)
-#write_rds(elders_micropem_log_new, "Output/elders_micropem_log.rds")
+#write_rds(elders_micropem_log_new, paste0(file_path, "Output/elders_micropem_log.rds"))
 ```
 
 
@@ -102,11 +106,11 @@ elders_micropem_log_new <- elders_micropem_log %>%
 
 ### NP ###
 # List files
-list_files <- list.files("Input/NP/np_micropem_20200302")
+list_files <- list.files(paste0(file_path, "Input/NP/np_micropem_20200302"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next lines together
-setwd("Input/NP/np_micropem_20200302") # set new working directory
+setwd(paste0(file_path, "Input/NP/np_micropem_20200302")) # set new working directory
 initial_data <- tibble(list_files) %>% # use list of files from above
   mutate(save_data = lapply(list_files, read_xlsx, range = "A29:N20000",
                             col_names = c("date", "time", "pm",
@@ -140,17 +144,17 @@ np_micropem <- initial_data %>%
   arrange(area, file_name, datetime_pm)
 
 # save files
-#write_rds(np_micropem, "Output/np_micropem.rds")
+#write_rds(np_micropem, paste0(file_path, "Output/np_micropem.rds"))
 
 
 
 ### NN ###
 # List files
-list_files <- list.files("Input/NN/nn_micropem_small_20200302")
+list_files <- list.files(paste0(file_path, "Input/NN/nn_micropem_small_20200302"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next lines together
-setwd("Input/NN/nn_micropem_small_20200302") # set new working directory
+setwd(paste0(file_path, "Input/NN/nn_micropem_small_20200302")) # set new working directory
 initial_data <- tibble(list_files) %>% # use list of files from above
   mutate(save_data = lapply(list_files, read_csv, skip = 28,
                             col_names = c("date", "time", "pm", "pm2",
@@ -168,11 +172,11 @@ initial_data <- tibble(list_files) %>% # use list of files from above
   unnest(save_data)
 
 
-list_files <- list.files("Input/NN/nn_micropem_large_20200302")
+list_files <- list.files(paste0(file_path, "Input/NN/nn_micropem_large_20200302"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next lines together
-setwd("Input/NN/nn_micropem_large_20200302") # set new working directory
+setwd(paste0(file_path, "Input/NN/nn_micropem_large_20200302")) # set new working directory
 initial_data2 <- tibble(list_files) %>% # use list of files from above
   mutate(save_data = lapply(list_files, read_csv, skip = 28,
                             col_names = c("date", "time", "pm", "pm2",
@@ -211,22 +215,22 @@ nn_micropem <- nn_micropem_raw %>%
   arrange(area, file_name, datetime_pm)
 
 # Save file
-#write_rds(nn_micropem, "Output/nn_micropem.rds")
+#write_rds(nn_micropem, paste0(file_path, "Output/nn_micropem.rds"))
 
 # Bind files from both areas
 elders_micropem <- rbind(nn_micropem, np_micropem)
 
 # save joined file
-#write_rds(elders_micropem, "Output/elders_micropem.rds")
+#write_rds(elders_micropem, paste0(file_path, "Output/elders_micropem.rds"))
 ```
 
 # Clean up and filter all micropem data
 ```{r}
 # load data
-elders_micropem_log <- read_rds("Output/elders_micropem_log.rds") %>% 
+elders_micropem_log <- read_rds(paste0(file_path, "Output/elders_micropem_log.rds")) %>% 
   select(home, adult_id_num, adult_id_char, home_winter_id:winter_id, 
          -sample_obs, treatment)
-elders_micropem <- read_rds("Output/elders_micropem.rds")
+elders_micropem <- read_rds(paste0(file_path, "Output/elders_micropem.rds"))
 
 
 elders_micropem_new <- elders_micropem %>% 
@@ -244,7 +248,7 @@ nn_micropem_new2 <- nn_micropem_new %>%
   filter(date_filter == 1)
   
 # Save data
-#write_rds(nn_micropem_new2, "Output/nn_micropem_new.rds")
+#write_rds(nn_micropem_new2, paste0(file_path, "Output/nn_micropem_new.rds"))
 
 
 np_micropem_new <- elders_micropem_new %>% 
@@ -256,19 +260,19 @@ np_micropem_new2 <- np_micropem_new %>%
   filter(date_filter == 1)
   
 # Save data
-#write_rds(np_micropem_new2, "Output/np_micropem_new.rds")
+#write_rds(np_micropem_new2, paste0(file_path, "Output/np_micropem_new.rds"))
 
 
 elders_micropem_new <- rbind(nn_micropem_new2, np_micropem_new2)
 
 # Save data
-#write_rds(elders_micropem_new, "Output/elders_micropem_new.rds")
+#write_rds(elders_micropem_new, paste0(file_path, "Output/elders_micropem_new.rds"))
 ```
 
 
 # Summarize filtered micropem data for further cleaning
 ```{r}
-elders_micropem <- read_rds("Output/elders_micropem_new.rds") 
+elders_micropem <- read_rds(paste0(file_path, "Output/elders_micropem_new.rds")) 
 
 micropem_observations_summary <- elders_micropem %>% 
   group_by(area, home, adult_id_char, winter_id, sampling_visit) %>% 
@@ -292,7 +296,7 @@ micropem_pm_summary
 
 # Continue micropem cleaning
 ```{r}
-elders_micropem <- read_rds("Output/elders_micropem_new.rds") 
+elders_micropem <- read_rds(paste0(file_path, "Output/elders_micropem_new.rds")) 
 
 
 elders_micropem_new2 <- elders_micropem %>%   
@@ -331,7 +335,7 @@ elders_micropem_new2 <- elders_micropem %>%
   ungroup() %>% 
   select(-obs, -sampling_day) %>% 
   arrange(area, home, sampling_visit) 
-# write_rds(elders_micropem_new2, "Output/elders_micropem_new2.rds")
+# write_rds(elders_micropem_new2, paste0(file_path, "Output/elders_micropem_new2.rds"))
 ```
 
 
@@ -392,7 +396,7 @@ pm_time_plot
 ### EldersAIR > Ethan - data cleaning and analysis > pm_cleaning_summary
 ```{r}
 # load data
-elders_micropem <- read_rds("Output/elders_micropem_new2.rds")
+elders_micropem <- read_rds(paste0(file_path, "Output/elders_micropem_new2.rds"))
 
 # Change function input to look at specific home
 # Run all of these lines together

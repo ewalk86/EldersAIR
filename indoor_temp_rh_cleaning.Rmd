@@ -17,11 +17,15 @@ library(lubridate)
 library(zoo)
 ```
 
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+```
+
 
 # Load, format, and save indoor temp/rh data
 ```{r}
 ## Box location: Update Box location once final data loaded
-np_temp_rh_initial <- read_xlsx("Input/NP/np_qtrack_20200225.xlsx") %>% 
+np_temp_rh_initial <- read_xlsx(paste0(file_path, "Input/NP/np_qtrack_20200225.xlsx")) %>% 
   # rename variables
   mutate(home_winter_id = factor(HomeWinterID),
          rh_indoor_current = as.numeric(RelHumCur),
@@ -46,7 +50,7 @@ np_temp_rh_initial <- read_xlsx("Input/NP/np_qtrack_20200225.xlsx") %>%
 
 
 ## Box location: Update Box location once final data loaded
-nn_temp_rh_initial <- read_xlsx("Input/NN/nn_qtrack_20200225.xlsx") %>% 
+nn_temp_rh_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_qtrack_20200225.xlsx")) %>% 
   # rename variables
   mutate(home_winter_id = factor(HomeWinterID),
          rh_indoor_current = as.numeric(RelHumCur),
@@ -73,22 +77,22 @@ nn_temp_rh_initial <- read_xlsx("Input/NN/nn_qtrack_20200225.xlsx") %>%
 # Combine locations and save
 elders_temp_rh <- rbind(np_temp_rh_initial, nn_temp_rh_initial)
 
-#write_rds(elders_temp_rh, "Output/elders_temp_rh.rds")
+#write_rds(elders_temp_rh, paste0(file_path, "Output/elders_temp_rh.rds"))
 ```
 
 
 
 # Clean up all temp/rh data
 ```{r}
-elders_temp_rh <- read_rds("Output/elders_temp_rh.rds")
+elders_temp_rh <- read_rds(paste0(file_path, "Output/elders_temp_rh.rds"))
 
-elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
 
 elders_temp_rh_clean <- elders_temp_rh %>% 
   left_join(elders_ids_linked, by = c("area", "home_winter_id")) %>% 
   filter(!is.na(home_winter_id))
-# write_rds(elders_temp_rh_clean, "Output/elders_temp_rh_clean.rds")
+# write_rds(elders_temp_rh_clean, paste0(file_path, "Output/elders_temp_rh_clean.rds"))
 
-elders_temp_rh_clean <- read_rds("Output/elders_temp_rh_clean.rds")
+elders_temp_rh_clean <- read_rds(paste0(file_path, "Output/elders_temp_rh_clean.rds"))
 ```
 

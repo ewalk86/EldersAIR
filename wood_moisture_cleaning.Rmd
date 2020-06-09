@@ -17,11 +17,15 @@ library(lubridate)
 library(zoo)
 ```
 
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+```
+
 
 # Load, format, and save wood moisture data
 ```{r}
 ## Box location: Update Box location once final data loaded
-np_moisture_initial <- read_xlsx("Input/NP/np_moisture_20200225.xlsx") %>% 
+np_moisture_initial <- read_xlsx(paste0(file_path, "Input/NP/np_moisture_20200225.xlsx")) %>% 
   # rename variables
   mutate(home_winter_id = as.factor(HomeWinterID),
          moisture_date = ymd(CompletedDate),
@@ -53,7 +57,7 @@ np_moisture_initial <- read_xlsx("Input/NP/np_moisture_20200225.xlsx") %>%
 
 
 ## Box location: Update Box location once final data loaded
-nn_moisture_initial <- read_xlsx("Input/NN/nn_moisture_20200225.xlsx") %>% 
+nn_moisture_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_moisture_20200225.xlsx")) %>% 
   # rename variables
   mutate(home_winter_id = as.factor(HomeWinterID),
          moisture_date = ymd(CompletedDate),
@@ -87,16 +91,16 @@ nn_moisture_initial <- read_xlsx("Input/NN/nn_moisture_20200225.xlsx") %>%
 # Combine locations and save
 elders_moisture <- rbind(np_moisture_initial, nn_moisture_initial)
 
-#write_rds(elders_moisture, "Output/elders_moisture.rds")
+#write_rds(elders_moisture, paste0(file_path, "Output/elders_moisture.rds"))
 ```
 
 
 
 # Clean up all moisture data
 ```{r}
-elders_moisture <- read_rds("Output/elders_moisture.rds")
+elders_moisture <- read_rds(paste0(file_path, "Output/elders_moisture.rds"))
 
-elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
 
 elders_moisture_clean <- elders_moisture %>% 
   left_join(elders_ids_linked, by = c("area", "home_winter_id")) %>% 
@@ -108,8 +112,8 @@ elders_moisture_clean <- elders_moisture %>%
          moisture_3 = if_else(moisture_3 < 5, 5, moisture_3),
          moisture_ave = if_else(moisture_ave < 5, 5, moisture_ave))
 
-# write_rds(elders_moisture_clean, "Output/elders_moisture_clean.rds")
+# write_rds(elders_moisture_clean, paste0(file_path, "Output/elders_moisture_clean.rds"))
 
-elders_moisture_clean <- read_rds("Output/elders_moisture_clean.rds")
+elders_moisture_clean <- read_rds(paste0(file_path, "Output/elders_moisture_clean.rds"))
 ```
 

@@ -23,21 +23,26 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
                   "#FF3366", "#33CC99", "#33999")
 ```
 
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+```
+
+
 # Load files
 ```{r}
-list_excel_files <- list.files("Input/fitbit_navajo_excel")
+list_excel_files <- list.files(paste0(file_path, "Input/fitbit_navajo_excel"))
 # Set working directory and load files in list; extract file name and add as column
 ## run next 4 lines together
-setwd("Input/fitbit_navajo_excel")
+setwd(paste0(file_path, "Input/fitbit_navajo_excel"))
 initial_data <- tibble(file_name = list_excel_files) %>%
   mutate(save_data = lapply(file_name, read_excel, skip = 0)) %>%
   unnest(save_data) 
 
 
-list_csv_files <- list.files("Input/fitbit_navajo_csv")
+list_csv_files <- list.files(paste0(file_path, "Input/fitbit_navajo_csv"))
 # Set working directory and load files in list; extract file name and add as column
 ## run next 4 lines together
-setwd("Input/fitbit_navajo_csv")
+setwd(paste0(file_path, "Input/fitbit_navajo_csv"))
 initial_data <- tibble(file_name = list_csv_files) %>%
   mutate(save_data = lapply(file_name, read_csv, skip = 1)) %>%
   unnest(save_data) 

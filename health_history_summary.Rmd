@@ -21,17 +21,21 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
                   "#FF3366", "#33CC99", "#33999")
 ```
 
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+```
+
 
 ```{r}
 # Load data
 
-elders_ids_linked <- read_rds("Output/elders_ids_linked.rds") %>% 
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) %>% 
   filter(winter_id == 1 | winter_id == 2) %>% 
   arrange(area, adult_id_num)
 
-elders_at_home_log <- read_rds("Output/elders_at_home_log.rds")
-elders_health_hx <- read_rds("Output/elders_health_hx.rds")
-elders_health_extra <- read_rds("Output/elders_health_extra.rds")
+elders_at_home_log <- read_rds(paste0(file_path, "Output/elders_at_home_log.rds"))
+elders_health_hx <- read_rds(paste0(file_path, "Output/elders_health_hx.rds"))
+elders_health_extra <- read_rds(paste0(file_path, "Output/elders_health_extra.rds"))
 ```
 
 

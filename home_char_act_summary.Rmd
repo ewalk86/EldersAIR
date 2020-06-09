@@ -23,11 +23,13 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 ```
 
 ```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
 # Load dataset
-home_char_clean <- read_rds("Output/elders_home_char_clean.rds")
-home_act_clean <- read_rds("Output/elders_home_activity_clean.rds")
-elders_ids_linked <- read_rds("Output/elders_ids_linked.rds")
-elders_pm <- read_rds("Output/elders_pm_clean.rds")
+home_char_clean <- read_rds(paste0(file_path, "Output/elders_home_char_clean.rds"))
+home_act_clean <- read_rds(paste0(file_path, "Output/elders_home_activity_clean.rds"))
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
+elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds"))
 ```
 
 ```{r, include=FALSE}

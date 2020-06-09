@@ -23,13 +23,15 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 
 
 ```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
 # Load data
 
-elders_ids_linked <- read_rds("Output/elders_ids_linked.rds") %>% 
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) %>% 
   filter(winter_id == 1 | winter_id == 2) %>% 
   arrange(area, adult_id_num)
 
-elders_medvisit <- read_rds("Output/elders_medvisit_clean.rds") %>% 
+elders_medvisit <- read_rds(paste0(file_path, "Output/elders_medvisit_clean.rds")) %>% 
   mutate(hypertension = if_else(bp_sys >= 140 | bp_dia >= 90, 1, 0),
          hypertension = as.numeric(hypertension),
          obstruction = if_else(fev1_fvc_ratio < 0.7 | fev1_pp < 75, 1, 0),

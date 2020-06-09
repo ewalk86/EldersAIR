@@ -23,13 +23,10 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 ```
 
 ```{r}
-input_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/Input/")
-output_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/Output/")
-input_file <- c("elders_ids_linked.rds")
-output_file <- c("elders_ids_linked.rds")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
 # Load data
-elders_ids_linked <- read_rds(paste0(output_path, input_file))
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
 ```
 
 
@@ -37,7 +34,7 @@ elders_ids_linked <- read_rds(paste0(output_path, input_file))
 
 # Load and merge files from different locations
 ```{r}
-nn_athomelog_initial <- read_xlsx("Input/NN/nn_athome_20200225.xlsx") %>% 
+nn_athomelog_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_athome_20200225.xlsx")) %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          adult_id_num = as.character(AdultID),
          area = "NN",
@@ -63,7 +60,7 @@ nn_athomelog_initial <- read_xlsx("Input/NN/nn_athome_20200225.xlsx") %>%
 
 
 
-np_athomelog_initial <- read_xlsx("Input/NP/np_athomelog_20200225.xlsx") %>% 
+np_athomelog_initial <- read_xlsx(paste0(file_path, "Input/NP/np_athomelog_20200225.xlsx")) %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          adult_id_num = as.character(AdultID),
          area = "NP",
@@ -97,7 +94,7 @@ save_var_names <- data.frame(t(elders_at_home_log)) %>%
   rownames_to_column() %>% 
   select(rowname)
 
-write_csv(save_var_names, "Output/at_home_var_names.csv")
+write_csv(save_var_names, paste0(file_path, "Output/at_home_var_names.csv"))
 ```
 
 
@@ -106,7 +103,7 @@ write_csv(save_var_names, "Output/at_home_var_names.csv")
 
 # Load and merge files from different locations
 ```{r}
-nn_healthhistory_initial <- read_xlsx("Input/NN/nn_healthhistory_20200225.xlsx") %>% 
+nn_healthhistory_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_healthhistory_20200225.xlsx")) %>% 
   rename_all(~str_replace_all(., "Date", "_date")) %>% 
   rename_all(tolower) %>% 
   mutate(home_winter_id = as.character(homewinterid),
@@ -120,7 +117,7 @@ nn_healthhistory_initial <- read_xlsx("Input/NN/nn_healthhistory_20200225.xlsx")
          
 
 
-np_healthhistory_initial <- read_xlsx("Input/NP/np_healthhistory_20200225.xlsx") %>% 
+np_healthhistory_initial <- read_xlsx(paste0(file_path, "Input/NP/np_healthhistory_20200225.xlsx")) %>% 
   rename_all(~str_replace_all(., "Date", "_date")) %>% 
   rename_all(tolower) %>% 
   mutate(home_winter_id = as.character(homewinterid),
@@ -143,7 +140,7 @@ save_var_names <- data.frame(t(elders_health_hx)) %>%
   rownames_to_column() %>% 
   select(rowname)
 
-write_csv(save_var_names, "Output/health_hx_var_names.csv")
+write_csv(save_var_names, paste0(file_path, "Output/health_hx_var_names.csv"))
 ```
 
 
@@ -152,7 +149,7 @@ write_csv(save_var_names, "Output/health_hx_var_names.csv")
 
 # Load and merge files from different locations
 ```{r}
-nn_healthextra_initial <- read_xlsx("Input/NN/nn_healthextra_20200225.xlsx") %>% 
+nn_healthextra_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_healthextra_20200225.xlsx")) %>% 
   rename_all(tolower) %>% 
   mutate(home_winter_id = as.character(homewinterid),
          adult_id_num = as.character(adultid),
@@ -162,7 +159,7 @@ nn_healthextra_initial <- read_xlsx("Input/NN/nn_healthextra_20200225.xlsx") %>%
          
 
 
-np_healthextra_initial <- read_xlsx("Input/NP/np_healthextra_20200225.xlsx") %>% 
+np_healthextra_initial <- read_xlsx(paste0(file_path, "Input/NP/np_healthextra_20200225.xlsx")) %>% 
   rename_all(tolower) %>% 
   mutate(home_winter_id = as.character(homewinterid),
          adult_id_num = as.character(adultid),
@@ -182,5 +179,5 @@ save_var_names <- data.frame(t(elders_health_extra)) %>%
   rownames_to_column() %>% 
   select(rowname)
 
-write_csv(save_var_names, "Output/health_extra_var_names.csv")
+write_csv(save_var_names, paste0(file_path, "Output/health_extra_var_names.csv"))
 ```
