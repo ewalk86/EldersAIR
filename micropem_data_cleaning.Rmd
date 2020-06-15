@@ -41,15 +41,21 @@ np_micropem_initial <- read_xlsx(paste0(file_path, "Input/NP/np_micropem_2020022
          stop_date_pm = ymd(StopDate),
          stop_time_pm = as.character(stop_time_pm),
          sample_obs = as.numeric(LengthofRun),
-         file_name = as.character(mFile),
+         mp_file_name = as.character(mFile),
+         fb_file_name = as.character(fbFile),
          sampling_visit = as.factor(SamplingVisit),
          area = "NP") %>% 
-  separate(file_name, c("trash1", "file_name"), sep = "uploads/", remove = FALSE) %>% 
-  separate(file_name, c("file_name", "trash1"), sep = ".csv", remove = FALSE) %>%
-  separate(file_name, c("file_name", "trash1"), sep = ".xlsx", remove = FALSE) %>%
+  separate(mp_file_name, c("trash1", "mp_file_name"), sep = "uploads/", remove = FALSE) %>% 
+  separate(mp_file_name, c("mp_file_name", "trash1"), sep = ".csv", remove = FALSE) %>%
+  separate(mp_file_name, c("mp_file_name", "trash1"), sep = ".xlsx", remove = FALSE) %>%
+  separate(mp_file_name, c("mp_file_name", "trash1"), sep = ".xls", remove = FALSE) %>%
+  separate(fb_file_name, c("trash1", "fb_file_name"), sep = "uploads/", remove = FALSE) %>% 
+  separate(fb_file_name, c("fb_file_name", "trash1"), sep = ".csv", remove = FALSE) %>%
+  separate(fb_file_name, c("fb_file_name", "trash1"), sep = ".xlsx", remove = FALSE) %>%
+  separate(fb_file_name, c("fb_file_name", "trash1"), sep = ".xls", remove = FALSE) %>%
   select(home_winter_id, home_id, area, mpid, sampling_visit, 
          start_date_pm, start_time_pm, stop_date_pm, stop_time_pm, sample_obs, 
-         file_name) %>% 
+         mp_file_name, fb_file_name) %>% 
   arrange(home_winter_id)
 #write_rds(np_micropem_initial, paste0(file_path, "Output/np_micropem_log.rds"))
 
@@ -67,15 +73,21 @@ nn_micropem_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_micropem_2020022
          stop_date_pm = ymd(StopDate),
          stop_time_pm = as.character(stop_time_pm),
          sample_obs = as.numeric(LengthofRun),
-         file_name = as.character(mFile),
+         mp_file_name = as.character(mFile),
+         fb_file_name = as.character(fbFile),
          sampling_visit = as.factor(SamplingVisit),
          area = "NN") %>% 
-  separate(file_name, c("trash1", "file_name"), sep = "uploads/", remove = FALSE) %>% 
-  separate(file_name, c("file_name", "trash1"), sep = ".csv", remove = FALSE) %>%
-  separate(file_name, c("file_name", "trash1"), sep = ".xlsx", remove = FALSE) %>%
+  separate(mp_file_name, c("trash1", "mp_file_name"), sep = "uploads/", remove = FALSE) %>% 
+  separate(mp_file_name, c("mp_file_name", "trash1"), sep = ".csv", remove = FALSE) %>%
+  separate(mp_file_name, c("mp_file_name", "trash1"), sep = ".xlsx", remove = FALSE) %>%
+  separate(mp_file_name, c("mp_file_name", "trash1"), sep = ".xls", remove = FALSE) %>%
+  separate(fb_file_name, c("trash1", "fb_file_name"), sep = "uploads/", remove = FALSE) %>% 
+  separate(fb_file_name, c("fb_file_name", "trash1"), sep = ".csv", remove = FALSE) %>%
+  separate(fb_file_name, c("fb_file_name", "trash1"), sep = ".xlsx", remove = FALSE) %>%
+  separate(fb_file_name, c("fb_file_name", "trash1"), sep = ".xls", remove = FALSE) %>%
   select(home_winter_id, home_id, area, mpid, sampling_visit, 
          start_date_pm, start_time_pm, stop_date_pm, stop_time_pm, sample_obs, 
-         file_name) %>% 
+         mp_file_name, fb_file_name) %>% 
   arrange(home_winter_id)
 #write_rds(nn_micropem_initial, paste0(file_path, "Output/nn_micropem_log.rds"))
 
@@ -89,7 +101,7 @@ elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
 
 elders_micropem_log_new <- elders_micropem_log %>% 
   left_join(elders_ids_linked, by = c("area", "home_id", "home_winter_id")) %>% 
-  filter(!is.na(file_name)) %>% 
+  #filter(!is.na(file_name)) %>% 
   unite(start_datetime_pm, c("start_date_pm", "start_time_pm"), sep = " ", remove = FALSE) %>% 
   unite(stop_datetime_pm, c("stop_date_pm", "stop_time_pm"), sep = " ", remove = FALSE) %>% 
   arrange(home, winter_id)
@@ -246,6 +258,9 @@ nn_micropem_new <- elders_micropem_new %>%
 
 nn_micropem_new2 <- nn_micropem_new %>% 
   filter(date_filter == 1)
+
+check_obs <- nn_micropem_new2 %>% 
+  count(home_winter_id)
   
 # Save data
 #write_rds(nn_micropem_new2, paste0(file_path, "Output/nn_micropem_new.rds"))

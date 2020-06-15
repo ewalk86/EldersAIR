@@ -21,30 +21,161 @@ library(knitr)
 jv_palette <- c("#330099","#CC0066","#FF6633", 
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", 
+               "#0072B2", "#D55E00", "#CC79A7")
 ```
 
 ```{r}
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+elders_micropem_log <- read_rds(paste0(file_path, "Output/elders_micropem_log.rds"))
 ```
 
 
-# Load files
+# Load NN files
 ```{r}
-list_excel_files <- list.files(paste0(file_path, "Input/fitbit_navajo_excel"))
+list_excel_files <- list.files(paste0(file_path, "Input/NN/fitbit_nn_excel"))
 # Set working directory and load files in list; extract file name and add as column
-## run next 4 lines together
-setwd(paste0(file_path, "Input/fitbit_navajo_excel"))
-initial_data <- tibble(file_name = list_excel_files) %>%
-  mutate(save_data = lapply(file_name, read_excel, skip = 0)) %>%
+## run next lines together
+setwd(paste0(file_path, "Input/NN/fitbit_nn_excel"))
+initial_nn_data1 <- tibble(file_name = list_excel_files) %>%
+  mutate(save_data = lapply(file_name, read_excel, skip = 1,
+                            col_names = c("date", "cals_burned", "steps",
+                                          "distance", "floors", "min_sedentary",
+                                          "min_light_act", "min_fairly_act",
+                                          "min_very_act", "act_cals"),
+                            col_types = c("text", "text", "text",
+                                          "text", "text", "text",
+                                          "text", "text", 
+                                          "text", "text"))) %>%
+  unnest(save_data) %>% 
+  mutate(date = ymd(date))
+
+
+list_csv_files <- list.files(paste0(file_path, "Input/NN/fitbit_nn_csv"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path, "Input/NN/fitbit_nn_csv"))
+initial_nn_data2 <- tibble(file_name = list_csv_files) %>%
+  mutate(save_data = lapply(file_name, read_csv, skip = 2,
+                            col_names = c("date", "cals_burned", "steps",
+                                          "distance", "floors", "min_sedentary",
+                                          "min_light_act", "min_fairly_act",
+                                          "min_very_act", "act_cals"),
+                            cols(date = col_character(), 
+                                 cals_burned = col_character(), 
+                                 steps = col_character(),
+                                 distance = col_character(), 
+                                 floors = col_character(), 
+                                 min_sedentary = col_character(),
+                                 min_light_act = col_character(), 
+                                 min_fairly_act = col_character(), 
+                                 min_very_act = col_character(), 
+                                 act_cals = col_character()))) %>%
+  unnest(save_data) %>% 
+  mutate(date = mdy(date))
+
+
+nn_joined <- rbind(initial_nn_data1, initial_nn_data2)
+
+nn_clean <- nn_joined %>% 
+  mutate(date = ymd(date),
+         cals_burned = gsub(",", "", cals_burned),
+         cals_burned = as.numeric(cals_burned),
+         steps = gsub(",", "", steps),
+         steps = as.numeric(steps),
+         distance = gsub(",", "", distance),
+         distance = as.numeric(distance),
+         floors = gsub(",", "", floors),
+         floors = as.numeric(floors),
+         min_sedentary = gsub(",", "", min_sedentary),
+         min_sedentary = as.numeric(min_sedentary),
+         min_light_act = gsub(",", "", min_light_act),
+         min_light_act = as.numeric(min_light_act),
+         min_fairly_act = gsub(",", "", min_fairly_act),
+         min_fairly_act = as.numeric(min_fairly_act),
+         min_very_act = gsub(",", "", min_very_act),
+         min_very_act = as.numeric(min_very_act),
+         act_cals = gsub(",", "", act_cals),
+         act_cals = as.numeric(act_cals),
+         area = "NN") %>% 
+  rename(fb_file_name = file_name) 
+```
+
+
+# Load NP files
+```{r}
+list_excel_files <- list.files(paste0(file_path, "Input/NP/np_fitbit"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path, "Input/NP/np_fitbit"))
+initial_np_data1 <- tibble(file_name = list_excel_files) %>%
+  mutate(save_data = lapply(file_name, read_excel, skip = 1,
+                            col_names = c("date", "cals_burned", "steps",
+                                          "distance", "floors", "min_sedentary",
+                                          "min_light_act", "min_fairly_act",
+                                          "min_very_act", "act_cals"),
+                            col_types = c("text", "text", "text",
+                                          "text", "text", "text",
+                                          "text", "text", 
+                                          "text", "text"))) %>%
+  unnest(save_data) %>% 
+  mutate(date = ymd(date))
+
+
+list_excel_files <- list.files(paste0(file_path, "Input/NP/np_fitbit_new"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path, "Input/NP/np_fitbit_new"))
+initial_np_data2 <- tibble(file_name = list_excel_files) %>%
+  mutate(save_data = lapply(file_name, read_excel, skip = 1,
+                            col_names = c("date", "cals_burned", "steps",
+                                          "distance", "floors", "min_sedentary",
+                                          "min_light_act", "min_fairly_act",
+                                          "min_very_act", "act_cals"),
+                            col_types = c("date", "text", "text",
+                                          "text", "text", "text",
+                                          "text", "text", 
+                                          "text", "text"))) %>%
   unnest(save_data) 
 
 
-list_csv_files <- list.files(paste0(file_path, "Input/fitbit_navajo_csv"))
-# Set working directory and load files in list; extract file name and add as column
-## run next 4 lines together
-setwd(paste0(file_path, "Input/fitbit_navajo_csv"))
-initial_data <- tibble(file_name = list_csv_files) %>%
-  mutate(save_data = lapply(file_name, read_csv, skip = 1)) %>%
-  unnest(save_data) 
+np_joined <- rbind(initial_np_data1, initial_np_data2)
+
+np_clean <- np_joined %>% 
+  mutate(date = ymd(date),
+         cals_burned = gsub(",", "", cals_burned),
+         cals_burned = as.numeric(cals_burned),
+         steps = gsub(",", "", steps),
+         steps = as.numeric(steps),
+         distance = gsub(",", "", distance),
+         distance = as.numeric(distance),
+         floors = gsub(",", "", floors),
+         floors = as.numeric(floors),
+         min_sedentary = gsub(",", "", min_sedentary),
+         min_sedentary = as.numeric(min_sedentary),
+         min_light_act = gsub(",", "", min_light_act),
+         min_light_act = as.numeric(min_light_act),
+         min_fairly_act = gsub(",", "", min_fairly_act),
+         min_fairly_act = as.numeric(min_fairly_act),
+         min_very_act = gsub(",", "", min_very_act),
+         min_very_act = as.numeric(min_very_act),
+         act_cals = gsub(",", "", act_cals),
+         act_cals = as.numeric(act_cals),
+         area = "NP") %>% 
+  rename(fb_file_name = file_name)
+```
+
+```{r}
+elders_fitbit_joined <- rbind(nn_clean, np_clean)
+
+elders_fitbit_clean <- elders_fitbit_joined %>% 
+  separate(fb_file_name, c("fb_file_name", "trash1"), sep = ".csv", remove = FALSE) %>%
+  separate(fb_file_name, c("fb_file_name", "trash1"), sep = ".xlsx", remove = FALSE) %>%
+  separate(fb_file_name, c("fb_file_name", "trash1"), sep = ".xls", remove = FALSE) %>%
+  left_join(elders_micropem_log, by = c("area", "fb_file_name")) %>% 
+  select(-trash1, -floors)
+
+write_rds(elders_fitbit_clean, paste0(file_path, "Output/elders_fitbit_clean.rds"))
 ```
 
