@@ -19,6 +19,8 @@ library(knitr)
 jv_palette <- c("#330099","#CC0066","#FF6633", 
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", 
+               "#0072B2", "#D55E00", "#CC79A7")
 ```
 
 
@@ -195,6 +197,48 @@ medvisit_summary_function(elders_medvisit, "fev1", "Forced expiratory volume", "
 medvisit_summary_function(elders_medvisit, "fev1_fvc_ratio", "FEV1/FVC ratio", " ")
 medvisit_summary_function(elders_medvisit, "fvc_pp", "FVC percent predicted", "%")
 medvisit_summary_function(elders_medvisit, "fev1_pp", "FEV1 percent predicted", "%")
+```
+
+
+```{r, fig.height=3, fig.width=3.75}
+# function for poster plots
+
+medvisit_summary_function <- function(data, var, title_label, y_label) {
+  
+  medvisit_plot <- data %>% 
+    filter(winter_id == 1) %>% 
+    filter(spiro_status == "Acceptable") %>% 
+    select(area, var) %>% 
+    rename(plot_var = var) %>% 
+    na.exclude() %>% 
+    ggplot(aes(area, plot_var)) +
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", fill = "#56B4E9",
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red") +
+    theme_minimal() +
+    labs(title = title_label, subtitle = "Red triangle = mean") +
+    ylab(y_label) +
+    theme(title = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black"),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) 
+  medvisit_plot
+  
+}
+
+medvisit_summary_function(elders_medvisit, "fvc", "Forced vital capacity", "Liters")
+medvisit_summary_function(elders_medvisit, "fev1", "Forced expiratory volume", "Liters")
+medvisit_summary_function(elders_medvisit, "fev1_fvc_ratio", "FEV1/FVC ratio", " ")
+medvisit_summary_function(elders_medvisit, "fvc_pp", "FVC percent predicted", "%")
+medvisit_summary_function(elders_medvisit, "fev1_pp", "FEV1 percent predicted", "%")
+medvisit_summary_function(elders_medvisit, "bp_sys", "Systolic blood pressure", "mmHg")
+medvisit_summary_function(elders_medvisit, "bp_dia", "Diastolic blood pressure", "mmHg")
+medvisit_summary_function(elders_medvisit, "age", "Age", "Years")
+medvisit_summary_function(elders_medvisit, "bmi", "Body Mass Index", "kg/m2")
 ```
 
 

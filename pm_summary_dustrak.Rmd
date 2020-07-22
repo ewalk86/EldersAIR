@@ -169,3 +169,47 @@ boxplots_pm <- elders_pm %>%
           axis.ticks = element_blank())
 boxplots_pm
 ```
+
+\pagebreak  
+
+```{r, fig.height=4, fig.width=3}
+boxplots_elders_pm <- elders_pm %>% 
+  filter(winter_id == 1) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  ungroup() %>% 
+  ggplot(aes(area, pm_mean)) +
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red") +
+    #scale_y_log10() +
+    ylim(0, 200) +
+    theme_minimal() +
+    labs(y = expression(paste("PM"[2.5], " (", mu, g/m^3, ")"))) +
+    theme(axis.text.x = element_text(size = 16, colour = "black",
+                                      margin = margin(t = 0, r = 0, b = 30, l = 0)),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank())
+boxplots_elders_pm
+
+ggsave("boxplots_elders_pm.jpg", height = 7, width = 4)
+```
+
+
+```{r}
+# homes that exceed PM guidelines
+pm_guidelines <- elders_pm %>% 
+  filter(winter_id == 1) %>% 
+  group_by(home) %>% 
+  mutate(pm_mean_winter = mean(pm_mean, na.rm = TRUE)) %>% 
+  filter(pm_mean_winter > 35) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  group_by(area) %>% 
+  count()
+pm_guidelines
+```
+
