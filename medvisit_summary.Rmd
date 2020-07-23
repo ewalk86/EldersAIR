@@ -33,11 +33,7 @@ elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
   filter(winter_id == 1 | winter_id == 2) %>% 
   arrange(area, adult_id_num)
 
-elders_medvisit <- read_rds(paste0(file_path, "Output/elders_medvisit_clean.rds")) %>% 
-  mutate(hypertension = if_else(bp_sys >= 140 | bp_dia >= 90, 1, 0),
-         hypertension = as.numeric(hypertension),
-         obstruction = if_else(fev1_fvc_ratio < 0.7 | fev1_pp < 75, 1, 0),
-         obstruction = as.numeric(obstruction))
+elders_medvisit <- read_rds(paste0(file_path, "Output/elders_medvisit_clean.rds")) 
 ```
 
 # Cardiovascular outcomes from Med visit
@@ -200,7 +196,7 @@ medvisit_summary_function(elders_medvisit, "fev1_pp", "FEV1 percent predicted", 
 ```
 
 
-```{r, fig.height=3, fig.width=3.75}
+```{r, fig.height=3, fig.width=2.75}
 # function for poster plots
 
 medvisit_summary_function <- function(data, var, title_label, y_label) {
@@ -216,7 +212,7 @@ medvisit_summary_function <- function(data, var, title_label, y_label) {
                fatten = 1, outlier.size = 1.5, width = 0.35) +
     stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red") +
     theme_minimal() +
-    labs(title = title_label, subtitle = "Red triangle = mean") +
+    labs(title = title_label) +
     ylab(y_label) +
     theme(title = element_text(size = 16, colour = "black"),
           axis.text.x = element_text(size = 16, colour = "black"),
@@ -230,15 +226,66 @@ medvisit_summary_function <- function(data, var, title_label, y_label) {
   
 }
 
-medvisit_summary_function(elders_medvisit, "fvc", "Forced vital capacity", "Liters")
-medvisit_summary_function(elders_medvisit, "fev1", "Forced expiratory volume", "Liters")
-medvisit_summary_function(elders_medvisit, "fev1_fvc_ratio", "FEV1/FVC ratio", " ")
-medvisit_summary_function(elders_medvisit, "fvc_pp", "FVC percent predicted", "%")
-medvisit_summary_function(elders_medvisit, "fev1_pp", "FEV1 percent predicted", "%")
-medvisit_summary_function(elders_medvisit, "bp_sys", "Systolic blood pressure", "mmHg")
-medvisit_summary_function(elders_medvisit, "bp_dia", "Diastolic blood pressure", "mmHg")
+medvisit_summary_function(elders_medvisit, "fvc", "Forced vital \ncapacity", "Liters")
+medvisit_summary_function(elders_medvisit, "fev1", "Forced expiratory \nvolume", "Liters")
+medvisit_summary_function(elders_medvisit, "fev1_fvc_ratio", "FEV1/FVC \nratio", " ")
+medvisit_summary_function(elders_medvisit, "fvc_pp", "FVC percent \npredicted", "%")
+medvisit_summary_function(elders_medvisit, "fev1_pp", "FEV1 percent \npredicted", "%")
+medvisit_summary_function(elders_medvisit, "bp_sys", "Systolic blood \npressure", "mmHg")
+medvisit_summary_function(elders_medvisit, "bp_dia", "Diastolic blood \npressure", "mmHg")
 medvisit_summary_function(elders_medvisit, "age", "Age", "Years")
-medvisit_summary_function(elders_medvisit, "bmi", "Body Mass Index", "kg/m2")
+medvisit_summary_function(elders_medvisit, "bmi", "Body mass \nindex", "kg/m2")
+```
+
+
+```{r, fig.height=3, fig.width=3}
+# function for poster plots
+
+fun_data <- elders_medvisit %>% 
+  mutate(hypertension = if_else(bp_sys >= 140 | bp_dia >= 90, "Yes", "No"),
+         obstruction = if_else(fev1_fvc_ratio < 0.7, "Yes", "No")) %>% 
+  select(area, home, home_winter_id, winter_id, sampling_visit, adult_id_num,
+         hypertension, obstruction, spiro_status, bp_sys, bp_dia) %>% 
+  filter(winter_id == 1) %>% 
+  group_by(area, adult_id_num) %>% 
+  mutate(hyp_any = if_else(hypertension == "Yes" | lead(hypertension) == "Yes", "Yes", "No"),
+         obs_any = if_else(obstruction == "Yes" | lead(obstruction) == "Yes", "Yes", "No")) %>% 
+  ungroup() %>% 
+  distinct(area, adult_id_num, .keep_all = TRUE) %>% 
+  filter(spiro_status == "Acceptable") 
+  
+
+medvisit_summary_function <- function(data, var, title_label) {
+  
+  medvisit_plot <- data %>% 
+    select(area, var) %>% 
+    rename(plot_var = var) %>% 
+    filter(!is.na(plot_var)) %>%  
+    ggplot() +
+    geom_bar(aes(fct_rev(area), fill = plot_var)) +
+    theme_minimal() +
+    coord_flip() +
+    theme(axis.text.x = element_text(size = 16, colour = "black", 
+                                     vjust = 0.7, hjust = 0.7),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          title = element_text(size = 16, colour = "black"),
+          legend.text = element_text(size = 16, colour = "black"),
+          legend.title = element_blank(),
+          legend.position = "top",
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(),
+          panel.grid = element_blank()) +
+    labs(title = title_label) +
+    scale_fill_manual(values = cbPalette)
+  medvisit_plot
+  
+}
+
+medvisit_summary_function(fun_data, "hyp_any", "Stage 2 \nhypertension")
+medvisit_summary_function(fun_data, "obs_any", "Obstruction")
 ```
 
 
