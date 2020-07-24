@@ -239,21 +239,38 @@ medvisit_summary_function(elders_medvisit, "bmi", "Body mass \nindex", "kg/m2")
 
 
 ```{r, fig.height=3, fig.width=3}
-# function for poster plots
-
-fun_data <- elders_medvisit %>% 
+# poster figures
+obstruction_data <- elders_medvisit %>% 
+  arrange(home, adult_id_num, winter_id, sampling_visit) %>% 
   mutate(hypertension = if_else(bp_sys >= 140 | bp_dia >= 90, "Yes", "No"),
          obstruction = if_else(fev1_fvc_ratio < 0.7, "Yes", "No")) %>% 
   select(area, home, home_winter_id, winter_id, sampling_visit, adult_id_num,
-         hypertension, obstruction, spiro_status, bp_sys, bp_dia) %>% 
+         hypertension, obstruction, spiro_status, bp_sys, bp_dia) %>%
+  filter(winter_id == 1) %>% 
+  filter(spiro_status == "Acceptable") %>% 
+  group_by(area, adult_id_num) %>% 
+  mutate(obs_any = if_else(obstruction == "Yes" | lead(obstruction) == "Yes", "Yes", "No"),
+         obs_any = if_else(is.na(obs_any), obstruction, obs_any)) %>% 
+  ungroup() %>% 
+  distinct(area, adult_id_num, .keep_all = TRUE) %>% 
+  count(obs_any)
+obstruction_data
+
+
+hypertension_data <- elders_medvisit %>% 
+  arrange(home, adult_id_num, winter_id, sampling_visit) %>% 
+  mutate(hypertension = if_else(bp_sys >= 140 | bp_dia >= 90, "Yes", "No"),
+         obstruction = if_else(fev1_fvc_ratio < 0.7, "Yes", "No")) %>% 
+  select(area, home, home_winter_id, winter_id, sampling_visit, adult_id_num,
+         hypertension, obstruction, spiro_status, bp_sys, bp_dia) %>%
   filter(winter_id == 1) %>% 
   group_by(area, adult_id_num) %>% 
   mutate(hyp_any = if_else(hypertension == "Yes" | lead(hypertension) == "Yes", "Yes", "No"),
-         obs_any = if_else(obstruction == "Yes" | lead(obstruction) == "Yes", "Yes", "No")) %>% 
+         hyp_any = if_else(is.na(hyp_any), hypertension, hyp_any)) %>% 
   ungroup() %>% 
   distinct(area, adult_id_num, .keep_all = TRUE) %>% 
-  filter(spiro_status == "Acceptable") 
-  
+  count(hyp_any)
+hypertension_data
 
 medvisit_summary_function <- function(data, var, title_label) {
   
@@ -284,8 +301,8 @@ medvisit_summary_function <- function(data, var, title_label) {
   
 }
 
-medvisit_summary_function(fun_data, "hyp_any", "Stage 2 \nhypertension")
-medvisit_summary_function(fun_data, "obs_any", "Obstruction")
+medvisit_summary_function(hypertension_data, "hyp_any", "Stage 2 \nhypertension")
+medvisit_summary_function(obstruction_data, "obs_any", "FEV1/FVC ratio \n< 0.7")
 ```
 
 
@@ -293,22 +310,25 @@ medvisit_summary_function(fun_data, "obs_any", "Obstruction")
 summary_stats <- elders_medvisit %>% 
   filter(winter_id == 1) %>% 
   #filter(spiro_status == "Acceptable") %>% 
-  filter(!is.na(bp_sys)) %>% 
-  group_by(area) %>% 
-  distinct(home) %>% 
+  #filter(!is.na(bp_sys)) %>% 
+  #group_by(area) %>% 
+  distinct(area, adult_id_num) %>% # use home and adult_id_num
   summarize(n())
 summary_stats
 
 summary_stats <- elders_medvisit %>% 
   filter(winter_id == 1) %>% 
-  filter(!is.na(hypertension)) %>% 
-  summarize(sum(hypertension)/n())
+  distinct(area, adult_id_num, .keep_all = TRUE) %>% 
+  #group_by(area) %>% 
+  count(gender)
 summary_stats
 
 summary_stats <- elders_medvisit %>% 
   filter(winter_id == 1) %>% 
-  filter(spiro_status == "Acceptable") %>% 
-  filter(!is.na(obstruction)) %>% 
-  summarize(sum(obstruction)/n())
+  distinct(area, adult_id_num, .keep_all = TRUE) %>% 
+  #group_by(area) %>% 
+  summarize(mean(bmi, na.rm = TRUE), sd(bmi, na.rm = TRUE), 
+            min(bmi, na.rm = TRUE), median(bmi, na.rm = TRUE), 
+            max(bmi, na.rm = TRUE))
 summary_stats
 ```

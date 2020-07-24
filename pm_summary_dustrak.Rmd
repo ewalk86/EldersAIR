@@ -172,7 +172,7 @@ boxplots_pm
 
 \pagebreak  
 
-```{r, fig.height=5, fig.width=4}
+```{r, fig.height=4, fig.width=4}
 boxplots_elders_pm <- elders_pm %>% 
   filter(winter_id == 1) %>% 
   distinct(home, .keep_all = TRUE) %>% 
