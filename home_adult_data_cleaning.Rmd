@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial home/adult data work"
 author: "Ethan Walker"
-date: "Started 10 Feb 2020, Updated 25 Feb 2020"
+date: "Started 10 Feb 2020, Updated 10 Aug 2020"
 output: pdf_document
 ---
 
@@ -26,33 +26,59 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 ```{r}
 # Load files 
 ## Box location: Update Box location once final data loaded
-np_adult_initial <- read_xlsx(paste0(file_path, "Input/NP/np_adult_20200220.xlsx")) %>% 
-  rename_all(tolower) %>% 
-  mutate(adult_id_num = as.factor(adultid),
-         home_id = as.factor(homeid),
-         adult_id_char = as.factor(id),
-         consent_date = ymd(consentdate),
-         area = "NP") %>% 
-  select(adult_id_num, home_id, area, adult_id_char, consent_date) %>% 
+np_adult_initial <- read_xlsx(paste0(file_path, "Input/NP/adult.xlsx"), skip = 1,
+                               na = c("", "NULL"),
+                              col_names = c("adult_id_num", "home_id_num", "adult_id_char",
+                                            "hispanic", "age_nov", "race", "gender",
+                                            "child_assent", "consent_date", "phi_date",
+                                            "phi_dr", "comment", "missing", "incomplete",
+                                            "enrolled", "ignore_missing", "ignore_reason"),
+                              col_types = c("numeric", "numeric", "text",
+                                            "text", "text", "text", "text", 
+                                            "text", "date", "date",
+                                            "text", "text", "text", "text", 
+                                            "text", "text", "text")) %>% 
+  mutate(adult_id_num = as.factor(adult_id_num),
+         home_id_num = as.factor(home_id_num),
+         adult_id_char = as.factor(adult_id_char),
+         adult_id_char = gsub("_", "", adult_id_char),
+         adult_id_char = gsub(" ", "", adult_id_char),
+         consent_date = ymd(consent_date),
+         area = "NPT") %>% 
+  select(adult_id_num, home_id_num, area, adult_id_char, consent_date, phi_date) %>% 
   arrange(adult_id_num)
 
 ## Box location: Update Box location once final data loaded
-nn_adult_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_adult_20200220.xlsx")) %>% 
-  rename_all(tolower) %>% 
-  mutate(adult_id_num = as.factor(adultid),
-         home_id = as.factor(homeid),
-         adult_id_char = as.factor(id),
-         consent_date = ymd(consentdate),
+nn_adult_initial <- read_xlsx(paste0(file_path, "Input/NN/adult.xlsx"), skip = 1,
+                               na = c("", "NULL"),
+                              col_names = c("adult_id_num", "home_id_num", "adult_id_char",
+                                            "hispanic", "age_nov", "race", "gender",
+                                            "child_assent", "consent_date", "phi_date",
+                                            "phi_dr", "comment", "missing", "incomplete",
+                                            "enrolled", "ignore_missing", "ignore_reason"),
+                              col_types = c("numeric", "numeric", "text",
+                                            "text", "text", "text", "text", 
+                                            "text", "date", "date",
+                                            "text", "text", "text", "text", 
+                                            "text", "text", "text")) %>% 
+  mutate(adult_id_num = as.factor(adult_id_num),
+         home_id_num = as.factor(home_id_num),
+         adult_id_char = as.factor(adult_id_char),
+         adult_id_char = gsub("_", "", adult_id_char),
+         adult_id_char = gsub(" ", "", adult_id_char),
+         consent_date = ymd(consent_date),
          area = "NN") %>% 
-  select(adult_id_num, home_id, area, adult_id_char, consent_date) %>% 
+  select(adult_id_num, home_id_num, area, adult_id_char, consent_date, phi_date) %>% 
   arrange(adult_id_num)
 
 elders_adult <- rbind(np_adult_initial, nn_adult_initial)
+summary(elders_adult)
 
 
 # Load files 
 ## Box location: Update Box location once final data loaded
-np_demographics_initial <- read_xlsx(paste0(file_path, "Input/NP/np_demographics_20200225.xlsx")) %>% 
+np_demographics_initial <- read_xlsx(paste0(file_path, "Input/NP/demographics.xlsx"),
+                                      na = c("", "NULL")) %>% 
   rename_all(tolower) %>% 
   mutate(adult_id_num = as.factor(adultid),
          home_winter_id = as.factor(homewinterid),
@@ -63,14 +89,15 @@ np_demographics_initial <- read_xlsx(paste0(file_path, "Input/NP/np_demographics
          education = factor(education),
          total_residents = as.numeric(totalres),
          residents_under18 = as.numeric(undereighteen),
-         age_nov1 = as.numeric(agenov1),
-         area = "NP") %>% 
+         age = as.numeric(agenov1),
+         area = "NPT") %>% 
   select(adult_id_num, home_winter_id, area, gender, hispanic, race, income, 
-         education, total_residents, residents_under18, age_nov1) %>% 
+         education, total_residents, residents_under18, age) %>% 
   arrange(adult_id_num)
 
 ## Box location: Update Box location once final data loaded
-nn_demographics_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_demographics_20200225.xlsx")) %>% 
+nn_demographics_initial <- read_xlsx(paste0(file_path, "Input/NN/demographics.xlsx"),
+                                      na = c("", "NULL")) %>% 
   rename_all(tolower) %>% 
   mutate(adult_id_num = as.factor(adultid),
          home_winter_id = as.factor(homewinterid),
@@ -81,91 +108,121 @@ nn_demographics_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_demographics
          education = factor(education),
          total_residents = as.numeric(totalres),
          residents_under18 = as.numeric(undereighteen),
-         age_nov1 = as.numeric(agenov1),
+         age = as.numeric(agenov1),
          area = "NN") %>% 
   select(adult_id_num, home_winter_id, area, gender, hispanic, race, income, 
-         education, total_residents, residents_under18, age_nov1) %>% 
+         education, total_residents, residents_under18, age) %>% 
   arrange(adult_id_num)
 
 elders_demographics <- rbind(np_demographics_initial, nn_demographics_initial)
+summary(elders_demographics)
 
 
 ## Box location: Update Box location once final data loaded
-np_homewinter_initial <- read_xlsx(paste0(file_path, "Input/NP/np_homewinter_20200220.xlsx")) %>% 
-  rename_all(tolower) %>% 
-  separate(interventiontime, c("trash1", "intervention_time"), sep = " ", remove = FALSE) %>%
-  separate(samplingtime, c("trash1", "sampling_time_1"), sep = " ", remove = FALSE) %>%
-  separate(pickuptime, c("trash1", "pickup_time_1"), sep = " ", remove = FALSE) %>%
-  separate(sampling2time, c("trash1", "sampling_time_2"), sep = " ", remove = FALSE) %>%
-  separate(pickup2time, c("trash1", "pickup_time_2"), sep = " ", remove = FALSE) %>%
-  mutate(home_id = as.factor(homeid),
-         winter_id = as.factor(winterid),
-         home_winter_id = as.factor(homewinterid),
-         intervention_date = ymd(interventiondate),
+np_homewinter_initial <- read_xlsx(paste0(file_path, "Input/NP/homewinter.xlsx"), 
+                                   skip = 1, na = c("", "NULL"),
+                              col_names = c("home_winter_id", "home_id_num", "winter_id",
+                                            "intervention_date", "intervention_time", 
+                                            "sampling_date", "sampling_time", 
+                                            "pickup_date", "pickup_time", 
+                                            "sampling_date2", "sampling_time2", 
+                                            "pickup_date2", "pickup_time2"),
+                              col_types = c("numeric", "numeric", "numeric",
+                                            "date", "date", 
+                                            "date", "date", 
+                                            "date", "date", 
+                                            "date", "date", 
+                                            "date", "date")) %>% 
+  separate(intervention_time, c("trash1", "intervention_time"), sep = " ", remove = FALSE) %>%
+  separate(sampling_time, c("trash1", "sampling_time"), sep = " ", remove = FALSE) %>%
+  separate(pickup_time, c("trash1", "pickup_time"), sep = " ", remove = FALSE) %>%
+  separate(sampling_time2, c("trash1", "sampling_time2"), sep = " ", remove = FALSE) %>%
+  separate(pickup_time2, c("trash1", "pickup_time2"), sep = " ", remove = FALSE) %>%
+  mutate(home_id_num = as.factor(home_id_num),
+         winter_id = as.factor(winter_id),
+         home_winter_id = as.factor(home_winter_id),
+         intervention_date = ymd(intervention_date),
          intervention_time = as.character(intervention_time),
-         sampling_date_1 = ymd(samplingdate),
-         sampling_time_1 = as.character(sampling_time_1),
-         pickup_date_1 = ymd(pickupdate),
-         pickup_time_1 = as.character(pickup_time_1),
-         sampling_date_2 = ymd(sampling2date),
-         sampling_time_2 = as.character(sampling_time_2),
-         pickup_date_2 = ymd(pickup2date),
-         pickup_time_2 = as.character(pickup_time_2),
-         area = "NP") %>% 
-  select(home_id, winter_id, home_winter_id, area, intervention_date, intervention_time,
-         sampling_date_1, sampling_time_1, pickup_date_1, pickup_time_1,
-         sampling_date_2, sampling_time_2, pickup_date_2, pickup_time_2) %>% 
-  filter(!is.na(home_id)) %>% 
-  arrange(home_id, winter_id)
+         sampling_date = ymd(sampling_date),
+         sampling_time = as.character(sampling_time),
+         pickup_date = ymd(pickup_date),
+         pickup_time = as.character(pickup_time),
+         sampling_date2 = ymd(sampling_date2),
+         sampling_time2 = as.character(sampling_time2),
+         pickup_date2 = ymd(pickup_date2),
+         pickup_time2 = as.character(pickup_time2),
+         area = "NPT") %>% 
+  select(home_id_num, winter_id, home_winter_id, area, intervention_date, intervention_time,
+         sampling_date, sampling_time, pickup_date, pickup_time,
+         sampling_date2, sampling_time2, pickup_date2, pickup_time2) %>% 
+  filter(winter_id != 3) %>% 
+  arrange(home_id_num, winter_id)
 
 ## Box location: Update Box location once final data loaded
-nn_homewinter_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_homewinter_20200220.xlsx")) %>% 
-  rename_all(tolower) %>% 
-  separate(interventiontime, c("trash1", "intervention_time"), sep = " ", remove = FALSE) %>%
-  separate(samplingtime, c("trash1", "sampling_time_1"), sep = " ", remove = FALSE) %>%
-  separate(pickuptime, c("trash1", "pickup_time_1"), sep = " ", remove = FALSE) %>%
-  separate(sampling2time, c("trash1", "sampling_time_2"), sep = " ", remove = FALSE) %>%
-  separate(pickup2time, c("trash1", "pickup_time_2"), sep = " ", remove = FALSE) %>%
-  mutate(home_id = as.factor(homeid),
-         winter_id = as.factor(winterid),
-         home_winter_id = as.factor(homewinterid),
-         intervention_date = ymd(interventiondate),
+nn_homewinter_initial <- read_xlsx(paste0(file_path, "Input/NN/homewinter.xlsx"), 
+                                   skip = 1, na = c("", "NULL"),
+                              col_names = c("home_winter_id", "home_id_num", "winter_id",
+                                            "intervention_date", "intervention_time", 
+                                            "sampling_date", "sampling_time", 
+                                            "pickup_date", "pickup_time", 
+                                            "sampling_date2", "sampling_time2", 
+                                            "pickup_date2", "pickup_time2"),
+                              col_types = c("numeric", "numeric", "numeric",
+                                            "date", "date", 
+                                            "date", "date", 
+                                            "date", "date", 
+                                            "date", "date", 
+                                            "date", "date")) %>% 
+  separate(intervention_time, c("trash1", "intervention_time"), sep = " ", remove = FALSE) %>%
+  separate(sampling_time, c("trash1", "sampling_time"), sep = " ", remove = FALSE) %>%
+  separate(pickup_time, c("trash1", "pickup_time"), sep = " ", remove = FALSE) %>%
+  separate(sampling_time2, c("trash1", "sampling_time2"), sep = " ", remove = FALSE) %>%
+  separate(pickup_time2, c("trash1", "pickup_time2"), sep = " ", remove = FALSE) %>%
+  mutate(home_id_num = as.factor(home_id_num),
+         winter_id = as.factor(winter_id),
+         home_winter_id = as.factor(home_winter_id),
+         intervention_date = ymd(intervention_date),
          intervention_time = as.character(intervention_time),
-         sampling_date_1 = ymd(samplingdate),
-         sampling_time_1 = as.character(sampling_time_1),
-         pickup_date_1 = ymd(pickupdate),
-         pickup_time_1 = as.character(pickup_time_1),
-         sampling_date_2 = ymd(sampling2date),
-         sampling_time_2 = as.character(sampling_time_2),
-         pickup_date_2 = ymd(pickup2date),
-         pickup_time_2 = as.character(pickup_time_2),
+         sampling_date = ymd(sampling_date),
+         sampling_time = as.character(sampling_time),
+         pickup_date = ymd(pickup_date),
+         pickup_time = as.character(pickup_time),
+         sampling_date2 = ymd(sampling_date2),
+         sampling_time2 = as.character(sampling_time2),
+         pickup_date2 = ymd(pickup_date2),
+         pickup_time2 = as.character(pickup_time2),
          area = "NN") %>% 
-  select(home_id, winter_id, home_winter_id, area, intervention_date, intervention_time,
-         sampling_date_1, sampling_time_1, pickup_date_1, pickup_time_1,
-         sampling_date_2, sampling_time_2, pickup_date_2, pickup_time_2) %>% 
-  filter(!is.na(home_id)) %>% 
-  arrange(home_id, winter_id)
+  select(home_id_num, winter_id, home_winter_id, area, intervention_date, intervention_time,
+         sampling_date, sampling_time, pickup_date, pickup_time,
+         sampling_date2, sampling_time2, pickup_date2, pickup_time2) %>% 
+  filter(winter_id != 3) %>% 
+  arrange(home_id_num, winter_id)
 
 elders_homewinter <- rbind(np_homewinter_initial, nn_homewinter_initial)
+summary(elders_homewinter)
 
 
 ## Box location: Update Box location once final data loaded
-np_home_initial <- read_xlsx(paste0(file_path, "Input/NP/np_home_20200220.xlsx")) %>% 
+np_home_initial <- read_xlsx(paste0(file_path, "Input/NP/home.xlsx"), na = c("", "NULL")) %>% 
   rename_all(tolower) %>% 
-  mutate(home_id = as.factor(homeid),
+  mutate(home_id_num = as.factor(homeid),
          home = as.factor(home),
          treatment = as.factor(txcondition),
-         area = "NP") %>% 
-  select(home_id, home, treatment, area)
+         home = gsub("_", "", home),
+         home = gsub(" ", "", home),
+         area = "NPT") %>% 
+  select(home_id_num, home, treatment, area)
 
 ## Box location: Update Box location once final data loaded
-nn_home_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_home_20200220.xlsx")) %>% 
+nn_home_initial <- read_xlsx(paste0(file_path, "Input/NN/home.xlsx"), na = c("", "NULL")) %>% 
   rename_all(tolower) %>% 
-  mutate(home_id = as.factor(homeid),
+  mutate(home_id_num = as.factor(homeid),
          home = as.factor(home),
          treatment = as.factor(txcondition),
+         home = gsub("_", "", home),
+         home = gsub(" ", "", home),
          area = "NN") %>% 
-  select(home_id, home, treatment, area)
+  select(home_id_num, home, treatment, area)
 
 elders_home <- rbind(np_home_initial, nn_home_initial)
 ```
@@ -173,16 +230,39 @@ elders_home <- rbind(np_home_initial, nn_home_initial)
 
 # Combine adult, home, homewinter files
 ```{r}
-elders_ids_linked <- elders_homewinter %>%
-  filter(winter_id != 3) %>% 
+elders_demographics_final <- elders_homewinter %>%
   left_join(elders_demographics, by = c("area", "home_winter_id")) %>% 
-  left_join(elders_home, by = c("area", "home_id")) %>% 
-  left_join(elders_adult, by = c("area", "home_id", "adult_id_num")) %>% 
-  mutate(home = str_remove(home, "[_]")) %>% 
+  left_join(elders_home, by = c("area", "home_id_num")) %>% 
+  left_join(elders_adult, by = c("area", "home_id_num", "adult_id_num")) %>% 
+  mutate(intervention_date = gsub("2014-03-14", "2017-03-14", intervention_date)) %>% 
+  select(adult_id_num, adult_id_char, area, home, home_id_num, home_winter_id, 
+         winter_id, treatment, intervention_date:phi_date) %>% 
+  filter(!is.na(home)) %>% 
+  mutate(income = factor(income,
+                         levels = c("Less than $20,000", "$20,000 to $29,999",
+                                    "$30,000 to $39,999", "$40,000 to $49,999",
+                                    "$50,000 to $74,999", "$75,000 to $99,999",
+                                    "$100,000 or more"),
+                         labels = c("< $20,000", "$20,000 to $29,999",
+                                    "$30,000 to $39,999", "$40,000 to $49,999",
+                                    "$50,000 to $74,999", "$75,000 to $99,999",
+                                    ">= $100,000")),
+         education = factor(education,
+                            levels = c("Less than high school", "High school diploma or GED",
+                                       "Some college", "College degree"),
+                            labels = c("< high school", "High school grad or GED",
+                                       "Some college", "College degree"))) %>% 
   arrange(area, home, winter_id)
-#write_rds(elders_ids_linked, paste0(file_path, "Output/elders_ids_linked.rds"))
 
-elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
+#summary(elders_demographics_final)
+
+
+elders_ids_linked <- elders_demographics_final %>% 
+  select(adult_id_num, adult_id_char, area, home, home_id_num, home_winter_id, 
+         winter_id, treatment)
+
+write_rds(elders_demographics_final, paste0(file_path, "Output/elders_demographics.rds"))
+write_rds(elders_ids_linked, paste0(file_path, "Output/elders_ids_linked.rds"))
 ```
 
 

@@ -28,67 +28,96 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
 # Load, format, and save Dustrak log files
 ```{r}
-## Box location: Update Box location once final data loaded
-np_dustrak_initial <- read_xlsx(paste0(file_path, "Input/NP/np_dustrak_20200220.xlsx")) %>% 
+np_dustrak_initial <- read_xlsx(paste0(file_path, "Input/NP/dusttrack.xlsx"),
+                                skip = 1, na = c("", "NULL"),
+                                col_names = c("home_winter_id", "dtid", "file_name",
+                                              "dt_cleaned", "dt_zeroed", "pm_comments",
+                                              "start_date", "start_time",
+                                              "stop_date", "stop_time",
+                                              "sample_interval", "sample_obs",
+                                              "sample_ave", "sample_min", "sample_max",
+                                              "sampling_visit", "dt_qaqc"),
+                                col_types = c("text", "text", "text",
+                                              "text", "text", "text",
+                                              "date", "date",
+                                              "date", "date",
+                                              "text", "numeric",
+                                              "numeric", "numeric", "numeric",
+                                              "text", "text")) %>% 
   # rename variables
-  separate(StartTime, c("trash1", "start_time_pm"), sep = " ", remove = FALSE) %>% 
-  separate(StopTime, c("trash1", "stop_time_pm"), sep = " ", remove = FALSE) %>% 
-  mutate(home_winter_id = as.factor(HomeWinterID),
-         dtid = as.factor(DTID),
-         start_date_pm = ymd(StartDate),
+  separate(start_time, c("trash1", "start_time_pm"), sep = " ", remove = FALSE) %>% 
+  separate(stop_time, c("trash1", "stop_time_pm"), sep = " ", remove = FALSE) %>% 
+  mutate(home_winter_id = as.factor(home_winter_id),
+         dtid = as.factor(dtid),
+         start_date_pm = ymd(start_date),
          start_time_pm = as.character(start_time_pm),
-         stop_date_pm = ymd(StopDate),
+         stop_date_pm = ymd(stop_date),
          stop_time_pm = as.character(stop_time_pm),
-         sample_obs = as.numeric(DTLength),
-         sample_ave = as.numeric(DTAverage),
-         sample_min = as.numeric(DTMin),
-         sample_max = as.numeric(DTMax),
-         pm_comments = as.character(Comments),
-         sampling_visit = as.factor(SamplingVisit),
-         area = "NP") %>% 
+         sample_obs = as.numeric(sample_obs),
+         sample_ave = as.numeric(sample_ave),
+         sample_min = as.numeric(sample_min),
+         sample_max = as.numeric(sample_max),
+         sampling_visit = as.factor(sampling_visit),
+         area = "NPT") %>% 
   select(home_winter_id, area, dtid, sampling_visit, start_date_pm, start_time_pm,
-         stop_date_pm, stop_time_pm, sample_obs, sample_ave, sample_min,
+         stop_date_pm, stop_time_pm, sample_interval, sample_obs, sample_ave, sample_min,
          sample_max, pm_comments) %>% 
   arrange(home_winter_id)
-#write_rds(np_dustrak_initial, paste0(file_path, "Output/np_dustrak.rds"))
 
 
-## Box location: Update Box location once final data loaded
-nn_dustrak_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_dustrak_20200220.xlsx")) %>% 
+nn_dustrak_initial <- read_xlsx(paste0(file_path, "Input/NN/dusttrack.xlsx"),
+                                skip = 1, na = c("", "NULL"),
+                                col_names = c("home_winter_id", "dtid", "file_name",
+                                              "dt_cleaned", "dt_zeroed", "pm_comments",
+                                              "start_date", "start_time",
+                                              "stop_date", "stop_time",
+                                              "sample_interval", "sample_obs",
+                                              "sample_ave", "sample_min", "sample_max",
+                                              "sampling_visit", "dt_qaqc"),
+                                col_types = c("text", "text", "text",
+                                              "text", "text", "text",
+                                              "date", "date",
+                                              "date", "date",
+                                              "text", "numeric",
+                                              "numeric", "numeric", "numeric",
+                                              "text", "text")) %>% 
   # rename variables
-  separate(StartTime, c("trash1", "start_time_pm"), sep = " ", remove = FALSE) %>% 
-  separate(StopTime, c("trash1", "stop_time_pm"), sep = " ", remove = FALSE) %>% 
-  mutate(home_winter_id = as.factor(HomeWinterID),
-         dtid = as.factor(DTID),
-         start_date_pm = ymd(StartDate),
+  separate(start_time, c("trash1", "start_time_pm"), sep = " ", remove = FALSE) %>% 
+  separate(stop_time, c("trash1", "stop_time_pm"), sep = " ", remove = FALSE) %>% 
+  mutate(home_winter_id = as.factor(home_winter_id),
+         dtid = as.factor(dtid),
+         start_date_pm = ymd(start_date),
          start_time_pm = as.character(start_time_pm),
-         stop_date_pm = ymd(StopDate),
+         stop_date_pm = ymd(stop_date),
          stop_time_pm = as.character(stop_time_pm),
-         sample_obs = as.numeric(DTLength),
-         sample_ave = as.numeric(DTAverage),
-         sample_min = as.numeric(DTMin),
-         sample_max = as.numeric(DTMax),
-         pm_comments = "NA",
-         sampling_visit = as.factor(SamplingVisit),
+         sample_obs = as.numeric(sample_obs),
+         sample_ave = as.numeric(sample_ave),
+         sample_min = as.numeric(sample_min),
+         sample_max = as.numeric(sample_max),
+         sampling_visit = as.factor(sampling_visit),
          area = "NN") %>% 
   select(home_winter_id, area, dtid, sampling_visit, start_date_pm, start_time_pm,
-         stop_date_pm, stop_time_pm, sample_obs, sample_ave, sample_min,
+         stop_date_pm, stop_time_pm, sample_interval, sample_obs, sample_ave, sample_min,
          sample_max, pm_comments) %>% 
   arrange(home_winter_id)
-#write_rds(nn_dustrak_initial, paste0(file_path, "Output/nn_dustrak.rds"))
 
 
 elders_dustrak_log <- rbind(np_dustrak_initial, nn_dustrak_initial)
-#write_rds(elders_dustrak_log, paste0(file_path, "Output/elders_dustrak_log.rds"))
 
-elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) %>% 
-  filter(winter_id == 1 | winter_id == 2)
+
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) 
 
 
 elders_dustrak_log_new <- elders_dustrak_log %>% 
   left_join(elders_ids_linked, by = c("area", "home_winter_id")) %>% 
+  filter(!is.na(home)) %>% 
+  select(area, home, home_id_num, home_winter_id, winter_id, sampling_visit, treatment,
+         adult_id_num, adult_id_char, dtid:pm_comments) %>% 
   arrange(home, winter_id)
-#write_rds(elders_dustrak_log_new, paste0(file_path, "Output/elders_dustrak_log.rds"))
+
+summary(elders_dustrak_log_new)
+
+write_rds(elders_dustrak_log_new, paste0(file_path, "Output/elders_dustrak_log.rds"))
 ```
 
 
@@ -100,11 +129,11 @@ elders_dustrak_log_new <- elders_dustrak_log %>%
 
 ### NN ###
 # List files
-list_text_files <- list.files(paste0(file_path, "Input/NN/nn_dustrak/pre_20200218/text"))
+list_text_files <- list.files(paste0(file_path, "Input/NN/nn_dustrak/text"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 4 lines together
-setwd(paste0(file_path, "Input/NN/nn_dustrak/pre_20200218/text")) # set new working directory
+setwd(paste0(file_path, "Input/NN/nn_dustrak/text")) # set new working directory
 initial_data = tibble(file_name = list_text_files) %>% # use list of files from above
   mutate(save_data = lapply(file_name, read_delim, delim = " ", skip = 28)) %>%
   unnest(save_data)
@@ -112,26 +141,22 @@ initial_data = tibble(file_name = list_text_files) %>% # use list of files from 
 
 # Format combined file from above; combine with other PM data below
 nn_pm_text_space <- initial_data %>% 
-  separate(file_name, c("home", "trash"), sep = 7, remove = FALSE) %>% 
-  mutate(home = as.character(home),
-         date_pm = mdy(`MM/dd/yyyy`),
+  filter(is.na(`MM/dd/yyyy,hh:mm:ss,mg/m^3`)) %>% 
+  mutate(date_pm = mdy(`MM/dd/yyyy`),
          time_pm = as.character(`hh:mm:ss`),
          pm = as.numeric(`mg/m^3`),
          area = "NN",
-         file_type = "text",
-         winter_id = 1) %>% 
+         file_type = "text") %>% 
   unite("datetime", c("date_pm", "time_pm"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_pm = ymd_hms(datetime)) %>% 
-  select(home, area, winter_id, datetime_pm, date_pm, time_pm, pm, file_type) %>% 
-  filter(!is.na(pm)) %>% 
-  ungroup() %>% 
-  arrange(area, home, datetime_pm)
+  select(area, datetime_pm, date_pm, time_pm, pm, file_type, file_name) %>% 
+  arrange(area, file_name, datetime_pm)
 
 
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 4 lines together
-setwd(paste0(file_path, "Input/NN/nn_dustrak/pre_20200218/text")) # set new working directory
+setwd(paste0(file_path, "Input/NN/nn_dustrak/text")) # set new working directory
 initial_data = tibble(file_name = list_text_files) %>% # use list of files from above
   mutate(save_data = lapply(file_name, read_delim, delim = ",", skip = 28)) %>%
   unnest(save_data)
@@ -139,30 +164,26 @@ initial_data = tibble(file_name = list_text_files) %>% # use list of files from 
 
 # Format combined file from above; combine with other PM data below
 nn_pm_text_comma <- initial_data %>% 
-  separate(file_name, c("home", "trash"), sep = 7, remove = FALSE) %>% 
-  mutate(home = as.character(home),
-         date_pm = mdy(`MM/dd/yyyy`),
+  filter(is.na(`MM/dd/yyyy hh:mm:ss mg/m^3`)) %>% 
+  mutate(date_pm = mdy(`MM/dd/yyyy`),
          time_pm = as.character(`hh:mm:ss`),
          pm = as.numeric(`mg/m^3`),
          area = "NN",
-         file_type = "text",
-         winter_id = 1) %>% 
+         file_type = "text") %>% 
   unite("datetime", c("date_pm", "time_pm"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_pm = ymd_hms(datetime)) %>% 
-  select(home, area, winter_id, datetime_pm, date_pm, time_pm, pm, file_type) %>% 
-  filter(!is.na(pm)) %>% 
-  ungroup() %>% 
-  arrange(area, home, datetime_pm)
+  select(area, datetime_pm, date_pm, time_pm, pm, file_type, file_name) %>% 
+  arrange(area, file_name, datetime_pm)
 
 
 
 ### NP ###
 # List files
-list_text_files <- list.files(paste0(file_path, "Input/NP/np_dustrak/pre_20200218/text"))
+list_text_files <- list.files(paste0(file_path, "Input/NP/np_dustrak/text"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 4 lines together
-setwd(paste0(file_path, "Input/NP/np_dustrak/pre_20200218/text")) # set new working directory
+setwd(paste0(file_path, "Input/NP/np_dustrak/text")) # set new working directory
 initial_data = tibble(file_name = list_text_files) %>% # use list of files from above
   mutate(save_data = lapply(file_name, read_delim, delim = ",", skip = 29,
                             col_names = c("date", "time", "pm"))) %>%
@@ -171,20 +192,15 @@ initial_data = tibble(file_name = list_text_files) %>% # use list of files from 
 
 # Format combined file from above; combine with other PM data below
 np_pm_text_comma <- initial_data %>% 
-  separate(file_name, c("home", "trash"), sep = 7, remove = FALSE) %>% 
-  mutate(home = as.character(home),
-         date_pm = mdy(date),
+  mutate(date_pm = mdy(date),
          time_pm = as.character(time),
          pm = as.numeric(pm),
-         area = "NP",
-         file_type = "text",
-         winter_id = 1) %>% 
+         area = "NPT",
+         file_type = "text") %>% 
   unite("datetime", c("date_pm", "time_pm"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_pm = ymd_hms(datetime)) %>% 
-  select(home, area, winter_id, datetime_pm, date_pm, time_pm, pm, file_type) %>% 
-  filter(!is.na(pm)) %>% 
-  ungroup() %>% 
-  arrange(area, home, datetime_pm)
+  select(area, datetime_pm, date_pm, time_pm, pm, file_type, file_name) %>% 
+  arrange(area, file_name, datetime_pm)
 
 
 
@@ -194,11 +210,11 @@ np_pm_text_comma <- initial_data %>%
 
 ### NN ###
 # List files
-list_csv_files <- list.files(paste0(file_path, "Input/NN/nn_dustrak/pre_20200218/csv"))
+list_csv_files <- list.files(paste0(file_path, "Input/NN/nn_dustrak/csv"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 4 lines together
-setwd(paste0(file_path, "Input/NN/nn_dustrak/pre_20200218/csv")) # set new working directory
+setwd(paste0(file_path, "Input/NN/nn_dustrak/csv")) # set new working directory
 initial_data = tibble(file_name = list_csv_files) %>% # use list of files from above
   mutate(save_data = lapply(file_name, read_csv)) %>%
   unnest(save_data)
@@ -225,22 +241,19 @@ nn_pm_csv <- initial_data %>%
   separate(datetime_pm, c("date", "time_pm"), sep = " ", remove = FALSE) %>% 
   mutate(date_pm = ymd(date),
          area = "NN",
-         file_type = "csv",
-         winter_id = 1) %>% 
+         file_type = "csv") %>% 
   ungroup() %>% 
-  separate(file_name, c("home", "trash"), sep = 7, remove = FALSE) %>% 
-  select(home, area, winter_id, datetime_pm, date_pm, time_pm, pm, file_type) %>% 
-  filter(!is.na(pm)) %>% 
-  arrange(area, home, datetime_pm)
+  select(area, datetime_pm, date_pm, time_pm, pm, file_type, file_name) %>% 
+  arrange(area, file_name, datetime_pm)
 
 
 ### NP ###
 # List files
-list_csv_files <- list.files(paste0(file_path, "Input/NP/np_dustrak/pre_20200218/csv"))
+list_csv_files <- list.files(paste0(file_path, "Input/NP/np_dustrak/csv"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next 4 lines together
-setwd(paste0(file_path, "Input/NP/np_dustrak/pre_20200218/csv")) # set new working directory
+setwd(paste0(file_path, "Input/NP/np_dustrak/csv")) # set new working directory
 initial_data = tibble(file_name = list_csv_files) %>% # use list of files from above
   mutate(save_data = lapply(file_name, read_csv)) %>%
   unnest(save_data)
@@ -266,25 +279,107 @@ np_pm_csv <- initial_data %>%
          datetime_pm = datetime + seconds(elapsed_time)) %>% 
   separate(datetime_pm, c("date", "time_pm"), sep = " ", remove = FALSE) %>% 
   mutate(date_pm = ymd(date),
-         area = "NP",
-         file_type = "csv",
-         winter_id = 1) %>% 
+         area = "NPT",
+         file_type = "csv") %>% 
   ungroup() %>% 
-  separate(file_name, c("home", "trash"), sep = 7, remove = FALSE) %>% 
-  select(home, area, winter_id, datetime_pm, date_pm, time_pm, pm, file_type) %>% 
-  filter(!is.na(pm)) %>% 
-  arrange(area, home, datetime_pm)
+  select(area, datetime_pm, date_pm, time_pm, pm, file_type, file_name) %>% 
+  arrange(area, file_name, datetime_pm)
+
+
+
+
+##### Read in dusttrack .xlsx files #####
+
+
+### NN ###
+# List files
+list_xlsx_files <- list.files(paste0(file_path, "Input/NN/nn_dustrak/csv2"))
+
+# Set working directory and load files in list; extract file name and add as column
+## run next 4 lines together
+setwd(paste0(file_path, "Input/NN/nn_dustrak/csv2")) # set new working directory
+initial_data = tibble(file_name = list_xlsx_files) %>% # use list of files from above
+  mutate(save_data = lapply(file_name, read_csv)) %>%
+  unnest(save_data)
+
+# Format combined file from above; combine with other PM data below
+nn_pm_xlsx <- initial_data %>% 
+  mutate(trash1 = `Instrument Name`,
+         trash2 = `DustTrak II`) %>% 
+  select(file_name, trash1, trash2) %>% 
+  group_by(file_name) %>% 
+  mutate(date = if_else(trash1 == "Test Start Date", trash2,"NA"),
+         time = if_else(trash1 == "Test Start Time", trash2,"NA")) %>% 
+  arrange(date, time) %>% 
+  mutate(time = lead(time),
+         date = first(date),
+         time = first(time),
+         elapsed_time = as.numeric(trash1)) %>% 
+  filter(!is.na(elapsed_time)) %>% 
+  #separate(time, c("time", "trash3"), sep = " ") %>% 
+  unite(datetime, c("date", "time"), sep = " ") %>% 
+  mutate(pm = as.numeric(trash2),
+         datetime = mdy_hms(datetime),
+         datetime_pm = datetime + seconds(elapsed_time)) %>% 
+  separate(datetime_pm, c("date", "time_pm"), sep = " ", remove = FALSE) %>% 
+  mutate(date_pm = ymd(date),
+         area = "NN",
+         file_type = "xlsx") %>% 
+  ungroup() %>% 
+  select(area, datetime_pm, date_pm, time_pm, pm, file_type, file_name) %>% 
+  arrange(area, file_name, datetime_pm)
+
+
+### NP ###
+# List files
+list_xlsx_files <- list.files(paste0(file_path, "Input/NP/np_dustrak/csv2"))
+
+# Set working directory and load files in list; extract file name and add as column
+## run next 4 lines together
+setwd(paste0(file_path, "Input/NP/np_dustrak/csv2")) # set new working directory
+initial_data = tibble(file_name = list_xlsx_files) %>% # use list of files from above
+  mutate(save_data = lapply(file_name, read_csv)) %>%
+  unnest(save_data)
+
+# Format combined file from above; combine with other PM data below
+np_pm_xlsx <- initial_data %>% 
+  mutate(trash1 = `Instrument Name`,
+         trash2 = `DustTrak II`) %>% 
+  select(file_name, trash1, trash2) %>% 
+  group_by(file_name) %>% 
+  mutate(date = if_else(trash1 == "Test Start Date", trash2,"NA"),
+         time = if_else(trash1 == "Test Start Time", trash2,"NA")) %>% 
+  arrange(date, time) %>% 
+  mutate(time = lead(time),
+         date = first(date),
+         time = first(time),
+         elapsed_time = as.numeric(trash1)) %>% 
+  filter(!is.na(elapsed_time)) %>% 
+  #separate(time, c("time", "trash3"), sep = " ") %>% 
+  unite(datetime, c("date", "time"), sep = " ") %>% 
+  mutate(pm = as.numeric(trash2),
+         datetime = mdy_hms(datetime),
+         datetime_pm = datetime + seconds(elapsed_time)) %>% 
+  separate(datetime_pm, c("date", "time_pm"), sep = " ", remove = FALSE) %>% 
+  mutate(date_pm = ymd(date),
+         area = "NPT",
+         file_type = "xlsx") %>% 
+  ungroup() %>% 
+  select(area, datetime_pm, date_pm, time_pm, pm, file_type, file_name) %>% 
+  arrange(area, file_name, datetime_pm)
 
 
 
 
 ##### Bind files from above #####
 elders_pm <- rbind(nn_pm_csv, nn_pm_text_comma, nn_pm_text_space,
-                   np_pm_csv, np_pm_text_comma) %>% 
-  arrange(area, home, datetime_pm) %>% 
+                   np_pm_csv, np_pm_text_comma,
+                   nn_pm_xlsx, np_pm_xlsx) %>% 
+  arrange(area, file_name, datetime_pm) %>% 
   ungroup()
+
 # Save pm dataset as RDS 
-# write_rds(elders_pm, paste0(file_path, "Output/elders_pm_full_raw.rds"))
+write_rds(elders_pm, paste0(file_path, "Output/elders_pm_full_raw.rds"))
 ```
 
 # Initial cleaning steps

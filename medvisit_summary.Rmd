@@ -33,7 +33,8 @@ elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
   filter(winter_id == 1 | winter_id == 2) %>% 
   arrange(area, adult_id_num)
 
-elders_medvisit <- read_rds(paste0(file_path, "Output/elders_medvisit_clean.rds")) 
+elders_medvisit <- read_rds(paste0(file_path, "Output/elders_medvisit_clean.rds")) %>% 
+  mutate(area = if_else(area == "NP", "NPT", area))
 ```
 
 # Cardiovascular outcomes from Med visit
@@ -203,7 +204,7 @@ medvisit_summary_function <- function(data, var, title_label, y_label) {
   
   medvisit_plot <- data %>% 
     filter(winter_id == 1) %>% 
-    filter(spiro_status == "Acceptable") %>% 
+    #filter(spiro_status == "Acceptable") %>% 
     select(area, var) %>% 
     rename(plot_var = var) %>% 
     na.exclude() %>% 
@@ -252,7 +253,7 @@ obstruction_data <- elders_medvisit %>%
   mutate(obs_any = if_else(obstruction == "Yes" | lead(obstruction) == "Yes", "Yes", "No"),
          obs_any = if_else(is.na(obs_any), obstruction, obs_any)) %>% 
   ungroup() %>% 
-  distinct(area, adult_id_num, .keep_all = TRUE) %>% 
+  distinct(area, adult_id_num, .keep_all = TRUE)  
   count(obs_any)
 obstruction_data
 
@@ -268,7 +269,7 @@ hypertension_data <- elders_medvisit %>%
   mutate(hyp_any = if_else(hypertension == "Yes" | lead(hypertension) == "Yes", "Yes", "No"),
          hyp_any = if_else(is.na(hyp_any), hypertension, hyp_any)) %>% 
   ungroup() %>% 
-  distinct(area, adult_id_num, .keep_all = TRUE) %>% 
+  distinct(area, adult_id_num, .keep_all = TRUE)  
   count(hyp_any)
 hypertension_data
 
