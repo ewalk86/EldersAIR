@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial PM data work"
 author: "Ethan Walker"
-date: "Started 12 Feb 2020, Updated 20 Feb 2020"
+date: "Started 12 Feb 2020, Updated 12 Aug 2020"
 output: pdf_document
 ---
 
@@ -19,6 +19,8 @@ library(knitr)
 jv_palette <- c("#330099","#CC0066","#FF6633", 
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", 
+               "#0072B2", "#D55E00", "#CC79A7")
 ```
 
 ```{r}
@@ -61,7 +63,7 @@ np_dustrak_initial <- read_xlsx(paste0(file_path, "Input/NP/dusttrack.xlsx"),
          area = "NPT") %>% 
   select(home_winter_id, area, dtid, sampling_visit, start_date_pm, start_time_pm,
          stop_date_pm, stop_time_pm, sample_interval, sample_obs, sample_ave, sample_min,
-         sample_max, pm_comments) %>% 
+         sample_max, pm_comments, file_name) %>% 
   arrange(home_winter_id)
 
 
@@ -98,7 +100,7 @@ nn_dustrak_initial <- read_xlsx(paste0(file_path, "Input/NN/dusttrack.xlsx"),
          area = "NN") %>% 
   select(home_winter_id, area, dtid, sampling_visit, start_date_pm, start_time_pm,
          stop_date_pm, stop_time_pm, sample_interval, sample_obs, sample_ave, sample_min,
-         sample_max, pm_comments) %>% 
+         sample_max, pm_comments, file_name) %>% 
   arrange(home_winter_id)
 
 
@@ -111,8 +113,14 @@ elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
 elders_dustrak_log_new <- elders_dustrak_log %>% 
   left_join(elders_ids_linked, by = c("area", "home_winter_id")) %>% 
   filter(!is.na(home)) %>% 
+  mutate(file_name = gsub(c("uploads/"), "", file_name),
+         file_name = gsub(c(".tkp"), "", file_name),
+         file_name = gsub(c(".txt"), "", file_name),
+         file_name = gsub(c(".TKP"), "", file_name),
+         file_name = gsub(c(".csv"), "", file_name),
+         file_name = gsub(c(".xlsx"), "", file_name)) %>% 
   select(area, home, home_id_num, home_winter_id, winter_id, sampling_visit, treatment,
-         adult_id_num, adult_id_char, dtid:pm_comments) %>% 
+         adult_id_num, adult_id_char, dtid:file_name) %>% 
   arrange(home, winter_id)
 
 summary(elders_dustrak_log_new)
@@ -288,93 +296,9 @@ np_pm_csv <- initial_data %>%
 
 
 
-##### Read in dusttrack .xlsx files #####
-
-
-### NN ###
-# List files
-list_xlsx_files <- list.files(paste0(file_path, "Input/NN/nn_dustrak/csv2"))
-
-# Set working directory and load files in list; extract file name and add as column
-## run next 4 lines together
-setwd(paste0(file_path, "Input/NN/nn_dustrak/csv2")) # set new working directory
-initial_data = tibble(file_name = list_xlsx_files) %>% # use list of files from above
-  mutate(save_data = lapply(file_name, read_csv)) %>%
-  unnest(save_data)
-
-# Format combined file from above; combine with other PM data below
-nn_pm_xlsx <- initial_data %>% 
-  mutate(trash1 = `Instrument Name`,
-         trash2 = `DustTrak II`) %>% 
-  select(file_name, trash1, trash2) %>% 
-  group_by(file_name) %>% 
-  mutate(date = if_else(trash1 == "Test Start Date", trash2,"NA"),
-         time = if_else(trash1 == "Test Start Time", trash2,"NA")) %>% 
-  arrange(date, time) %>% 
-  mutate(time = lead(time),
-         date = first(date),
-         time = first(time),
-         elapsed_time = as.numeric(trash1)) %>% 
-  filter(!is.na(elapsed_time)) %>% 
-  #separate(time, c("time", "trash3"), sep = " ") %>% 
-  unite(datetime, c("date", "time"), sep = " ") %>% 
-  mutate(pm = as.numeric(trash2),
-         datetime = mdy_hms(datetime),
-         datetime_pm = datetime + seconds(elapsed_time)) %>% 
-  separate(datetime_pm, c("date", "time_pm"), sep = " ", remove = FALSE) %>% 
-  mutate(date_pm = ymd(date),
-         area = "NN",
-         file_type = "xlsx") %>% 
-  ungroup() %>% 
-  select(area, datetime_pm, date_pm, time_pm, pm, file_type, file_name) %>% 
-  arrange(area, file_name, datetime_pm)
-
-
-### NP ###
-# List files
-list_xlsx_files <- list.files(paste0(file_path, "Input/NP/np_dustrak/csv2"))
-
-# Set working directory and load files in list; extract file name and add as column
-## run next 4 lines together
-setwd(paste0(file_path, "Input/NP/np_dustrak/csv2")) # set new working directory
-initial_data = tibble(file_name = list_xlsx_files) %>% # use list of files from above
-  mutate(save_data = lapply(file_name, read_csv)) %>%
-  unnest(save_data)
-
-# Format combined file from above; combine with other PM data below
-np_pm_xlsx <- initial_data %>% 
-  mutate(trash1 = `Instrument Name`,
-         trash2 = `DustTrak II`) %>% 
-  select(file_name, trash1, trash2) %>% 
-  group_by(file_name) %>% 
-  mutate(date = if_else(trash1 == "Test Start Date", trash2,"NA"),
-         time = if_else(trash1 == "Test Start Time", trash2,"NA")) %>% 
-  arrange(date, time) %>% 
-  mutate(time = lead(time),
-         date = first(date),
-         time = first(time),
-         elapsed_time = as.numeric(trash1)) %>% 
-  filter(!is.na(elapsed_time)) %>% 
-  #separate(time, c("time", "trash3"), sep = " ") %>% 
-  unite(datetime, c("date", "time"), sep = " ") %>% 
-  mutate(pm = as.numeric(trash2),
-         datetime = mdy_hms(datetime),
-         datetime_pm = datetime + seconds(elapsed_time)) %>% 
-  separate(datetime_pm, c("date", "time_pm"), sep = " ", remove = FALSE) %>% 
-  mutate(date_pm = ymd(date),
-         area = "NPT",
-         file_type = "xlsx") %>% 
-  ungroup() %>% 
-  select(area, datetime_pm, date_pm, time_pm, pm, file_type, file_name) %>% 
-  arrange(area, file_name, datetime_pm)
-
-
-
-
 ##### Bind files from above #####
 elders_pm <- rbind(nn_pm_csv, nn_pm_text_comma, nn_pm_text_space,
-                   np_pm_csv, np_pm_text_comma,
-                   nn_pm_xlsx, np_pm_xlsx) %>% 
+                   np_pm_csv, np_pm_text_comma) %>% 
   arrange(area, file_name, datetime_pm) %>% 
   ungroup()
 
@@ -385,12 +309,14 @@ write_rds(elders_pm, paste0(file_path, "Output/elders_pm_full_raw.rds"))
 # Initial cleaning steps
 ## Remember to add correction factor
 ```{r}
-elders_pm_full_raw <- read_rds(paste0(file_path, "Output/elders_pm_full_raw.rds"))
+elders_pm_full_raw <- read_rds(paste0(file_path, "Output/elders_pm_full_raw.rds")) %>% 
+  mutate(file_name = gsub(c(".txt"), "", file_name),
+         file_name = gsub(c(".csv"), "", file_name)) 
+  
 elders_dustrak_log <- read_rds(paste0(file_path, "Output/elders_dustrak_log.rds")) %>% 
-  filter(winter_id == 1) %>% 
-  arrange(home, sampling_visit) %>% 
-  group_by(home, sampling_visit) %>% 
-  distinct(home, .keep_all = TRUE)
+  arrange(home, winter_id, sampling_visit)  %>% 
+  select(-adult_id_char, -adult_id_num) %>% 
+  distinct(file_name, .keep_all = TRUE)
 
 
 elders_pm_new <- elders_pm_full_raw %>%  
@@ -400,19 +326,14 @@ elders_pm_new <- elders_pm_full_raw %>%
          pm = pm*1000) %>% 
   mutate(pm = as.numeric(pm),
          day_of_week = weekdays(date_pm)) %>% 
-  mutate(home = str_remove(home, "[_]")) %>% 
-  arrange(area, home, date_pm) %>% 
-  group_by(area, home) %>% 
-  mutate(first_datetime = first(datetime_pm),
-         diff_datetime = interval(first_datetime, datetime_pm),
-         sampling_visit = if_else(diff_datetime > 864000, 2, 1),
-         sampling_visit = as.factor(sampling_visit),
-         winter_id = as.factor(winter_id)) %>% 
-  left_join(elders_dustrak_log, c("area", "home", "winter_id", "sampling_visit")) 
+  arrange(area, file_name, date_pm) %>%
+  left_join(elders_dustrak_log, by = c("area", "file_name")) %>% 
+  filter(!is.na(home)) %>% 
+  arrange(area, home, datetime_pm)
 
 
 elders_pm_new2 <- elders_pm_new %>%   
-  group_by(area, home, sampling_visit) %>% 
+  group_by(area, home, winter_id, sampling_visit) %>% 
   # new variables summarizing pm2.5 within each home
   mutate(pm_total_observations = n(),
          # new datetime values to calculate sampling interval
@@ -451,7 +372,7 @@ elders_pm_new2 <- elders_pm_new %>%
 
 
 pm_summary <- elders_pm_new2 %>% 
-  group_by(area, home, sampling_visit) %>%
+  group_by(area, home, winter_id, sampling_visit) %>%
   distinct(sampling_visit, .keep_all = TRUE)
 # write_csv(pm_summary, paste0(file_path, "Output/elders_pm_summary.csv"))
 ```
@@ -460,6 +381,7 @@ pm_summary <- elders_pm_new2 %>%
 # Check sample start times and PM values
 ```{r}
 # Load data 
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_new.rds"))
 
 
@@ -485,6 +407,7 @@ sample_times <- elders_pm %>%
 # Histogram for distribution of PM by individual ID
 ```{r}
 # Load data 
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds"))
 
 
@@ -499,10 +422,10 @@ histogram_id
 # Function to look at PM data across time
 ```{r}
 # Plot PM by datetime to look at trends, gaps, and peaks
-pm_time_plot_function <- function(id, location) {
+pm_time_plot_function <- function(id, location, visit) {
   
 pm_time_plot <- elders_pm %>% 
-  filter(home_winter_id == id & area == location) %>% 
+  filter(home_winter_id == id & area == location & sampling_visit == visit) %>% 
   #filter(pm < 30000) %>% 
   arrange(datetime_pm) %>% 
   mutate(pm_sampling_day = as.character(pm_sampling_day),
@@ -527,7 +450,7 @@ pm_time_plot <- elders_pm %>%
     scale_color_manual(values = jv_palette)
 
 gaps <<- elders_pm %>% 
-  filter(home_winter_id == id & area == location) %>% 
+  filter(home_winter_id == id & area == location & sampling_visit == visit) %>% 
   mutate(datetime_pm = ymd_hms(datetime_pm),
          datetime_lead = ymd_hms(lead(datetime_pm)),
          datetime_1 = seconds(datetime_pm),
@@ -539,7 +462,7 @@ gaps <<- elders_pm %>%
          datetime_pm, datetime_lead)
 
 pm_desc <<- elders_pm %>% 
-  filter(home_winter_id == id & area == location) %>% 
+  filter(home_winter_id == id & area == location & sampling_visit == visit) %>% 
   arrange(desc(pm)) %>% 
   select(datetime_pm, pm, pm_sampling_day)
 pm_time_plot
@@ -553,11 +476,12 @@ pm_time_plot
 ### EldersAIR > Ethan - data cleaning and analysis > pm_cleaning_summary
 ```{r}
 # Load data 
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds"))
 
 # Change function input to look at specific home
 # Run all of these lines together
-pm_time_plot_function(id = "199", location = "NP")
+pm_time_plot_function(id = "19", location = "NN", visit = 2)
 head(gaps, 25)
 head(pm_desc, 25)
 tail(pm_desc, 25)
@@ -571,6 +495,7 @@ check_data <- kids_pm %>%
 # Fix PM data after checking odd values and time differences
 ```{r}
 # Load data 
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_new.rds"))
 
 pm_sample_times_comparison <- read_xlsx(paste0(file_path, "Input/pm_sample_times_comparison.xlsx")) %>% 
