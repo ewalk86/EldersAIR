@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial PM data work"
 author: "Ethan Walker"
-date: "Started 12 Feb 2020, Updated 12 Aug 2020"
+date: "Started 12 Feb 2020, Updated 21 Aug 2020"
 output: pdf_document
 ---
 
@@ -408,7 +408,7 @@ sample_times <- elders_pm %>%
 ```{r}
 # Load data 
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
-elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds"))
+elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_new.rds"))
 
 
 histogram_id <- elders_pm %>% 
@@ -477,17 +477,18 @@ pm_time_plot
 ```{r}
 # Load data 
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
-elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds"))
+elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_new.rds"))
 
 # Change function input to look at specific home
-# Run all of these lines together
-pm_time_plot_function(id = "19", location = "NN", visit = 2)
-head(gaps, 25)
-head(pm_desc, 25)
-tail(pm_desc, 25)
+# Run these 4 lines together
+pm_time_plot_function(location = "NPT", id = "52", visit = 1)
+head(gaps, 10)
+head(pm_desc, 10)
+tail(pm_desc, 10)
+
 # filter data for a single home
-check_data <- kids_pm %>% 
-  filter(area == "NN" & home_winter_id == "10") %>% 
+check_data <- elders_pm %>% 
+  filter(area == "NN" & home_winter_id == "11" & sampling_visit == 1) %>% 
   filter(pm < 0)
 ```
 
@@ -498,55 +499,54 @@ check_data <- kids_pm %>%
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_new.rds"))
 
-pm_sample_times_comparison <- read_xlsx(paste0(file_path, "Input/pm_sample_times_comparison.xlsx")) %>% 
-  select(area, home, winter_id, sampling_visit, cleaning_comments, 
+# Load file with data cleaning notes
+pm_sample_times_comparison <- read_xlsx(paste0(file_path, "Input/pm_sample_times_comparison_21aug2020.xlsx")) %>% 
+  select(area, home, home_winter_id, winter_id, sampling_visit, cleaning_comments, 
          next_steps, sensitivity_analysis) %>% 
   mutate(winter_id = as.factor(winter_id),
+         home_winter_id = as.factor(home_winter_id),
          sampling_visit = as.factor(sampling_visit))
-
-elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) %>% 
-  filter(winter_id == 1) %>% 
-  select(area, home, winter_id, home_winter_id, home_id, treatment) %>% 
-  distinct(home, .keep_all = TRUE)
-
 
 
 elders_pm_new <- elders_pm %>% 
-  mutate(pm = if_else(pm > 10000, 999999, pm)) %>% 
+  mutate(pm = if_else(pm > 12000, 999999, pm)) %>% 
   replace_with_na(replace = list(pm = 999999)) %>% 
+  # join with file on data cleaning notes - refer to pm_sample_times_comparison file
+  left_join(pm_sample_times_comparison, c("area", "home", "home_winter_id", "winter_id", "sampling_visit")) %>% 
+  # filter out sampling visits with bad data - refer to pm_sample_times_comparison file
+  filter(next_steps != "Do not use due to short run time") %>% 
+  filter(next_steps != "Do not use due to high baseline/minimum values") %>% 
+  filter(next_steps != "Do not use due to negatives") %>% 
   # replace PM < 1 (lower DustTrak limit) with 0.5 (lower limit / 2) 
+  # only doing this for files with a few negative values
   mutate(pm = if_else(pm < 1, 0.5, pm)) %>% 
-  #group_by(area, home, home_winter_id, sampling_visit) %>% 
-  mutate(time_diff = (datetime_pm - start_datetime_pm)/60,
-         pm_datetime_new = if_else(time_diff > 30 & time_diff < 90, 
+  # fix files with incorrect datetimes 
+  mutate(datetime_pm = ymd_hms(datetime_pm),
+         pm_datetime_new = if_else(next_steps == "Subtract 1 hour from datetime", 
                                    datetime_pm - 3600, datetime_pm),
-         pm_datetime_new = if_else(time_diff < -30 & time_diff > -90, 
-                                   pm_datetime_new + 3600, pm_datetime_new)) %>% 
-  # make specific time changes
-  mutate(pm_datetime_new = if_else(home == "FDE400" & sampling_visit == 1,
-                                   pm_datetime_new + 3600, pm_datetime_new),
-         pm_datetime_new = if_else(home == "FDE406" & sampling_visit == 1,
-                                   pm_datetime_new - 33030*60, pm_datetime_new),
-         pm_datetime_new = if_else(home == "NPE5105" & sampling_visit == 1,
+         pm_datetime_new = if_else(next_steps == "Add 1 hour to datetime", 
                                    datetime_pm + 3600, pm_datetime_new),
-         sampling_visit = as.numeric(sampling_visit),
-         sampling_visit = if_else(home == "NPE5303" & sampling_visit == 1, 2, sampling_visit),
-         sampling_visit = if_else(home == "NPE2404" & sampling_visit == 1, 2, sampling_visit),
-         home = if_else(home == "NPE2404", "NPE5204", home),
-         pm_datetime_new = if_else(home == "NPE5204" & sampling_visit == 2,
-                                   datetime_pm, pm_datetime_new),
-         sampling_visit = as.factor(sampling_visit)) %>% 
-  arrange(area, home, winter_id, sampling_visit) %>% 
-  select(home, area, winter_id, sampling_visit, pm, file_type, day_of_week,
-         pm_datetime_new, first_datetime, dtid, pm_total_observations, 
-         pm_sample_interval, expected_obs, actual_vs_expected, 
-         actual_vs_expected_diff, pm_mean, pm_mean_daily, pm_sampling_day) %>% 
-  left_join(pm_sample_times_comparison, c("area", "home", "winter_id", "sampling_visit")) %>% 
-  left_join(elders_ids_linked, c("area", "home", "winter_id")) %>% 
-  ungroup() %>% 
-  arrange(area, home, winter_id, sampling_visit)
+         pm_datetime_new = if_else(next_steps == "Add 1 day to datetime", 
+                                   datetime_pm + 86400, pm_datetime_new),
+         pm_datetime_new = if_else(next_steps == "Add 2 hours to datetime", 
+                                   datetime_pm + 7200, pm_datetime_new),
+         pm_datetime_new = if_else(next_steps == "Add 174970 hours to datetime", 
+                                   datetime_pm + 629892000, pm_datetime_new),
+         pm_datetime_new = if_else(next_steps == "Subtract 2 hours from datetime", 
+                                   datetime_pm - 7200, pm_datetime_new),
+         pm_datetime_new = if_else(next_steps == "Subtract 4 hours from datetime", 
+                                   datetime_pm - 14400, pm_datetime_new),
+         pm_datetime_new = if_else(next_steps == "Subtract 676 hours from datetime", 
+                                   datetime_pm - 2433600, pm_datetime_new),
+         pm_datetime_new = if_else(next_steps == "Subtract 7.75 hours from datetime", 
+                                   datetime_pm - 27900, pm_datetime_new),
+         pm_datetime_new = if_else(next_steps == "Subtract 78 hours from datetime", 
+                                   datetime_pm - 280800, pm_datetime_new)) %>% 
+  # filter(next_steps == "Subtract 78 hours from datetime")
+  arrange(area, home, winter_id, sampling_visit, pm_datetime_new) %>% 
+  ungroup() 
 
 
-#write_rds(elders_pm_new, paste0(file_path, "Output/elders_pm_clean.rds"))
+# write_rds(elders_pm_new, paste0(file_path, "Output/elders_pm_clean.rds"))
 ```
 

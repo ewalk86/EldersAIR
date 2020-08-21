@@ -27,8 +27,7 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
 # Load data
-elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds")) %>% 
-  mutate(area = if_else(area == "NP", "NPT", area))
+elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds")) 
 ```
 
 # Summary stats
