@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial temp/rh data work"
 author: "Ethan Walker"
-date: "Started 14 Feb 2020, Updated 25 Feb 2020"
+date: "Started 14 Feb 2020, Updated 24 Aug 2020"
 output: pdf_document
 ---
 
@@ -25,7 +25,8 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 # Load, format, and save indoor temp/rh data
 ```{r}
 ## Box location: Update Box location once final data loaded
-np_temp_rh_initial <- read_xlsx(paste0(file_path, "Input/NP/np_qtrack_20200225.xlsx")) %>% 
+np_temp_rh_initial <- read_xlsx(paste0(file_path, "Input/NP/qtrack.xlsx"),
+                                na = c("", "NULL")) %>% 
   # rename variables
   mutate(home_winter_id = factor(HomeWinterID),
          rh_indoor_current = as.numeric(RelHumCur),
@@ -35,7 +36,7 @@ np_temp_rh_initial <- read_xlsx(paste0(file_path, "Input/NP/np_qtrack_20200225.x
          temp_indoor_max = as.numeric(TempCMax),
          temp_indoor_min = as.numeric(TempCMin),
          sampling_visit = factor(SamplingVisit),
-         area = "NP") %>% 
+         area = "NPT") %>% 
   # replace -999 and 0 values with NA
   replace_with_na(replace = list(rh_indoor_current = -999, rh_indoor_max = -999,
                                  rh_indoor_min = -999, temp_indoor_current = -999,
@@ -43,14 +44,15 @@ np_temp_rh_initial <- read_xlsx(paste0(file_path, "Input/NP/np_qtrack_20200225.x
   replace_with_na(replace = list(rh_indoor_current = 0, rh_indoor_max = 0,
                                  rh_indoor_min = 0, temp_indoor_current = 0,
                                  temp_indoor_max = 0, temp_indoor_min = 0)) %>% 
-  select(home_winter_id, area, rh_indoor_current, 
-         rh_indoor_max, rh_indoor_min, temp_indoor_current, 
+  select(home_winter_id, area, 
+         rh_indoor_max, rh_indoor_min, 
          temp_indoor_max, temp_indoor_min, sampling_visit) %>% 
   arrange(home_winter_id)
 
 
 ## Box location: Update Box location once final data loaded
-nn_temp_rh_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_qtrack_20200225.xlsx")) %>% 
+nn_temp_rh_initial <- read_xlsx(paste0(file_path, "Input/NN/qtrack.xlsx"),
+                                na = c("", "NULL")) %>% 
   # rename variables
   mutate(home_winter_id = factor(HomeWinterID),
          rh_indoor_current = as.numeric(RelHumCur),
@@ -68,8 +70,8 @@ nn_temp_rh_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_qtrack_20200225.x
   replace_with_na(replace = list(rh_indoor_current = 0, rh_indoor_max = 0,
                                  rh_indoor_min = 0, temp_indoor_current = 0,
                                  temp_indoor_max = 0, temp_indoor_min = 0)) %>% 
-  select(home_winter_id, area, rh_indoor_current, 
-         rh_indoor_max, rh_indoor_min, temp_indoor_current, 
+  select(home_winter_id, area, 
+         rh_indoor_max, rh_indoor_min, 
          temp_indoor_max, temp_indoor_min, sampling_visit) %>% 
   arrange(home_winter_id)
 
@@ -77,20 +79,45 @@ nn_temp_rh_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_qtrack_20200225.x
 # Combine locations and save
 elders_temp_rh <- rbind(np_temp_rh_initial, nn_temp_rh_initial)
 
-#write_rds(elders_temp_rh, paste0(file_path, "Output/elders_temp_rh.rds"))
+# write_rds(elders_temp_rh, paste0(file_path, "Output/elders_temp_rh.rds"))
 ```
 
 
 
 # Clean up all temp/rh data
 ```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
 elders_temp_rh <- read_rds(paste0(file_path, "Output/elders_temp_rh.rds"))
 
 elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
 
 elders_temp_rh_clean <- elders_temp_rh %>% 
   left_join(elders_ids_linked, by = c("area", "home_winter_id")) %>% 
-  filter(!is.na(home_winter_id))
+  select(-adult_id_char, -adult_id_num) %>% 
+  filter(!is.na(home_winter_id)) %>% 
+  filter(!is.na(winter_id)) %>% 
+  group_by(home, winter_id, sampling_visit) %>% 
+  mutate(temp_indoor_max_new = if_else(temp_indoor_max < temp_indoor_min, 
+                                       temp_indoor_min, temp_indoor_max),
+         temp_indoor_min_new = if_else(temp_indoor_min > temp_indoor_max, 
+                                       temp_indoor_max, temp_indoor_min),
+         rh_indoor_max_new = if_else(rh_indoor_max < rh_indoor_min, 
+                                     rh_indoor_min, rh_indoor_max),
+         rh_indoor_min_new = if_else(rh_indoor_min > rh_indoor_max, 
+                                     rh_indoor_max, rh_indoor_min)) %>% 
+  ungroup() %>% 
+  select(area, home, home_winter_id, home_id_num, winter_id, sampling_visit,
+         treatment, temp_indoor_min_new, temp_indoor_max_new,
+         rh_indoor_min_new, rh_indoor_max_new) %>% 
+  rename(temp_indoor_max = temp_indoor_max_new,
+         temp_indoor_min = temp_indoor_min_new,
+         rh_indoor_max = rh_indoor_max_new,
+         rh_indoor_min = rh_indoor_min_new) %>% 
+  arrange(area, home, winter_id, sampling_visit)
+
+summary(elders_temp_rh_clean)
+
 # write_rds(elders_temp_rh_clean, paste0(file_path, "Output/elders_temp_rh_clean.rds"))
 
 elders_temp_rh_clean <- read_rds(paste0(file_path, "Output/elders_temp_rh_clean.rds"))

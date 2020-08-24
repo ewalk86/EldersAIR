@@ -1,7 +1,7 @@
 ---
 title: "Elders PM Summary"
 author: "Ethan Walker"
-date: "Started 24 Feb 2020, Updated 23 July 2020"
+date: "Started 24 Feb 2020, Updated 24 Aug 2020"
 output: pdf_document
 ---
 
@@ -32,24 +32,21 @@ elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds"))
 
 # Summary stats
 ```{r}
-pm_summary <- elders_pm %>% 
-  filter(winter_id == 1) %>% 
-  #filter(pm < 500) %>% 
-  mutate(pm = if_else(pm > 500, 500, pm)) %>% 
-  group_by(area) %>% 
+summary_stats <- elders_pm %>% 
+  group_by(area, winter_id) %>% 
+  distinct(area, home, winter_id, sampling_visit, .keep_all = TRUE) %>% 
   summarize("n" = n(),
-            "Mean PM" = mean(pm, na.rm = TRUE), 
-            "SD PM" = sd(pm, na.rm = TRUE),
-            "Min PM" = min(pm, na.rm = TRUE), 
-            "25%" = quantile(pm, 0.25, na.rm = TRUE),
-            "Median PM" = median(pm, na.rm = TRUE),
-            "75%" = quantile(pm, 0.75, na.rm = TRUE),
-            "Max PM" = max(pm, na.rm = TRUE),
+            "Mean PM" = mean(pm_mean_winter, na.rm = TRUE), 
+            "SD PM" = sd(pm_mean_winter, na.rm = TRUE),
+            "Min PM" = min(pm_mean_winter, na.rm = TRUE), 
+            "25%" = quantile(pm_mean_winter, 0.25, na.rm = TRUE),
+            "Median PM" = median(pm_mean_winter, na.rm = TRUE),
+            "75%" = quantile(pm_mean_winter, 0.75, na.rm = TRUE),
+            "Max PM" = max(pm_mean_winter, na.rm = TRUE),
             "Mean Sample Days" = mean(pm_sample_interval, na.rm = TRUE),
             "SD Sample Days" = sd(pm_sample_interval, na.rm = TRUE)) %>% 
-  #select(-treatment) %>% 
-  t() 
-kable(pm_summary, digits = 1, align = "c")
+   t() 
+kable(summary_stats, digits = 1, align = "c")
 
 
 
@@ -86,119 +83,36 @@ pm_by_month <- elders_pm %>%
             "75%" = quantile(pm, 0.75, na.rm = TRUE),
             "Max PM" = max(pm, na.rm = TRUE))
 pm_by_month
-
-
-
-summary_stats <- elders_pm %>% 
-  filter(winter_id == 1) %>% 
-  group_by(area) %>% 
-  distinct(home) %>% 
-  summarize(n())
-#summary_stats
-
-summary_stats <- elders_pm %>% 
-  filter(winter_id == 1) %>% 
-  mutate(mean_threshold_25 = if_else(pm_mean >= 25, 1, 0),
-         mean_threshold_25 = as.numeric(mean_threshold_25)) %>% 
-  distinct(home, .keep_all = TRUE) %>% 
-  summarize(sum(mean_threshold_25)/n())
-#summary_stats
-```
-
-
-# Boxplots for PM by study area
-```{r}
-boxplots_pm <- elders_pm %>% 
-  filter(winter_id == 1) %>% 
-  mutate(pm = if_else(pm > 500, 500, pm)) %>% 
-  ggplot(aes(area, pm)) +
-    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
-               fatten = 1, outlier.size = 1.5, width = 0.35) +
-    stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red",
-                 position=position_nudge(x = -0.1, y = 0)) +
-    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=mean, geom="text", 
-                 size=7, position=position_nudge(x = -0.35, y = 0)) +
-    stat_summary(fun.y=median, geom="point", shape=16, size=4, color="blue",
-                 position=position_nudge(x = 0.1, y = 0)) +
-    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=median, geom="text", 
-                 size=7, position=position_nudge(x = 0.35, y = 0)) +
-    theme_minimal() +
-    #ylim(0, 250) +
-    #geom_hline(yintercept = 50, color = "red", size = 1.2) +
-    labs(y = expression(paste("PM"[2.5], " (", mu, g/m^3, ")"))) +
-    labs(title = "Area PM2.5, Winter 1", subtitle = "Mean = Red, Median = Blue") +
-    theme(axis.text.x = element_text(size = 16, colour = "black"),
-          title = element_text(size = 18, colour = "black"),
-          axis.text.y = element_text(size = 16, colour = "black"),
-          axis.title.y = element_text(size = 16,
-                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
-          axis.title.x = element_blank(),
-          axis.line.x = element_line(colour = "black", size = 1.2), 
-          axis.line.y = element_line(colour = "black", size = 1.2), 
-          axis.ticks = element_blank())
-boxplots_pm
-
-
-
-boxplots_pm <- elders_pm %>% 
-  filter(winter_id == 1) %>% 
-  mutate(pm = if_else(pm > 500, 500, pm)) %>% 
-  ggplot(aes(area, log(pm))) +
-    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
-               fatten = 1, outlier.size = 1.5, width = 0.35) +
-    stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red",
-                 position=position_nudge(x = -0.1, y = 0)) +
-    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=mean, geom="text", 
-                 size=7, position=position_nudge(x = -0.35, y = 0)) +
-    stat_summary(fun.y=median, geom="point", shape=16, size=4, color="blue",
-                 position=position_nudge(x = 0.1, y = 0)) +
-    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=median, geom="text", 
-                 size=7, position=position_nudge(x = 0.35, y = 0)) +
-    theme_minimal() +
-    #ylim(0, 250) +
-    #geom_hline(yintercept = 50, color = "red", size = 1.2) +
-    labs(y = expression(paste("PM"[2.5], " (", mu, g/m^3, ")"))) +
-    labs(title = "Area PM2.5 (log transformed), Winter 1",
-         subtitle = "Mean = Red, Median = Blue") +
-    theme(axis.text.x = element_text(size = 16, colour = "black"),
-          title = element_text(size = 18, colour = "black"),
-          axis.text.y = element_text(size = 16, colour = "black"),
-          axis.title.y = element_text(size = 16,
-                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
-          axis.title.x = element_blank(),
-          axis.line.x = element_line(colour = "black", size = 1.2), 
-          axis.line.y = element_line(colour = "black", size = 1.2), 
-          axis.ticks = element_blank())
-boxplots_pm
 ```
 
 \pagebreak  
 
-```{r, fig.height=4, fig.width=4}
+```{r, fig.height=6, fig.width=5}
 boxplots_elders_pm <- elders_pm %>% 
-  filter(winter_id == 1) %>% 
-  distinct(home, .keep_all = TRUE) %>% 
-  ungroup() %>% 
-  ggplot(aes(area, pm_mean)) +
+  #filter(winter_id == 1) %>% 
+  distinct(area, home, winter_id, .keep_all = TRUE) %>% 
+  ggplot(aes(area, pm_mean_winter)) +
     geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
                fatten = 1, outlier.size = 1.5, width = 0.35) +
     stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red") +
     #scale_y_log10() +
-    ylim(0, 200) +
+    #ylim(0, 200) +
     theme_minimal() +
     labs(y = expression(paste("PM"[2.5], " (", mu, g/m^3, ")"))) +
     theme(axis.text.x = element_text(size = 16, colour = "black",
                                       margin = margin(t = 0, r = 0, b = 30, l = 0)),
           axis.text.y = element_text(size = 16, colour = "black"),
+          strip.text = element_text(size = 16, colour = "black"),
           axis.title.y = element_text(size = 16,
                                       margin = margin(t = 0, r = 20, b = 0, l = 0)),
           axis.title.x = element_blank(),
           axis.line.x = element_line(colour = "black", size = 1.2), 
           axis.line.y = element_line(colour = "black", size = 1.2), 
-          axis.ticks = element_blank())
+          axis.ticks = element_blank()) +
+    facet_wrap(.~winter_id)
 boxplots_elders_pm
 
-ggsave("boxplots_elders_pm.jpg", height = 7, width = 4)
+# ggsave("boxplots_elders_pm.jpg", height = 7, width = 4)
 ```
 
 
@@ -206,12 +120,36 @@ ggsave("boxplots_elders_pm.jpg", height = 7, width = 4)
 # homes that exceed PM guidelines
 pm_guidelines <- elders_pm %>% 
   filter(winter_id == 1) %>% 
-  group_by(home) %>% 
-  mutate(pm_mean_winter = mean(pm_mean, na.rm = TRUE)) %>% 
-  filter(pm_mean_winter > 35) %>% 
+  filter(pm_mean_winter > 12) %>% 
   distinct(home, .keep_all = TRUE) %>% 
   group_by(area) %>% 
   count()
 pm_guidelines
 ```
 
+
+
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds")) 
+elders_temp_rh_clean <- read_rds(paste0(file_path, "Output/elders_temp_rh_clean.rds"))
+
+
+# Summary data for results letters to send to participants
+home_summary <- elders_pm %>% 
+  left_join(elders_temp_rh_clean, by = c("area", "home", "winter_id", "sampling_visit")) %>% 
+  filter(winter_id == 1) %>% 
+  group_by(area, home) %>% 
+  mutate("Min RH (%)" = round(mean(rh_indoor_min, na.rm = TRUE), digits = 0),
+         "Max RH (%)" = round(mean(rh_indoor_max, na.rm = TRUE), digits = 0),
+         "Mean PM2.5 (ug/m3)" = round(pm_mean_winter), digits = 0) %>% 
+  distinct(area, home, .keep_all = TRUE) %>% 
+  select(area, home, winter_id, "Mean PM2.5 (ug/m3)", "Min RH (%)", "Max RH (%)") %>%
+  rename(Area = area,
+         Home = home,
+         Winter = winter_id) %>% 
+  replace_with_na(replace = list("Min RH (%)" = "NaN")) %>% 
+  replace_with_na(replace = list("Max RH (%)" = "NaN"))
+  
+write_csv(home_summary, paste0(file_path, "Output/elders_letter_data.csv"), na = "")
+```

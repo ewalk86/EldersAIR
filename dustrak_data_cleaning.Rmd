@@ -481,7 +481,7 @@ elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_new.rds"))
 
 # Change function input to look at specific home
 # Run these 4 lines together
-pm_time_plot_function(location = "NPT", id = "52", visit = 1)
+pm_time_plot_function(location = "NPT", id = "163", visit = 2)
 head(gaps, 10)
 head(pm_desc, 10)
 tail(pm_desc, 10)
@@ -544,9 +544,22 @@ elders_pm_new <- elders_pm %>%
                                    datetime_pm - 280800, pm_datetime_new)) %>% 
   # filter(next_steps == "Subtract 78 hours from datetime")
   arrange(area, home, winter_id, sampling_visit, pm_datetime_new) %>% 
-  ungroup() 
+  group_by(area, home, winter_id) %>% 
+  mutate(pm_mean_winter = mean(pm, na.rm = TRUE)) %>% 
+  group_by(area, home, winter_id, sampling_visit) %>% 
+  mutate(pm_mean_visit = mean(pm, na.rm = TRUE)) %>%
+  group_by(area, home, winter_id, sampling_visit, pm_sampling_day) %>% 
+  mutate(pm_mean_daily = mean(pm, na.rm = TRUE),
+         day_of_week = weekdays(pm_datetime_new)) %>%
+  ungroup() %>% 
+  mutate(sample_interval_days = pm_sample_interval) %>% 
+  select(area, home, home_id_num, home_winter_id, winter_id, sampling_visit, 
+         pm_sampling_day, pm_datetime_new, pm_sample_interval, pm, pm_mean_winter, 
+         pm_mean_visit, pm_mean_daily, day_of_week, treatment, dtid, sample_obs,
+         pm_comments) %>% 
+  arrange(area, home, winter_id, sampling_visit, pm_datetime_new)
 
 
-# write_rds(elders_pm_new, paste0(file_path, "Output/elders_pm_clean.rds"))
+write_rds(elders_pm_new, paste0(file_path, "Output/elders_pm_clean.rds"))
 ```
 
