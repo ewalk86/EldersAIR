@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial Micropem data work"
 author: "Ethan Walker"
-date: "Started 2 March 2020, Updated 3 March 2020"
+date: "Started 2 March 2020, Updated 31 Aug 2020"
 output: pdf_document
 ---
 
@@ -29,22 +29,42 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 # Load, format, and save micropem log files
 ```{r}
 ## Box location: Update Box location once final data loaded
-np_micropem_initial <- read_xlsx(paste0(file_path, "Input/NP/np_micropem_20200225.xlsx")) %>% 
+np_micropem_initial <- read_xlsx(paste0(file_path, "Input/NP/micropem.xlsx"),
+                                skip = 1, na = c("", "NULL"),
+                                col_names = c("id", "home_winter_id", "home_id_num",
+                                              "incomplete", "ignoreblank", "whatmissing",
+                                              "ignoremissing", "ignorereason", "mpid",
+                                              "last_cal", "cleaned", "zeroed", 
+                                              "filter_installed", "initial_flow",
+                                              "adjust", "final_flow", "location",
+                                              "start_date", "start_time",
+                                              "stop_date", "stop_time",
+                                              "nephelometer", "laser_cycle_on",
+                                              "laser_cycle_off", "sample_obs", "comments",
+                                              "sampling_visit", "adult_id_char", 
+                                              "battery", "attached", "fb_file_name",
+                                              "mp_file_name", "qaqc", "qaqc_comments",
+                                              "fitbit_qaqc", "fitbit_qaqc_comments", "fbid"),
+                                col_types = c("text", "text", "text",
+                                              "text", "text", "text",
+                                              "text", "text", "text",
+                                              "text", "text", "text", 
+                                              "text", "numeric",
+                                              "text", "numeric", "text",
+                                              "date", "date",
+                                              "date", "date",
+                                              "text", "text",
+                                              "text", "numeric", "text",
+                                              "text", "text", 
+                                              "text", "text", "text",
+                                              "text", "text", "text",
+                                              "text", "text", "text")) %>%
   # rename variables
-  separate(StartTime, c("trash1", "start_time_pm"), sep = " ", remove = FALSE) %>% 
-  separate(StopTime, c("trash1", "stop_time_pm"), sep = " ", remove = FALSE) %>% 
-  mutate(home_winter_id = as.character(HomeWinterID),
-         home_id = as.character(HomeID),
-         mpid = MicroPEMID,
-         start_date_pm = ymd(StartDate),
-         start_time_pm = as.character(start_time_pm),
-         stop_date_pm = ymd(StopDate),
-         stop_time_pm = as.character(stop_time_pm),
-         sample_obs = as.numeric(LengthofRun),
-         mp_file_name = as.character(mFile),
-         fb_file_name = as.character(fbFile),
-         sampling_visit = as.factor(SamplingVisit),
-         area = "NP") %>% 
+  separate(start_time, c("trash1", "start_time"), sep = " ", remove = FALSE) %>% 
+  separate(stop_time, c("trash1", "stop_time"), sep = " ", remove = FALSE)  %>% 
+  mutate(start_date = ymd(start_date),
+         stop_date = ymd(stop_date),
+         area = "NPT") %>% 
   separate(mp_file_name, c("trash1", "mp_file_name"), sep = "uploads/", remove = FALSE) %>% 
   separate(mp_file_name, c("mp_file_name", "trash1"), sep = ".csv", remove = FALSE) %>%
   separate(mp_file_name, c("mp_file_name", "trash1"), sep = ".xlsx", remove = FALSE) %>%
@@ -53,29 +73,49 @@ np_micropem_initial <- read_xlsx(paste0(file_path, "Input/NP/np_micropem_2020022
   separate(fb_file_name, c("fb_file_name", "trash1"), sep = ".csv", remove = FALSE) %>%
   separate(fb_file_name, c("fb_file_name", "trash1"), sep = ".xlsx", remove = FALSE) %>%
   separate(fb_file_name, c("fb_file_name", "trash1"), sep = ".xls", remove = FALSE) %>%
-  select(home_winter_id, home_id, area, mpid, sampling_visit, 
-         start_date_pm, start_time_pm, stop_date_pm, stop_time_pm, sample_obs, 
+  select(home_winter_id, home_id_num, area, mpid, sampling_visit, 
+         start_date, start_time, stop_date, stop_time, sample_obs, 
          mp_file_name, fb_file_name) %>% 
   arrange(home_winter_id)
-#write_rds(np_micropem_initial, paste0(file_path, "Output/np_micropem_log.rds"))
+write_rds(np_micropem_initial, paste0(file_path, "Output/np_micropem_log.rds"))
 
 
 ## Box location: Update Box location once final data loaded
-nn_micropem_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_micropem_20200225.xlsx")) %>% 
+nn_micropem_initial <- read_xlsx(paste0(file_path, "Input/NN/micropem.xlsx"),
+                                skip = 1, na = c("", "NULL"),
+                                col_names = c("id", "home_winter_id", "home_id_num",
+                                              "incomplete", "ignoreblank", "whatmissing",
+                                              "ignoremissing", "ignorereason", "mpid",
+                                              "last_cal", "cleaned", "zeroed", 
+                                              "filter_installed", "initial_flow",
+                                              "adjust", "final_flow", "location",
+                                              "start_date", "start_time",
+                                              "stop_date", "stop_time",
+                                              "nephelometer", "laser_cycle_on",
+                                              "laser_cycle_off", "sample_obs", "comments",
+                                              "sampling_visit", "adult_id_char", 
+                                              "battery", "attached", "fb_file_name",
+                                              "mp_file_name", "qaqc", "qaqc_comments",
+                                              "fitbit_qaqc", "fitbit_qaqc_comments", "fbid"),
+                                col_types = c("text", "text", "text",
+                                              "text", "text", "text",
+                                              "text", "text", "text",
+                                              "text", "text", "text", 
+                                              "text", "numeric",
+                                              "text", "numeric", "text",
+                                              "date", "date",
+                                              "date", "date",
+                                              "text", "text",
+                                              "text", "numeric", "text",
+                                              "text", "text", 
+                                              "text", "text", "text",
+                                              "text", "text", "text",
+                                              "text", "text", "text")) %>%
   # rename variables
-  separate(StartTime, c("trash1", "start_time_pm"), sep = " ", remove = FALSE) %>% 
-  separate(StopTime, c("trash1", "stop_time_pm"), sep = " ", remove = FALSE) %>% 
-  mutate(home_winter_id = as.character(HomeWinterID),
-         home_id = as.character(HomeID),
-         mpid = MicroPEMID,
-         start_date_pm = ymd(StartDate),
-         start_time_pm = as.character(start_time_pm),
-         stop_date_pm = ymd(StopDate),
-         stop_time_pm = as.character(stop_time_pm),
-         sample_obs = as.numeric(LengthofRun),
-         mp_file_name = as.character(mFile),
-         fb_file_name = as.character(fbFile),
-         sampling_visit = as.factor(SamplingVisit),
+  separate(start_time, c("trash1", "start_time"), sep = " ", remove = FALSE) %>% 
+  separate(stop_time, c("trash1", "stop_time"), sep = " ", remove = FALSE)  %>% 
+  mutate(start_date = ymd(start_date),
+         stop_date = ymd(stop_date),
          area = "NN") %>% 
   separate(mp_file_name, c("trash1", "mp_file_name"), sep = "uploads/", remove = FALSE) %>% 
   separate(mp_file_name, c("mp_file_name", "trash1"), sep = ".csv", remove = FALSE) %>%
@@ -85,27 +125,27 @@ nn_micropem_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_micropem_2020022
   separate(fb_file_name, c("fb_file_name", "trash1"), sep = ".csv", remove = FALSE) %>%
   separate(fb_file_name, c("fb_file_name", "trash1"), sep = ".xlsx", remove = FALSE) %>%
   separate(fb_file_name, c("fb_file_name", "trash1"), sep = ".xls", remove = FALSE) %>%
-  select(home_winter_id, home_id, area, mpid, sampling_visit, 
-         start_date_pm, start_time_pm, stop_date_pm, stop_time_pm, sample_obs, 
+  select(home_winter_id, home_id_num, area, mpid, sampling_visit, 
+         start_date, start_time, stop_date, stop_time, sample_obs, 
          mp_file_name, fb_file_name) %>% 
   arrange(home_winter_id)
-#write_rds(nn_micropem_initial, paste0(file_path, "Output/nn_micropem_log.rds"))
+write_rds(nn_micropem_initial, paste0(file_path, "Output/nn_micropem_log.rds"))
 
 
 elders_micropem_log <- rbind(np_micropem_initial, nn_micropem_initial)
-#write_rds(elders_dustrak_log, paste0(file_path, "Output/elders_dustrak_log.rds"))
+write_rds(elders_micropem_log, paste0(file_path, "Output/elders_micropem_log.rds"))
 
 elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) %>% 
   filter(winter_id == 1 | winter_id == 2)
 
 
 elders_micropem_log_new <- elders_micropem_log %>% 
-  left_join(elders_ids_linked, by = c("area", "home_id", "home_winter_id")) %>% 
-  #filter(!is.na(file_name)) %>% 
-  unite(start_datetime_pm, c("start_date_pm", "start_time_pm"), sep = " ", remove = FALSE) %>% 
-  unite(stop_datetime_pm, c("stop_date_pm", "stop_time_pm"), sep = " ", remove = FALSE) %>% 
+  left_join(elders_ids_linked, by = c("area", "home_id_num", "home_winter_id")) %>% 
+  filter(!is.na(mp_file_name)) %>% 
+  unite(start_datetime_pm, c("start_date", "start_time"), sep = " ", remove = FALSE) %>% 
+  unite(stop_datetime_pm, c("stop_date", "stop_time"), sep = " ", remove = FALSE) %>% 
   arrange(home, winter_id)
-#write_rds(elders_micropem_log_new, paste0(file_path, "Output/elders_micropem_log.rds"))
+write_rds(elders_micropem_log_new, paste0(file_path, "Output/elders_micropem_log.rds"))
 ```
 
 
@@ -118,11 +158,11 @@ elders_micropem_log_new <- elders_micropem_log %>%
 
 ### NP ###
 # List files
-list_files <- list.files(paste0(file_path, "Input/NP/np_micropem_20200302"))
+list_files <- list.files(paste0(file_path, "Input/NP/np_micropem"))
 
 # Set working directory and load files in list; extract file name and add as column
 ## run next lines together
-setwd(paste0(file_path, "Input/NP/np_micropem_20200302")) # set new working directory
+setwd(paste0(file_path, "Input/NP/np_micropem")) # set new working directory
 initial_data <- tibble(list_files) %>% # use list of files from above
   mutate(save_data = lapply(list_files, read_xlsx, range = "A29:N20000",
                             col_names = c("date", "time", "pm",
@@ -144,7 +184,7 @@ np_micropem <- initial_data %>%
   separate(list_files, c("file_name", "trash2"), sep = ".xlsx", remove = FALSE) %>%
   mutate(date_pm = ymd(date),
          pm_personal = as.numeric(pm),
-         area = "NP",
+         area = "NPT",
          file_name = as.character(file_name),
          file_type = "xlsx") %>% 
   unite("datetime", c("date_pm", "time_pm"), sep = " ", remove = FALSE) %>% 
@@ -239,14 +279,18 @@ elders_micropem <- rbind(nn_micropem, np_micropem)
 # Clean up and filter all micropem data
 ```{r}
 # load data
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
 elders_micropem_log <- read_rds(paste0(file_path, "Output/elders_micropem_log.rds")) %>% 
   select(home, adult_id_num, adult_id_char, home_winter_id:winter_id, 
          -sample_obs, treatment)
-elders_micropem <- read_rds(paste0(file_path, "Output/elders_micropem.rds"))
+
+np_micropem <- read_rds(paste0(file_path, "Output/np_micropem.rds")) %>% 
+  rename(mp_file_name = file_name)
 
 
-elders_micropem_new <- elders_micropem %>% 
-  left_join(elders_micropem_log, by = c("area", "file_name")) %>% 
+elders_micropem_new <- np_micropem %>% 
+  left_join(elders_micropem_log, by = c("area", "mp_file_name")) %>% 
   mutate(datetime_pm = ymd_hms(datetime_pm),
          start_datetime_pm = ymd_hms(start_datetime_pm),
          stop_datetime_pm = ymd_hms(stop_datetime_pm))
@@ -267,7 +311,7 @@ check_obs <- nn_micropem_new2 %>%
 
 
 np_micropem_new <- elders_micropem_new %>% 
-  filter(area == "NP") %>% 
+  filter(area == "NPT") %>% 
   mutate(date_filter = if_else(datetime_pm >= start_datetime_pm & 
                                datetime_pm <= stop_datetime_pm, 1, 0))
 
