@@ -136,7 +136,9 @@ elders_micropem_log <- rbind(np_micropem_initial, nn_micropem_initial)
 write_rds(elders_micropem_log, paste0(file_path, "Output/elders_micropem_log.rds"))
 
 elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) %>% 
-  filter(winter_id == 1 | winter_id == 2)
+  filter(winter_id == 1 | winter_id == 2) %>% 
+  select(-adult_id_num, -adult_id_char) %>% 
+  distinct(area, home_winter_id, .keep_all = TRUE)
 
 
 elders_micropem_log_new <- elders_micropem_log %>% 
@@ -179,101 +181,29 @@ initial_data <- tibble(list_files) %>% # use list of files from above
 
 
 # Format combined file from above; combine with other PM data below
-np_micropem <- initial_data %>% 
+npt_micropem <- initial_data %>% 
   separate(time, c("trash1", "time_pm"), sep = " ", remove = FALSE) %>% 
-  separate(list_files, c("file_name", "trash2"), sep = ".xlsx", remove = FALSE) %>%
+  separate(list_files, c("mp_file_name", "trash2"), sep = ".xlsx", remove = FALSE) %>%
   mutate(date_pm = ymd(date),
          pm_personal = as.numeric(pm),
          area = "NPT",
-         file_name = as.character(file_name),
+         mp_file_name = as.character(mp_file_name),
          file_type = "xlsx") %>% 
   unite("datetime", c("date_pm", "time_pm"), sep = " ", remove = FALSE) %>% 
   mutate(datetime_pm = ymd_hms(datetime)) %>% 
-  select(file_name, area, datetime_pm, date_pm, time_pm, pm_personal, file_type,
+  select(mp_file_name, area, datetime_pm, date_pm, time_pm, pm_personal, file_type,
          temp:shutdown_reason) %>% 
   filter(!is.na(pm_personal)) %>% 
   ungroup() %>% 
-  arrange(area, file_name, datetime_pm)
+  arrange(area, mp_file_name, datetime_pm)
 
 # save files
-#write_rds(np_micropem, paste0(file_path, "Output/np_micropem.rds"))
+write_rds(npt_micropem, paste0(file_path, "Output/npt_micropem.rds"))
 
 
 
 ### NN ###
-# List files
-list_files <- list.files(paste0(file_path, "Input/NN/nn_micropem_small_20200302"))
-
-# Set working directory and load files in list; extract file name and add as column
-## run next lines together
-setwd(paste0(file_path, "Input/NN/nn_micropem_small_20200302")) # set new working directory
-initial_data <- tibble(list_files) %>% # use list of files from above
-  mutate(save_data = lapply(list_files, read_csv, skip = 28,
-                            col_names = c("date", "time", "pm", "pm2",
-                                          "temp", "rh", "battery",
-                                          "in_pressure", "or_pressure",
-                                          "flow", "x_axis", "y_axis",
-                                          "z_axis", "vector_sum", "shutdown_reason",
-                                          "trash1", "trash2"),
-                            col_types = list(col_character(), col_character(), col_double(),
-                                          col_double(), col_double(), col_double(),
-                                          col_double(), col_double(), col_double(),
-                                          col_double(), col_double(), col_double(),
-                                          col_double(), col_double(), col_character(),
-                                          col_character(), col_character()))) %>%
-  unnest(save_data)
-
-
-list_files <- list.files(paste0(file_path, "Input/NN/nn_micropem_large_20200302"))
-
-# Set working directory and load files in list; extract file name and add as column
-## run next lines together
-setwd(paste0(file_path, "Input/NN/nn_micropem_large_20200302")) # set new working directory
-initial_data2 <- tibble(list_files) %>% # use list of files from above
-  mutate(save_data = lapply(list_files, read_csv, skip = 28,
-                            col_names = c("date", "time", "pm", "pm2",
-                                          "temp", "rh", "battery",
-                                          "in_pressure", "or_pressure",
-                                          "flow", "x_axis", "y_axis",
-                                          "z_axis", "vector_sum", "shutdown_reason",
-                                          "trash1", "trash2"),
-                            col_types = list(col_character(), col_character(), col_double(),
-                                          col_double(), col_double(), col_double(),
-                                          col_double(), col_double(), col_double(),
-                                          col_double(), col_double(), col_double(),
-                                          col_double(), col_double(), col_character(),
-                                          col_character(), col_character()))) %>%
-  unnest(save_data)
-
-
-nn_micropem_raw <- rbind(initial_data, initial_data2)
-
-
-# Format combined file from above; combine with other PM data below
-nn_micropem <- nn_micropem_raw %>% 
-  filter(!is.na(pm)) %>% 
-  separate(list_files, c("file_name", "trash2"), sep = ".csv", remove = FALSE) %>%
-  mutate(date_pm = mdy(date),
-         time_pm = time,
-         pm_personal = as.numeric(pm),
-         area = "NN",
-         file_name = as.character(file_name),
-         file_type = "csv") %>% 
-  unite("datetime", c("date_pm", "time_pm"), sep = " ", remove = FALSE) %>% 
-  mutate(datetime_pm = ymd_hms(datetime)) %>% 
-  select(file_name, area, datetime_pm, date_pm, time_pm, pm_personal, file_type,
-         temp:shutdown_reason) %>% 
-  ungroup() %>% 
-  arrange(area, file_name, datetime_pm)
-
-# Save file
-#write_rds(nn_micropem, paste0(file_path, "Output/nn_micropem.rds"))
-
-# Bind files from both areas
-elders_micropem <- rbind(nn_micropem, np_micropem)
-
-# save joined file
-#write_rds(elders_micropem, paste0(file_path, "Output/elders_micropem.rds"))
+# Only doing NPT micropem data for now, as NN data is a mess and unreliable
 ```
 
 # Clean up and filter all micropem data
@@ -281,67 +211,52 @@ elders_micropem <- rbind(nn_micropem, np_micropem)
 # load data
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
-elders_micropem_log <- read_rds(paste0(file_path, "Output/elders_micropem_log.rds")) %>% 
-  select(home, adult_id_num, adult_id_char, home_winter_id:winter_id, 
+npt_micropem_log <- read_rds(paste0(file_path, "Output/elders_micropem_log.rds")) %>% 
+  filter(area == "NPT") %>% 
+  filter(!is.na(stop_date)) %>% 
+  select(area, home, home_winter_id:winter_id, 
          -sample_obs, treatment)
 
-np_micropem <- read_rds(paste0(file_path, "Output/np_micropem.rds")) %>% 
-  rename(mp_file_name = file_name)
+npt_micropem <- read_rds(paste0(file_path, "Output/npt_micropem.rds")) 
 
 
-elders_micropem_new <- np_micropem %>% 
-  left_join(elders_micropem_log, by = c("area", "mp_file_name")) %>% 
+npt_micropem_new <- npt_micropem %>% 
+  left_join(npt_micropem_log, by = c("area", "mp_file_name")) %>% 
   mutate(datetime_pm = ymd_hms(datetime_pm),
          start_datetime_pm = ymd_hms(start_datetime_pm),
          stop_datetime_pm = ymd_hms(stop_datetime_pm))
 
-nn_micropem_new <- elders_micropem_new %>% 
-  filter(area == "NN") %>% 
+# Filter to only dates that fall within sampling timeframe
+npt_micropem_new2 <- npt_micropem_new %>% 
   mutate(date_filter = if_else(datetime_pm >= start_datetime_pm & 
                                datetime_pm <= stop_datetime_pm, 1, 0))
 
-nn_micropem_new2 <- nn_micropem_new %>% 
-  filter(date_filter == 1)
-
-check_obs <- nn_micropem_new2 %>% 
-  count(home_winter_id)
-  
-# Save data
-#write_rds(nn_micropem_new2, paste0(file_path, "Output/nn_micropem_new.rds"))
-
-
-np_micropem_new <- elders_micropem_new %>% 
-  filter(area == "NPT") %>% 
-  mutate(date_filter = if_else(datetime_pm >= start_datetime_pm & 
-                               datetime_pm <= stop_datetime_pm, 1, 0))
-
-np_micropem_new2 <- np_micropem_new %>% 
+npt_micropem_new3 <- npt_micropem_new2 %>% 
   filter(date_filter == 1)
   
 # Save data
-#write_rds(np_micropem_new2, paste0(file_path, "Output/np_micropem_new.rds"))
+write_rds(npt_micropem_new3, paste0(file_path, "Output/npt_micropem_new.rds"))
 
-
-elders_micropem_new <- rbind(nn_micropem_new2, np_micropem_new2)
-
-# Save data
-#write_rds(elders_micropem_new, paste0(file_path, "Output/elders_micropem_new.rds"))
+check <- npt_micropem_log %>% 
+  distinct(mp_file_name, .keep_all = TRUE)
 ```
 
 
 # Summarize filtered micropem data for further cleaning
 ```{r}
-elders_micropem <- read_rds(paste0(file_path, "Output/elders_micropem_new.rds")) 
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
-micropem_observations_summary <- elders_micropem %>% 
-  group_by(area, home, adult_id_char, winter_id, sampling_visit) %>% 
-  count(file_name)
+npt_micropem_new <- read_rds(paste0(file_path, "Output/npt_micropem_new.rds")) 
+
+micropem_observations_summary <- npt_micropem_new %>% 
+  group_by(area, home, winter_id, sampling_visit) %>% 
+  count(mp_file_name)
 head(micropem_observations_summary, 10)
 
 
-micropem_pm_summary <- elders_micropem %>% 
+micropem_pm_summary <- npt_micropem_new %>% 
   #group_by(area, winter_id, sampling_visit) %>%
-  group_by(area, file_name) %>% 
+  group_by(area, mp_file_name) %>% 
   summarize("n" = n(),
             "Mean PM" = mean(pm_personal, na.rm = TRUE), 
             "SD PM" = sd(pm_personal, na.rm = TRUE),
@@ -355,11 +270,13 @@ micropem_pm_summary
 
 # Continue micropem cleaning
 ```{r}
-elders_micropem <- read_rds(paste0(file_path, "Output/elders_micropem_new.rds")) 
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+npt_micropem <- read_rds(paste0(file_path, "Output/npt_micropem_new.rds")) 
 
 
-elders_micropem_new2 <- elders_micropem %>%   
-  group_by(area, file_name) %>% 
+npt_micropem_new <- npt_micropem %>%   
+  group_by(area, mp_file_name) %>% 
   # new variables summarizing pm2.5 within each home
   mutate(pm_total_observations = n(),
          # new datetime values to calculate sampling interval
@@ -377,15 +294,19 @@ elders_micropem_new2 <- elders_micropem %>%
          # indicator variable if actual vs expected obs > 10 or greater
          actual_vs_expected = if_else(actual_vs_expected_diff < 10 &
                                       actual_vs_expected_diff > -10, 1, 0),
-         pm_mean = mean(pm_personal),
+         pm_mean = mean(pm_personal, na.rm = TRUE),
+         pm_sd = sd(pm_personal, na.rm = TRUE),
+         pm_min = min(pm_personal, na.rm = TRUE),
+         pm_median = median(pm_personal, na.rm = TRUE),
+         pm_max = max(pm_personal, na.rm = TRUE),
          # breaking sampling period into days
          obs = row_number(),
          sampling_day = if_else(obs < 1441, 1, 0),
          sampling_day = if_else(obs < 2881 & obs > 1440, 2, sampling_day),
          sampling_day = if_else(obs < 4321 & obs > 2880, 3, sampling_day)) %>%
   # calculate pm means for each sampling day
-  group_by(area, file_name, sampling_day) %>% 
-  mutate(pm_mean_daily = mean(pm_personal),
+  group_by(area, mp_file_name, sampling_day) %>% 
+  mutate(pm_mean_daily = mean(pm_personal, na.rm = TRUE),
          pm_sampling_day = sampling_day,
          day_of_week = weekdays(date_pm)) %>%
   mutate(start_datetime_pm = ymd_hms(start_datetime_pm),
@@ -393,19 +314,37 @@ elders_micropem_new2 <- elders_micropem %>%
          pm_start_diff_hrs = pm_start_diff/3600) %>% 
   ungroup() %>% 
   select(-obs, -sampling_day) %>% 
-  arrange(area, home, sampling_visit) 
-# write_rds(elders_micropem_new2, paste0(file_path, "Output/elders_micropem_new2.rds"))
+  arrange(area, home, sampling_visit)
+
+write_rds(npt_micropem_new, paste0(file_path, "Output/npt_micropem_new2.rds"))
+
+
+pm_summary <- npt_micropem_new %>% 
+  distinct(mp_file_name, .keep_all = TRUE) %>% 
+  select(-datetime_pm, -date_pm, -time_pm, -pm_personal, -file_type,
+         -x_axis, -y_axis, -z_axis, -vector_sum,
+         -start_date, -start_time, -stop_date, -stop_time, -day_of_week,
+         -fb_file_name, -treatment, -date_filter, -pm_mean_daily, -pm_sampling_day) %>% 
+  select(mp_file_name:sampling_visit, winter_id, start_datetime_pm,
+         first_datetime, stop_datetime_pm, last_datetime, diff_datetime,
+         pm_sample_interval, pm_total_observations, expected_obs, actual_vs_expected_diff,
+         actual_vs_expected:pm_start_diff_hrs)
+write_csv(pm_summary, paste0(file_path, "Output/npt_pm_summary.csv"))
 ```
 
 
 # Function to look at PM data across time
 ```{r}
 # Plot PM by datetime to look at trends, gaps, and peaks
-pm_time_plot_function <- function(id, location) {
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+
+pm_time_plot_function <- function(id, location, visit) {
   
-pm_time_plot <- elders_micropem %>% 
-  filter(home_winter_id == id & area == location) %>% 
-  filter(winter_id == 1) %>% 
+pm_time_plot <- npt_micropem %>% 
+  filter(home_winter_id == id & area == location & sampling_visit == visit) %>% 
+  #filter(pm < 30000) %>% 
   arrange(datetime_pm) %>% 
   mutate(pm_sampling_day = as.character(pm_sampling_day),
          day_of_week = factor(day_of_week,
@@ -428,8 +367,8 @@ pm_time_plot <- elders_micropem %>%
           axis.ticks = element_blank()) +
     scale_color_manual(values = jv_palette)
 
-gaps <<- elders_micropem %>% 
-  filter(home_winter_id == id & area == location) %>% 
+gaps <<- npt_micropem %>% 
+  filter(home_winter_id == id & area == location & sampling_visit == visit) %>% 
   mutate(datetime_pm = ymd_hms(datetime_pm),
          datetime_lead = ymd_hms(lead(datetime_pm)),
          datetime_1 = seconds(datetime_pm),
@@ -440,8 +379,8 @@ gaps <<- elders_micropem %>%
   select(day_of_week, pm_sampling_day, datetime_diff_minutes, datetime_diff_hours, 
          datetime_pm, datetime_lead)
 
-pm_desc <<- elders_micropem %>% 
-  filter(home_winter_id == id & area == location) %>% 
+pm_desc <<- npt_micropem %>% 
+  filter(home_winter_id == id & area == location & sampling_visit == visit) %>% 
   arrange(desc(pm_personal)) %>% 
   select(datetime_pm, pm_personal, pm_sampling_day)
 pm_time_plot
@@ -455,16 +394,18 @@ pm_time_plot
 ### EldersAIR > Ethan - data cleaning and analysis > pm_cleaning_summary
 ```{r}
 # load data
-elders_micropem <- read_rds(paste0(file_path, "Output/elders_micropem_new2.rds"))
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+npt_micropem <- read_rds(paste0(file_path, "Output/npt_micropem_new2.rds")) 
 
 # Change function input to look at specific home
 # Run all of these lines together
-pm_time_plot_function(id = "37", location = "NN")
-head(gaps, 25)
-head(pm_desc, 25)
-tail(pm_desc, 25)
+pm_time_plot_function(id = "51", location = "NPT", visit = 2)
+head(gaps, 10)
+head(pm_desc, 10)
+tail(pm_desc, 10)
 # filter data for a single home
 check_data <- elders_micropem %>% 
-  filter(area == "NN" & home_winter_id == "37") %>% 
+  filter(area == "NPT" & home_winter_id == "37" & sampling_visit == 1) %>% 
   filter(pm_personal < 0)
 ```
