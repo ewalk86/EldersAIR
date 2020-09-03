@@ -194,6 +194,7 @@ npt_micropem <- initial_data %>%
   select(mp_file_name, area, datetime_pm, date_pm, time_pm, pm_personal, file_type,
          temp:shutdown_reason) %>% 
   filter(!is.na(pm_personal)) %>% 
+  filter(!is.na(rh)) %>% 
   ungroup() %>% 
   arrange(area, mp_file_name, datetime_pm)
 
@@ -300,21 +301,22 @@ npt_micropem_new <- npt_micropem %>%
          pm_median = median(pm_personal, na.rm = TRUE),
          pm_max = max(pm_personal, na.rm = TRUE),
          # breaking sampling period into days
-         obs = row_number(),
-         sampling_day = if_else(obs < 1441, 1, 0),
-         sampling_day = if_else(obs < 2881 & obs > 1440, 2, sampling_day),
-         sampling_day = if_else(obs < 4321 & obs > 2880, 3, sampling_day)) %>%
+         sampling_day = if_else(datetime_pm - first_datetime < 86400, 1, 0),
+         sampling_day = if_else(datetime_pm - first_datetime >= 86400 & datetime_pm - first_datetime < 172800, 2, sampling_day),
+         sampling_day = if_else(datetime_pm - first_datetime > 172800, 3, sampling_day)) %>%
+  filter(sampling_day != 0) %>% 
   # calculate pm means for each sampling day
   group_by(area, mp_file_name, sampling_day) %>% 
   mutate(pm_mean_daily = mean(pm_personal, na.rm = TRUE),
          pm_sampling_day = sampling_day,
          day_of_week = weekdays(date_pm)) %>%
+  group_by(area, mp_file_name) %>% 
   mutate(start_datetime_pm = ymd_hms(start_datetime_pm),
          pm_start_diff = interval(first_datetime, start_datetime_pm),
          pm_start_diff_hrs = pm_start_diff/3600) %>% 
   ungroup() %>% 
-  select(-obs, -sampling_day) %>% 
-  arrange(area, home, sampling_visit)
+  select(-sampling_day) %>% 
+  arrange(area, home_winter_id, sampling_visit)
 
 write_rds(npt_micropem_new, paste0(file_path, "Output/npt_micropem_new2.rds"))
 
@@ -383,6 +385,13 @@ pm_desc <<- npt_micropem %>%
   filter(home_winter_id == id & area == location & sampling_visit == visit) %>% 
   arrange(desc(pm_personal)) %>% 
   select(datetime_pm, pm_personal, pm_sampling_day)
+
+pm_negs <<- npt_micropem %>% 
+  filter(home_winter_id == id & area == location & sampling_visit == visit) %>% 
+  filter(pm_personal < 0) %>% 
+  arrange(desc(pm_personal)) %>% 
+  select(datetime_pm, pm_personal, pm_sampling_day)
+
 pm_time_plot
 
 }
@@ -400,12 +409,13 @@ npt_micropem <- read_rds(paste0(file_path, "Output/npt_micropem_new2.rds"))
 
 # Change function input to look at specific home
 # Run all of these lines together
-pm_time_plot_function(id = "51", location = "NPT", visit = 2)
+pm_time_plot_function(id = "65", location = "NPT", visit = 1)
 head(gaps, 10)
 head(pm_desc, 10)
 tail(pm_desc, 10)
+
 # filter data for a single home
-check_data <- elders_micropem %>% 
-  filter(area == "NPT" & home_winter_id == "37" & sampling_visit == 1) %>% 
+check_data <- npt_micropem %>% 
+  filter(area == "NPT" & home_winter_id == "48" & sampling_visit == 2) %>% 
   filter(pm_personal < 0)
 ```
