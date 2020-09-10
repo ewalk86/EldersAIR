@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial Micropem data work"
 author: "Ethan Walker"
-date: "Started 2 March 2020, Updated 31 Aug 2020"
+date: "Started 2 March 2020, Updated 4 Sept 2020"
 output: pdf_document
 ---
 
@@ -409,7 +409,7 @@ npt_micropem <- read_rds(paste0(file_path, "Output/npt_micropem_new2.rds"))
 
 # Change function input to look at specific home
 # Run all of these lines together
-pm_time_plot_function(id = "65", location = "NPT", visit = 1)
+pm_time_plot_function(id = "210", location = "NPT", visit = 2)
 head(gaps, 10)
 head(pm_desc, 10)
 tail(pm_desc, 10)
@@ -419,3 +419,27 @@ check_data <- npt_micropem %>%
   filter(area == "NPT" & home_winter_id == "48" & sampling_visit == 2) %>% 
   filter(pm_personal < 0)
 ```
+
+# Further cleaning steps after checking individual files
+```{r}
+# load data
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+npt_micropem <- read_rds(paste0(file_path, "Output/npt_micropem_new2.rds")) 
+
+
+npt_micropem_new <- npt_micropem %>% 
+  group_by(mp_file_name) %>% 
+  mutate(pm_personal_new = if_else(pm_personal < 0, 0, pm_personal),
+         pm_mean_new = mean(pm_personal_new, na.rm = TRUE),
+         pm_diff = round(pm_mean_new - pm_mean, digits = 2),
+         pm_diff_perc = round(abs(pm_diff/pm_mean*100), digits = 2),
+         pm_indicator = if_else(pm_diff_perc > 5 & pm_diff > 2, 1, 0)) %>% 
+  ungroup() %>% 
+  distinct(mp_file_name, .keep_all = TRUE) %>% 
+  select(mp_file_name, area, home, home_winter_id, sampling_visit,
+         pm_mean, pm_mean_new, pm_diff, pm_diff_perc, pm_indicator) %>% 
+  filter(pm_indicator == 1)
+```
+
+
