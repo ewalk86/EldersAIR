@@ -427,6 +427,57 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
 npt_micropem <- read_rds(paste0(file_path, "Output/npt_micropem_new2.rds")) 
 
+# https://cran.r-project.org/web/packages/rtimicropem/vignettes/chai_data_cleaning.html 
+# The method in the above link holds off negative values and checks change in mean
+# They check to see if mean changed by >5%, and don't use the file if it did
+
+
+npt_summary <- npt_micropem %>% 
+  distinct(mp_file_name, .keep_all = TRUE) %>% 
+  summarize(mean_pm = mean(pm_mean, na.rm = TRUE), 
+            sd_pm = sd(pm_mean, na.rm = TRUE),
+            min_pm = min(pm_mean, na.rm = TRUE),
+            med_pm = median(pm_mean, na.rm = TRUE),
+            max_pm = max(pm_mean, na.rm = TRUE))
+
+
+npt_summary_new <- npt_micropem %>% 
+  group_by(mp_file_name) %>% 
+  mutate(pm_personal_new = if_else(pm_personal < 0, 0, pm_personal),
+         pm_mean_new = mean(pm_personal_new, na.rm = TRUE),
+         pm_diff = round(pm_mean_new - pm_mean, digits = 2),
+         pm_diff_perc = round(abs(pm_diff/pm_mean*100), digits = 2),
+         pm_indicator = if_else(pm_diff_perc > 5 & pm_diff > 3, 1, 0)) %>% 
+  ungroup() %>% 
+  distinct(mp_file_name, .keep_all = TRUE) %>% 
+  select(mp_file_name, area, home, home_winter_id, sampling_visit,
+         pm_mean, pm_mean_new, pm_diff, pm_diff_perc, pm_indicator,
+         pm_sample_interval) %>% 
+  filter(pm_indicator == 0) %>% 
+  filter(pm_sample_interval > 1.6)
+  summarize(mean_pm = mean(pm_mean_new, na.rm = TRUE), 
+            sd_pm = sd(pm_mean_new, na.rm = TRUE),
+            min_pm = min(pm_mean_new, na.rm = TRUE),
+            med_pm = median(pm_mean_new, na.rm = TRUE),
+            max_pm = max(pm_mean_new, na.rm = TRUE))
+
+npt_summary
+npt_summary_new
+
+# Above, I changed all negative PM values to 0 and checked the change in mean PM per file
+# Some files had small absolute changes in mean PM, but since levels were so low,
+# the percent changes were very high. I filtered out files with the following criteria:
+# -After changing negative values to 0, if percent change in mean PM was >5%,
+# -and if the absolute difference in mean PM was >3 ug/m3
+# I also calculated overall summary stats before and after filtering out these files.
+# Mean and median PM changed by less than 1 ug/m3. SD was essentially unchanged.
+# By using this method, I filter out files that are highly impacted by negatives.
+# The remaining files are not as impacted by negatives, and overall summary stats are
+# impacted minimally.
+## This method filtered out 7 files.
+# I also filter out files that had a run time <80% expected.
+## This method filtered out 9 additional files, for a total of 16 files removed.
+# The steps below will use the methods on the full dataset
 
 npt_micropem_new <- npt_micropem %>% 
   group_by(mp_file_name) %>% 
@@ -434,12 +485,12 @@ npt_micropem_new <- npt_micropem %>%
          pm_mean_new = mean(pm_personal_new, na.rm = TRUE),
          pm_diff = round(pm_mean_new - pm_mean, digits = 2),
          pm_diff_perc = round(abs(pm_diff/pm_mean*100), digits = 2),
-         pm_indicator = if_else(pm_diff_perc > 5 & pm_diff > 2, 1, 0)) %>% 
+         pm_indicator = if_else(pm_diff_perc > 5 & pm_diff > 3, 1, 0)) %>% 
   ungroup() %>% 
-  distinct(mp_file_name, .keep_all = TRUE) %>% 
-  select(mp_file_name, area, home, home_winter_id, sampling_visit,
-         pm_mean, pm_mean_new, pm_diff, pm_diff_perc, pm_indicator) %>% 
-  filter(pm_indicator == 1)
+  filter(pm_indicator == 0) %>% 
+  filter(pm_sample_interval > 1.6) 
+
+write_rds(npt_micropem_new, paste0(file_path, "Output/npt_micropem_new3.rds"))
 ```
 
 
