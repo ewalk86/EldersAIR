@@ -1,7 +1,7 @@
 ---
 title: "Elders PM Summary"
 author: "Ethan Walker"
-date: "Started 24 Feb 2020, Updated 24 Aug 2020"
+date: "Started 24 Feb 2020, Updated 25 Sept 2020"
 output: pdf_document
 ---
 
@@ -13,9 +13,11 @@ knitr::opts_chunk$set(echo = FALSE, eval = TRUE,
 ```{r, message=FALSE}
 library(tidyverse)
 library(readr)
+library(naniar)
 library(readxl)
 library(knitr)
 library(lubridate)
+library(gridExtra)
 jv_palette <- c("#330099","#CC0066","#FF6633", 
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
@@ -138,8 +140,9 @@ elders_temp_rh_clean <- read_rds(paste0(file_path, "Output/elders_temp_rh_clean.
 # Summary data for results letters to send to participants
 home_summary <- elders_pm %>% 
   left_join(elders_temp_rh_clean, by = c("area", "home", "winter_id", "sampling_visit")) %>% 
-  filter(winter_id == 1) %>% 
-  group_by(area, home) %>% 
+  filter(area == "NPT") %>% 
+  filter(winter_id == 1 | winter_id == 2) %>% 
+  group_by(area, home, winter_id) %>% 
   mutate("Min RH (%)" = round(mean(rh_indoor_min, na.rm = TRUE), digits = 0),
          "Max RH (%)" = round(mean(rh_indoor_max, na.rm = TRUE), digits = 0),
          "Mean PM2.5 (ug/m3)" = round(pm_mean_winter), digits = 0) %>% 
@@ -149,7 +152,85 @@ home_summary <- elders_pm %>%
          Home = home,
          Winter = winter_id) %>% 
   replace_with_na(replace = list("Min RH (%)" = "NaN")) %>% 
-  replace_with_na(replace = list("Max RH (%)" = "NaN"))
+  replace_with_na(replace = list("Max RH (%)" = "NaN")) %>% 
+  arrange(Home, Winter) 
   
 write_csv(home_summary, paste0(file_path, "Output/elders_letter_data.csv"), na = "")
+
+
+overall_summary <- elders_pm %>% 
+  left_join(elders_temp_rh_clean, by = c("area", "home", "winter_id", "sampling_visit")) %>% 
+  filter(area == "NPT") %>% 
+  filter(winter_id == 1 | winter_id == 2) %>% 
+  group_by(winter_id) %>% 
+  summarize(mean_pm = round(mean(pm_mean_winter, na.rm = TRUE), digits = 0),
+            min_pm = round(min(pm_mean_winter, na.rm = TRUE), digits = 0),
+            max_pm = round(max(pm_mean_winter, na.rm = TRUE), digits = 0),
+            mean_min_rh = round(mean(rh_indoor_min, na.rm = TRUE), digits = 0),
+            min_min_rh = round(min(rh_indoor_min, na.rm = TRUE), digits = 0),
+            max_min_rh = round(max(rh_indoor_min, na.rm = TRUE), digits = 0),
+            mean_max_rh = round(mean(rh_indoor_max, na.rm = TRUE), digits = 0),
+            min_max_rh = round(min(rh_indoor_max, na.rm = TRUE), digits = 0),
+            max_max_rh = round(max(rh_indoor_max, na.rm = TRUE), digits = 0))
+overall_summary
+
+write_csv(overall_summary, paste0(file_path, "Output/elders_letter_summary_data.csv"), na = "")
 ```
+
+# save data by visit and winter
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds")) 
+
+
+elders_pm_visit <- elders_pm %>% 
+  arrange(area, home_winter_id, sampling_visit, pm_mean_visit) %>% 
+  distinct(area, home_winter_id, pm_mean_visit, .keep_all = TRUE)
+
+write_rds(elders_pm_visit, paste0(file_path, "Output/elders_pm_visit.rds"))
+
+
+elders_pm_winter <- elders_pm %>% 
+  arrange(area, home_winter_id, pm_mean_winter) %>% 
+  distinct(area, home_winter_id, pm_mean_winter, .keep_all = TRUE)
+
+write_rds(elders_pm_winter, paste0(file_path, "Output/elders_pm_winter.rds"))
+```
+
+
+# summarize data by treatment/filter type
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+elders_pm_visit <- read_rds(paste0(file_path, "Output/elders_pm_visit.rds")) 
+elders_pm_winter <- read_rds(paste0(file_path, "Output/elders_pm_winter.rds")) 
+elders_kw_report_clean <- 
+  read_rds(paste0(file_path, "Output/elders_kw_report_clean.rds"))
+
+
+winter2_summary <- elders_pm_winter %>% 
+  left_join(elders_kw_report_clean, by = c("area", "home",
+                                           "treatment")) %>% 
+  mutate(treatment = as.character(treatment),
+         filter_type = as.character(filter_type),
+         treatment_filter_type = if_else(treatment == "Filter", filter_type, treatment),
+         treatment_filter_type = factor(treatment_filter_type,
+                                        levels = c("Placebo", "Education",
+                                                   "Large Filtrete", "Winix"))) %>% 
+  #filter(treatment_filter_type != "Filter" & treatment_filter_type != "Placebo") %>% 
+  filter(!is.na(treatment_filter_type)) %>% 
+  #filter(winter_id.x == 2) %>% 
+  group_by(winter_id.x, treatment_filter_type) %>% 
+  summarize("Mean PM" = mean(pm_mean_winter, na.rm = TRUE),
+            "n" = n(),
+            "SD PM" = sd(pm_mean_winter, na.rm = TRUE),
+            "Min PM" = min(pm_mean_winter, na.rm = TRUE),
+            "Median PM" = median(pm_mean_winter, na.rm = TRUE),
+            "Max PM" = max(pm_mean_winter, na.rm = TRUE))
+winter2_summary
+
+
+png("Elders_PM_treatment_filter.png", width=1200, height=480, bg = "white")
+grid.table(winter2_summary)
+dev.off()
+```
+
