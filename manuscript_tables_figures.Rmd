@@ -1,0 +1,103 @@
+---
+title: 'EldersAIR: manuscript tables/figures'
+author: "Ethan Walker"
+date: "Started 1 March 2021, Updated 1 March 2021"
+output:
+  powerpoint_presentation: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, 
+                      include = TRUE, warning = FALSE,
+                      fig.height = 6, fig.width = 8)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+library(knitr)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", 
+               "#0072B2", "#D55E00", "#CC79A7")
+```
+
+
+```{r}
+# Load individual datasets
+
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
+
+elders_demographics <- read_rds(paste0(file_path, "Output/elders_demographics.rds"))
+```
+
+
+
+# Count number of kids initially randomized
+```{r}
+demographics_check <- elders_demographics %>% 
+  filter(!is.na(treatment)) %>% 
+  filter(!is.na(adult_id_num)) %>% 
+  count(area, winter_id, treatment)
+  #filter(winter_id != 2)
+
+demographics_check
+```
+
+# Count number of households initially randomized
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
+
+ak_ids <- read_rds(paste0(file_path, "Output/ak_ids_linked.rds")) %>% 
+  mutate(home = gsub(" ", "", x = home),
+         home = gsub("_", "", x = home))
+nn_ids <- read_rds(paste0(file_path, "Output/nn_ids_linked.rds")) %>% 
+  mutate(home = gsub(" ", "", x = home),
+         home = gsub("_", "", x = home))
+wmt_ids <- read_rds(paste0(file_path, "Output/wmt_ids_linked.rds")) %>% 
+  mutate(home = gsub(" ", "", x = home),
+         home = gsub("_", "", x = home))
+
+kids_ids <- rbind(ak_ids, nn_ids, wmt_ids) %>% 
+  filter(!is.na(treatment)) %>% 
+  ### WMA222 and WMA 233 had a treatment but no kids - not counting in flow chart
+  filter(home != "WMA222" & home != "WMA233") %>%
+  count(area, winter_id, treatment) %>% 
+  filter(winter_id != 2)
+
+kids_ids <- rbind(ak_ids, nn_ids, wmt_ids) %>% 
+  select(-treatment) %>% 
+  filter(winter_id == 1) %>% 
+  filter(!is.na(home)) %>% 
+  mutate(original = 1) %>% 
+  right_join(treatments_masked, by = "home") %>% 
+  filter(home != "WMA222" & home != "WMA233") %>%
+  filter(original == 1)
+```
+
+
+# Demographics summary
+```{r}
+table(demographics$hispanic_parent, demographics$race_parent, demographics$gender_parent)
+```
+
+# Count number of households and kids that participated by area and winter
+```{r}
+# number of households, total and by area
+study_homes <- health_exposure_data_sampling_day %>% 
+  distinct(home, winter_id, .keep_all = TRUE) %>%
+  count(area, winter_id, treatment_assigned)
+
+
+study_kids <- health_exposure_data_sampling_day %>% 
+  select(area, home, child_id_char, child_id_num, winter_id, treatment_assigned) %>% 
+  filter(!is.na(child_id_char)) %>% 
+  distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
+  count(area, winter_id, treatment_assigned)
+```

@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial home/adult data work"
 author: "Ethan Walker"
-date: "Started 10 Feb 2020, Updated 10 Aug 2020"
+date: "Started 10 Feb 2020, Updated 1 March 2021"
 output: pdf_document
 ---
 
@@ -26,7 +26,7 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 ```{r}
 # Load files 
 ## Box location: Update Box location once final data loaded
-np_adult_initial <- read_xlsx(paste0(file_path, "Input/NP/adult.xlsx"), skip = 1,
+npt_adult_initial <- read_xlsx(paste0(file_path, "Input/NP/adult.xlsx"), skip = 1,
                                na = c("", "NULL"),
                               col_names = c("adult_id_num", "home_id_num", "adult_id_char",
                                             "hispanic", "age_nov", "race", "gender",
@@ -71,13 +71,13 @@ nn_adult_initial <- read_xlsx(paste0(file_path, "Input/NN/adult.xlsx"), skip = 1
   select(adult_id_num, home_id_num, area, adult_id_char, consent_date, phi_date) %>% 
   arrange(adult_id_num)
 
-elders_adult <- rbind(np_adult_initial, nn_adult_initial)
+elders_adult <- rbind(npt_adult_initial, nn_adult_initial)
 summary(elders_adult)
 
 
 # Load files 
 ## Box location: Update Box location once final data loaded
-np_demographics_initial <- read_xlsx(paste0(file_path, "Input/NP/demographics.xlsx"),
+npt_demographics_initial <- read_xlsx(paste0(file_path, "Input/NP/demographics.xlsx"),
                                       na = c("", "NULL")) %>% 
   rename_all(tolower) %>% 
   mutate(adult_id_num = as.factor(adultid),
@@ -114,12 +114,12 @@ nn_demographics_initial <- read_xlsx(paste0(file_path, "Input/NN/demographics.xl
          education, total_residents, residents_under18, age) %>% 
   arrange(adult_id_num)
 
-elders_demographics <- rbind(np_demographics_initial, nn_demographics_initial)
+elders_demographics <- rbind(npt_demographics_initial, nn_demographics_initial)
 summary(elders_demographics)
 
 
 ## Box location: Update Box location once final data loaded
-np_homewinter_initial <- read_xlsx(paste0(file_path, "Input/NP/homewinter.xlsx"), 
+npt_homewinter_initial <- read_xlsx(paste0(file_path, "Input/NP/homewinter.xlsx"), 
                                    skip = 1, na = c("", "NULL"),
                               col_names = c("home_winter_id", "home_id_num", "winter_id",
                                             "intervention_date", "intervention_time", 
@@ -198,12 +198,12 @@ nn_homewinter_initial <- read_xlsx(paste0(file_path, "Input/NN/homewinter.xlsx")
   filter(winter_id != 3) %>% 
   arrange(home_id_num, winter_id)
 
-elders_homewinter <- rbind(np_homewinter_initial, nn_homewinter_initial)
+elders_homewinter <- rbind(npt_homewinter_initial, nn_homewinter_initial)
 summary(elders_homewinter)
 
 
 ## Box location: Update Box location once final data loaded
-np_home_initial <- read_xlsx(paste0(file_path, "Input/NP/home.xlsx"), na = c("", "NULL")) %>% 
+npt_home_initial <- read_xlsx(paste0(file_path, "Input/NP/home.xlsx"), na = c("", "NULL")) %>% 
   rename_all(tolower) %>% 
   mutate(home_id_num = as.factor(homeid),
          home = as.factor(home),
@@ -224,7 +224,7 @@ nn_home_initial <- read_xlsx(paste0(file_path, "Input/NN/home.xlsx"), na = c("",
          area = "NN") %>% 
   select(home_id_num, home, treatment, area)
 
-elders_home <- rbind(np_home_initial, nn_home_initial)
+elders_home <- rbind(npt_home_initial, nn_home_initial)
 ```
 
 
@@ -238,6 +238,7 @@ elders_demographics_final <- elders_homewinter %>%
   select(adult_id_num, adult_id_char, area, home, home_id_num, home_winter_id, 
          winter_id, treatment, intervention_date:phi_date) %>% 
   filter(!is.na(home)) %>% 
+  filter(!is.na(treatment)) %>% 
   mutate(income = factor(income,
                          levels = c("Less than $20,000", "$20,000 to $29,999",
                                     "$30,000 to $39,999", "$40,000 to $49,999",
@@ -252,7 +253,10 @@ elders_demographics_final <- elders_homewinter %>%
                                        "Some college", "College degree"),
                             labels = c("< high school", "High school grad or GED",
                                        "Some college", "College degree"))) %>% 
-  arrange(area, home, winter_id)
+  arrange(area, adult_id_num, winter_id) %>% 
+  select(area, home, home_id_num, home_winter_id, winter_id, treatment, 
+         adult_id_char, adult_id_num, 
+         gender:age, intervention_date:phi_date)
 
 #summary(elders_demographics_final)
 

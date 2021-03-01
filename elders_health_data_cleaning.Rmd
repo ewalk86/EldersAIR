@@ -1,7 +1,7 @@
 ---
 title: "Elders health and elder files data cleaning"
 author: "Ethan Walker"
-date: "Started 28 Feb 2020, Updated 28 Feb 2020"
+date: "Started 28 Feb 2020, Updated 1 March 2021"
 output: pdf_document 
 ---
 
@@ -34,7 +34,7 @@ elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
 
 # Load and merge files from different locations
 ```{r}
-nn_athomelog_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_athome_20200225.xlsx")) %>% 
+nn_athomelog_initial <- read_xlsx(paste0(file_path, "Input/NN/athomelog.xlsx")) %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          adult_id_num = as.character(AdultID),
          area = "NN",
@@ -60,10 +60,10 @@ nn_athomelog_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_athome_20200225
 
 
 
-np_athomelog_initial <- read_xlsx(paste0(file_path, "Input/NP/np_athomelog_20200225.xlsx")) %>% 
+npt_athomelog_initial <- read_xlsx(paste0(file_path, "Input/NP/athomelog.xlsx")) %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          adult_id_num = as.character(AdultID),
-         area = "NP",
+         area = "NPT",
          sampling_visit = as.numeric(SamplingVisit),
          at_home_day = as.factor(Day),
          at_home_7 = as.factor(AtHome1),
@@ -86,7 +86,7 @@ np_athomelog_initial <- read_xlsx(paste0(file_path, "Input/NP/np_athomelog_20200
 
 
 # Combine logs from all areas
-elders_at_home_log <- rbind(nn_athomelog_initial, np_athomelog_initial) %>% 
+elders_at_home_log <- rbind(nn_athomelog_initial, npt_athomelog_initial) %>% 
   left_join(elders_ids_linked, c("area", "home_winter_id", "adult_id_num"))
 # write_rds(elders_at_home_log, "Output/elders_at_home_log.rds")
 
@@ -94,7 +94,7 @@ save_var_names <- data.frame(t(elders_at_home_log)) %>%
   rownames_to_column() %>% 
   select(rowname)
 
-write_csv(save_var_names, paste0(file_path, "Output/at_home_var_names.csv"))
+# write_csv(save_var_names, paste0(file_path, "Output/at_home_var_names.csv"))
 ```
 
 
@@ -103,7 +103,7 @@ write_csv(save_var_names, paste0(file_path, "Output/at_home_var_names.csv"))
 
 # Load and merge files from different locations
 ```{r}
-nn_healthhistory_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_healthhistory_20200225.xlsx")) %>% 
+nn_healthhistory_initial <- read_xlsx(paste0(file_path, "Input/NN/healthhistory.xlsx")) %>% 
   rename_all(~str_replace_all(., "Date", "_date")) %>% 
   rename_all(tolower) %>% 
   mutate(home_winter_id = as.character(homewinterid),
@@ -117,12 +117,12 @@ nn_healthhistory_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_healthhisto
          
 
 
-np_healthhistory_initial <- read_xlsx(paste0(file_path, "Input/NP/np_healthhistory_20200225.xlsx")) %>% 
+npt_healthhistory_initial <- read_xlsx(paste0(file_path, "Input/NP/healthhistory.xlsx")) %>% 
   rename_all(~str_replace_all(., "Date", "_date")) %>% 
   rename_all(tolower) %>% 
   mutate(home_winter_id = as.character(homewinterid),
          adult_id_num = as.character(adultid),
-         area = "NP",
+         area = "NPT",
          rheum_arth = ra,
          rheum_arth_date = ra_date) %>% 
   select(-id:-homewinterid, -ra, -ra_date, -whatmissing:-ignoremissingdata) %>% 
@@ -131,7 +131,7 @@ np_healthhistory_initial <- read_xlsx(paste0(file_path, "Input/NP/np_healthhisto
 
 
 # Combine logs from all areas
-elders_health_hx <- rbind(nn_healthhistory_initial, np_healthhistory_initial) %>% 
+elders_health_hx <- rbind(nn_healthhistory_initial, npt_healthhistory_initial) %>% 
   left_join(elders_ids_linked, c("area", "home_winter_id", "adult_id_num"))
 # write_rds(elders_health_hx, "Output/elders_health_hx.rds")
 
@@ -140,7 +140,7 @@ save_var_names <- data.frame(t(elders_health_hx)) %>%
   rownames_to_column() %>% 
   select(rowname)
 
-write_csv(save_var_names, paste0(file_path, "Output/health_hx_var_names.csv"))
+#write_csv(save_var_names, paste0(file_path, "Output/health_hx_var_names.csv"))
 ```
 
 
@@ -149,7 +149,7 @@ write_csv(save_var_names, paste0(file_path, "Output/health_hx_var_names.csv"))
 
 # Load and merge files from different locations
 ```{r}
-nn_healthextra_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_healthextra_20200225.xlsx")) %>% 
+nn_healthextra_initial <- read_xlsx(paste0(file_path, "Input/NN/healthextra.xlsx")) %>% 
   rename_all(tolower) %>% 
   mutate(home_winter_id = as.character(homewinterid),
          adult_id_num = as.character(adultid),
@@ -159,17 +159,17 @@ nn_healthextra_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_healthextra_2
          
 
 
-np_healthextra_initial <- read_xlsx(paste0(file_path, "Input/NP/np_healthextra_20200225.xlsx")) %>% 
+npt_healthextra_initial <- read_xlsx(paste0(file_path, "Input/NP/healthextra.xlsx")) %>% 
   rename_all(tolower) %>% 
   mutate(home_winter_id = as.character(homewinterid),
          adult_id_num = as.character(adultid),
-         area = "NP",
+         area = "NPT",
          sampling_visit = samplingvisit) %>% 
   select( home_winter_id, adult_id_num, sampling_visit, area, cold2m:bronch2mdr)  
 
 
 # Combine logs from all areas
-elders_health_extra <- rbind(nn_healthextra_initial, np_healthextra_initial) %>% 
+elders_health_extra <- rbind(nn_healthextra_initial, npt_healthextra_initial) %>% 
   left_join(elders_ids_linked, c("area", "home_winter_id", "adult_id_num"))
 # write_rds(elders_health_extra, "Output/elders_health_extra.rds")
 
@@ -179,5 +179,5 @@ save_var_names <- data.frame(t(elders_health_extra)) %>%
   rownames_to_column() %>% 
   select(rowname)
 
-write_csv(save_var_names, paste0(file_path, "Output/health_extra_var_names.csv"))
+# write_csv(save_var_names, paste0(file_path, "Output/health_extra_var_names.csv"))
 ```

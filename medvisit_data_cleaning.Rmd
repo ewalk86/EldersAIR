@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial med visit data work"
 author: "Ethan Walker"
-date: "Started 20 Feb 2020, Updated 24 Feb 2020"
+date: "Started 20 Feb 2020, Updated 1 March 2021"
 output: pdf_document
 ---
 
@@ -32,9 +32,10 @@ elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
 # Initial load, format, save medical visit data
 ```{r}
 ## Box location: Update Box location once final data loaded
-np_medvisit_initial <- read_xlsx(paste0(file_path, "Input/NP/np_medicalvisit_20200220.xlsx"))
+npt_medvisit_initial <- read_xlsx(paste0(file_path, "Input/NP/medicalvisit.xlsx"),
+                                  na = "NULL")
 
-np_medvisit_new <- np_medvisit_initial %>% 
+npt_medvisit_new <- npt_medvisit_initial %>% 
   mutate(home_winter_id = HomeWinterID,
          adult_id_num = AdultID,
          sp02 = as.numeric(Sp02),
@@ -57,13 +58,13 @@ np_medvisit_new <- np_medvisit_initial %>%
          spiro_status = as.character(DrStatus),
          spiro_result = as.character(DrResult),
          sampling_visit = as.factor(SamplingVisit),
-         area = "NP") %>% 
+         area = "NPT") %>% 
   select(home_winter_id:area) %>% 
   arrange(home_winter_id) 
   
   
 # fix values after check spiro files
-np_medvisit_new2 <- np_medvisit_new %>% 
+npt_medvisit_new2 <- npt_medvisit_new %>% 
   mutate(sp02 = if_else(sp02 < 80, -999, sp02)) %>% 
   mutate(sp02 = if_else(adult_id_num == 58 & sp02 == 80, -999, sp02)) %>% 
   mutate(pr = if_else(adult_id_num == 58 & pr == 80, -999, pr)) %>%
@@ -80,7 +81,8 @@ np_medvisit_new2 <- np_medvisit_new %>%
 
 
 ## Box location: Update Box location once final data loaded
-nn_medvisit_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_medicalvisit_20200220.xlsx"))
+nn_medvisit_initial <- read_xlsx(paste0(file_path, "Input/NN/medicalvisit.xlsx"),
+                                  na = "NULL")
 
 nn_medvisit_new <- nn_medvisit_initial %>% 
   mutate(home_winter_id = HomeWinterID,
@@ -144,6 +146,7 @@ nn_medvisit_new2 <- nn_medvisit_new %>%
          fev1_pp = if_else(fev1_pp < 10, (fev1/fev1_pp)*100, fev1_pp),
          weight_lbs = if_else(adult_id_num == "61" & weight_lbs == 3.43, 127, weight_lbs),
          height_inches = if_else(height_inches == 5, 60, height_inches),
+         height_inches = if_else(height_inches == 79.8, 60, height_inches),
          bp_sys = if_else(adult_id_num == "9" & bp_sys == 94, 104, bp_sys),
          bp_dia = if_else(adult_id_num == "9" & bp_dia == 104, 94, bp_dia),
          fev1_fvc_ratio = as.numeric(fev1/fvc),
@@ -151,14 +154,18 @@ nn_medvisit_new2 <- nn_medvisit_new %>%
 
 
 
-elders_medvisit <- rbind(np_medvisit_new2, nn_medvisit_new2) %>% 
+elders_medvisit <- rbind(npt_medvisit_new2, nn_medvisit_new2) %>% 
   select(-gender) %>% 
   mutate(bmi = (weight_lbs/(height_inches^2)*703),
          home_winter_id = as.factor(home_winter_id),
          adult_id_num = as.factor(adult_id_num)) %>% 
-  left_join(elders_ids_linked, by = c("area", "home_winter_id", "adult_id_num"))
+  left_join(elders_ids_linked, by = c("area", "home_winter_id", "adult_id_num")) %>% 
+  arrange(area, adult_id_num, winter_id, sampling_visit) %>% 
+  select(area, home, home_id_num, home_winter_id, winter_id, treatment, 
+         adult_id_char, adult_id_num, sampling_visit,
+         sp02:weight_lbs, bmi, fvc:spiro_result)
 
-#write_rds(elders_medvisit, "Output/elders_medvisit_clean.rds")
+write_rds(elders_medvisit, paste0(file_path, "Output/elders_medvisit_clean.rds"))
 
 
 
@@ -166,7 +173,7 @@ save_var_names <- data.frame(t(elders_medvisit)) %>%
   rownames_to_column() %>% 
   select(rowname)
 
-write_csv(save_var_names, paste0(file_path, "Output/medvisit_var_names.csv"))
+#write_csv(save_var_names, paste0(file_path, "Output/medvisit_var_names.csv"))
 ```
 
 
@@ -232,4 +239,24 @@ summary_stats <- elders_medvisit %>%
   summarize(sum(obstruction)/n())
 summary_stats
 ```
+
+
+# Further data checking/cleaning
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+elders_medvisit <- read_rds(paste0(file_path, "Output/elders_medvisit_clean.rds")) 
+  
+
+medvisit_data_checks <- elders_medvisit %>% 
+  mutate(bp_check = if_else(bp_dia >= bp_sys, 1, 0), # no instances of dbp >= sbp
+         hr_check = if_else(pr-hr >= abs(10), 1, 0), # 53 instances of pr/hr diff >= 10
+         fvc_check = if_else(fev1 >= fvc, 1, 0)) %>% # 2 instances of fvc = fev1; none where fev1 > fvc
+  filter(fvc_check == 1)
+
+table(elders_medvisit$spiro_grade)
+table(elders_medvisit$spiro_status)
+table(elders_medvisit$spiro_result)
+```
+
 

@@ -219,7 +219,7 @@ winter2_summary <- elders_pm_winter %>%
   #filter(treatment_filter_type != "Filter" & treatment_filter_type != "Placebo") %>% 
   filter(!is.na(treatment_filter_type)) %>% 
   #filter(winter_id.x == 2) %>% 
-  group_by(winter_id.x, treatment_filter_type) %>% 
+  group_by(winter_id.x, treatment) %>% 
   summarize("Mean PM" = mean(pm_mean_winter, na.rm = TRUE),
             "n" = n(),
             "SD PM" = sd(pm_mean_winter, na.rm = TRUE),
