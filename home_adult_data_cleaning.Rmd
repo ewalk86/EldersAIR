@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial home/adult data work"
 author: "Ethan Walker"
-date: "Started 10 Feb 2020, Updated 1 March 2021"
+date: "Started 10 Feb 2020, Updated 3 March 2021"
 output: pdf_document
 ---
 
@@ -230,15 +230,40 @@ elders_home <- rbind(npt_home_initial, nn_home_initial)
 
 # Combine adult, home, homewinter files
 ```{r}
-elders_demographics_final <- elders_homewinter %>%
-  left_join(elders_demographics, by = c("area", "home_winter_id")) %>% 
-  left_join(elders_home, by = c("area", "home_id_num")) %>% 
-  left_join(elders_adult, by = c("area", "home_id_num", "adult_id_num")) %>% 
+elders_demographics_full <- elders_homewinter %>%
+  full_join(elders_demographics, by = c("area", "home_winter_id")) %>% 
+  full_join(elders_home, by = c("area", "home_id_num")) %>% 
+  full_join(elders_adult, by = c("area", "home_id_num", "adult_id_num")) %>% 
+  arrange(area, adult_id_num, winter_id) %>% 
+  select(area, home, home_id_num, home_winter_id, winter_id, treatment, 
+         adult_id_char, adult_id_num, 
+         gender:age, intervention_date:phi_date)
+
+write_rds(elders_demographics_full, paste0(file_path, "Output/elders_demographics_full.rds"))
+```
+
+
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+elders_demographics_full <- read_rds(paste0(file_path, "Output/elders_demographics_full.rds"))
+
+elders_demographics_final <- elders_demographics_full %>% 
   mutate(intervention_date = gsub("2014-03-14", "2017-03-14", intervention_date)) %>% 
-  select(adult_id_num, adult_id_char, area, home, home_id_num, home_winter_id, 
-         winter_id, treatment, intervention_date:phi_date) %>% 
+  arrange(area, adult_id_num, winter_id) %>% 
+  select(area, home, home_id_num, home_winter_id, winter_id, treatment, 
+         adult_id_char, adult_id_num, 
+         gender:age, intervention_date:phi_date) %>% 
+  mutate(filter_var = if_else(home == "NPE5197" | home == "NPE5198" | home == "NPE5199" |
+                              home == "FDE314" | home == "FDE316" | home == "FDE318" |
+                              home == "FDE413" | home == "FDE412B" | home == "NPE5314" |
+                              home == "NPE5317", 1, 0)) %>% 
+  filter(filter_var == 0 | is.na(filter_var)) %>% 
   filter(!is.na(home)) %>% 
-  filter(!is.na(treatment)) %>% 
+  mutate(filter_var = if_else(winter_id == 1 | (winter_id == 2 & !is.na(treatment)), 1, 0)) %>% 
+  filter(filter_var == 1) %>% 
+  select(-filter_var) %>% 
+  filter(!is.na(gender)) %>% 
   mutate(income = factor(income,
                          levels = c("Less than $20,000", "$20,000 to $29,999",
                                     "$30,000 to $39,999", "$40,000 to $49,999",
@@ -252,11 +277,7 @@ elders_demographics_final <- elders_homewinter %>%
                             levels = c("Less than high school", "High school diploma or GED",
                                        "Some college", "College degree"),
                             labels = c("< high school", "High school grad or GED",
-                                       "Some college", "College degree"))) %>% 
-  arrange(area, adult_id_num, winter_id) %>% 
-  select(area, home, home_id_num, home_winter_id, winter_id, treatment, 
-         adult_id_char, adult_id_num, 
-         gender:age, intervention_date:phi_date)
+                                       "Some college", "College degree"))) 
 
 #summary(elders_demographics_final)
 

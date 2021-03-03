@@ -24,9 +24,7 @@ jv_palette <- c("#330099","#CC0066","#FF6633",
 ```{r}
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
-elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) %>% 
-  filter(winter_id == 1 | winter_id == 2) %>% 
-  arrange(area, adult_id_num)
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) 
 ```
 
 # Initial load, format, save medical visit data
@@ -159,13 +157,13 @@ elders_medvisit <- rbind(npt_medvisit_new2, nn_medvisit_new2) %>%
   mutate(bmi = (weight_lbs/(height_inches^2)*703),
          home_winter_id = as.factor(home_winter_id),
          adult_id_num = as.factor(adult_id_num)) %>% 
-  left_join(elders_ids_linked, by = c("area", "home_winter_id", "adult_id_num")) %>% 
+  right_join(elders_ids_linked, by = c("area", "home_winter_id", "adult_id_num")) %>% 
   arrange(area, adult_id_num, winter_id, sampling_visit) %>% 
   select(area, home, home_id_num, home_winter_id, winter_id, treatment, 
          adult_id_char, adult_id_num, sampling_visit,
          sp02:weight_lbs, bmi, fvc:spiro_result)
 
-write_rds(elders_medvisit, paste0(file_path, "Output/elders_medvisit_clean.rds"))
+#write_rds(elders_medvisit, paste0(file_path, "Output/elders_medvisit_clean.rds"))
 
 
 
@@ -179,6 +177,8 @@ save_var_names <- data.frame(t(elders_medvisit)) %>%
 
 # Summary stats to help with further data cleaning
 ```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
 elders_medvisit <- read_rds(paste0(file_path, "Output/elders_medvisit_clean.rds")) %>% 
   mutate(hypertension = if_else(bp_sys >= 140 | bp_dia >= 90, 1, 0),
          hypertension = as.numeric(hypertension),

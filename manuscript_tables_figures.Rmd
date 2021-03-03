@@ -1,7 +1,7 @@
 ---
 title: 'EldersAIR: manuscript tables/figures'
 author: "Ethan Walker"
-date: "Started 1 March 2021, Updated 1 March 2021"
+date: "Started 1 March 2021, Updated 3 March 2021"
 output:
   powerpoint_presentation: default
 ---
@@ -35,69 +35,133 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
 
 elders_demographics <- read_rds(paste0(file_path, "Output/elders_demographics.rds"))
+
+elders_demographics_full <- read_rds(paste0(file_path, "Output/elders_demographics_full.rds"))
+
+elders_medvisit_clean <- read_rds(paste0(file_path, "Output/elders_medvisit_clean.rds"))
+
+elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds")) 
 ```
 
 
-
-# Count number of kids initially randomized
+# Number of homes in Figure 1
 ```{r}
+# Step 1: Winter 1 homes
 demographics_check <- elders_demographics %>% 
+  filter(winter_id == 1) %>% 
+  distinct(area, home, .keep_all = T) %>% 
+  count(area)
+
+demographics_check
+
+
+# Step 2: Randomized homes
+demographics_check <- elders_demographics_full %>% 
+  arrange(area, home, winter_id) %>% 
+  mutate(filter_var = if_else(home == "NPE5197" | home == "NPE5198" | home == "NPE5199" |
+                              home == "FDE314" | home == "FDE316" | home == "FDE318" |
+                              home == "FDE413" | home == "FDE412B" | home == "NPE5314" |
+                              home == "NPE5317", 1, 0)) %>% 
+  filter(filter_var == 0 | is.na(filter_var)) %>% 
+  filter(!is.na(home)) %>% 
   filter(!is.na(treatment)) %>% 
-  filter(!is.na(adult_id_num)) %>% 
-  count(area, winter_id, treatment)
-  #filter(winter_id != 2)
+  filter(winter_id == 2) %>% 
+  distinct(area, home, .keep_all = T) %>% 
+  count(treatment, area)
+
+demographics_check
+
+
+# Step 3: Winter 2 homes
+demographics_check <- elders_demographics %>% 
+  filter(winter_id == 2) %>% 
+  distinct(area, home, .keep_all = T) %>% 
+  count(treatment, area)
 
 demographics_check
 ```
 
-# Count number of households initially randomized
+
+# Number of participants in Figure 1
 ```{r}
-file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/KidsAIR/")
-
-ak_ids <- read_rds(paste0(file_path, "Output/ak_ids_linked.rds")) %>% 
-  mutate(home = gsub(" ", "", x = home),
-         home = gsub("_", "", x = home))
-nn_ids <- read_rds(paste0(file_path, "Output/nn_ids_linked.rds")) %>% 
-  mutate(home = gsub(" ", "", x = home),
-         home = gsub("_", "", x = home))
-wmt_ids <- read_rds(paste0(file_path, "Output/wmt_ids_linked.rds")) %>% 
-  mutate(home = gsub(" ", "", x = home),
-         home = gsub("_", "", x = home))
-
-kids_ids <- rbind(ak_ids, nn_ids, wmt_ids) %>% 
-  filter(!is.na(treatment)) %>% 
-  ### WMA222 and WMA 233 had a treatment but no kids - not counting in flow chart
-  filter(home != "WMA222" & home != "WMA233") %>%
-  count(area, winter_id, treatment) %>% 
-  filter(winter_id != 2)
-
-kids_ids <- rbind(ak_ids, nn_ids, wmt_ids) %>% 
-  select(-treatment) %>% 
+# Step 1: Winter 1 participants
+demographics_check <- elders_demographics %>% 
   filter(winter_id == 1) %>% 
+  distinct(area, adult_id_char, .keep_all = T) %>% 
+  count(area)
+
+demographics_check
+
+
+# Step 2: Randomized participants
+demographics_check <- elders_demographics_full %>% 
+  arrange(area, home, winter_id) %>% 
+  mutate(filter_var = if_else(home == "NPE5197" | home == "NPE5198" | home == "NPE5199" |
+                              home == "FDE314" | home == "FDE316" | home == "FDE318" |
+                              home == "FDE413" | home == "FDE412B" | home == "NPE5314" |
+                              home == "NPE5317", 1, 0)) %>% 
+  filter(filter_var == 0 | is.na(filter_var)) %>% 
   filter(!is.na(home)) %>% 
-  mutate(original = 1) %>% 
-  right_join(treatments_masked, by = "home") %>% 
-  filter(home != "WMA222" & home != "WMA233") %>%
-  filter(original == 1)
+  filter(!is.na(treatment)) %>% 
+  filter(winter_id == 2) %>% 
+  distinct(area, adult_id_char, .keep_all = T) %>% 
+  count(treatment, area)
+
+demographics_check
+
+
+# Step 3: Winter 2 participants
+demographics_check <- elders_demographics %>% 
+  filter(winter_id == 2) %>% 
+  distinct(area, adult_id_char, .keep_all = T) %>% 
+  count(treatment, area)
+
+demographics_check
 ```
 
 
-# Demographics summary
+# Number of med visits in Figure 1
 ```{r}
-table(demographics$hispanic_parent, demographics$race_parent, demographics$gender_parent)
+# Step 1: Winter 1 visits
+medvisit_check <- elders_medvisit_clean %>% 
+  filter(winter_id == 1 & !is.na(sampling_visit)) %>% 
+  filter_at(vars(sp02:spiro_result), any_vars(!is.na(.))) %>% 
+  count(area)
+
+medvisit_check
+
+
+# Step 2: Winter 2 visits
+medvisit_check <- elders_medvisit_clean %>% 
+  filter(!is.na(treatment)) %>% 
+  filter(winter_id == 2 & !is.na(sampling_visit)) %>% 
+  filter_at(vars(sp02:spiro_result), any_vars(!is.na(.))) %>% 
+  count(treatment, area)
+
+medvisit_check
 ```
 
-# Count number of households and kids that participated by area and winter
+
+# Number of exposure samples in Figure 1
 ```{r}
-# number of households, total and by area
-study_homes <- health_exposure_data_sampling_day %>% 
-  distinct(home, winter_id, .keep_all = TRUE) %>%
-  count(area, winter_id, treatment_assigned)
+# Step 1: Winter 1 samples
+exposure_check <- elders_pm %>% 
+  arrange(area, home, winter_id, sampling_visit) %>% 
+  distinct(area, home, winter_id, sampling_visit, .keep_all = T) %>% 
+  filter(winter_id == 1) %>% 
+  count(area)
+
+exposure_check
 
 
-study_kids <- health_exposure_data_sampling_day %>% 
-  select(area, home, child_id_char, child_id_num, winter_id, treatment_assigned) %>% 
-  filter(!is.na(child_id_char)) %>% 
-  distinct(area, child_id_num, winter_id, .keep_all = TRUE) %>% 
-  count(area, winter_id, treatment_assigned)
+# Step 2: Winter 2 samples
+exposure_check <- elders_pm %>% 
+  filter(!is.na(treatment)) %>% 
+  arrange(area, home, winter_id, sampling_visit) %>% 
+  distinct(area, home, winter_id, sampling_visit, .keep_all = T) %>% 
+  filter(winter_id == 2) %>% 
+  count(treatment, area)
+
+exposure_check
 ```
+
