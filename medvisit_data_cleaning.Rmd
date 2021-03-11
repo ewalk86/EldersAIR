@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial med visit data work"
 author: "Ethan Walker"
-date: "Started 20 Feb 2020, Updated 1 March 2021"
+date: "Started 20 Feb 2020, Updated 11 March 2021"
 output: pdf_document
 ---
 
@@ -276,7 +276,25 @@ elders_medvisit_clean <- elders_medvisit %>%
          fev1_fvc_ratio_0.7 = as.factor(fev1_fvc_ratio_0.7),
          spiro_grade = factor(spiro_grade, levels = c("A", "B", "C", "D", "F")),
          spiro_result = factor(spiro_result, levels = c("Normal", "Restrictive", 
-                                                        "Obstructive", "Both")))
+                                                        "Obstructive", "Both"))) %>% 
+  # make changes based on med data file checks
+  mutate(sp02 = if_else(area == "NN" & adult_id_num == 53 & winter_id == 2 & sampling_visit == 2, 
+                        94, sp02),
+         bp_dia = if_else(area == "NN" & adult_id_num == 47 & winter_id == 2 & sampling_visit == 1, 
+                        72, bp_dia),
+         bp_dia = if_else(area == "NN" & adult_id_num == 58 & winter_id == 2 & sampling_visit == 1, 
+                        57, bp_dia),
+         sp022 = if_else(sp02 < 90 & (pr >= 90 & pr <= 100), pr, sp02),
+         pr2 = if_else(sp02 < 90 & (pr >= 90 & pr <= 100), sp02, pr)) %>% 
+  select(-sp02, -pr) %>% 
+  rename(sp02 = sp022,
+         pr = pr2) %>% 
+  replace_with_na(replace = list(sp02 = 49)) %>% 
+  select(area:sampling_visit, sp02, pr, bp_sys:fev1_fvc_ratio_0.7) %>% 
+  filter_at(vars(sp02:fev1_fvc_ratio_0.7), any_vars(!is.na(.))) %>% 
+  distinct(area, adult_id_num, winter_id, sampling_visit, .keep_all = T)
+
+
 
 data_check <- elders_medvisit_clean %>% 
   filter(sp02 < 80 | pr < 50 | bp_sys < 90 | bp_dia < 40 | hr < 50) %>% 
@@ -284,7 +302,9 @@ data_check <- elders_medvisit_clean %>%
 
 # write_csv(data_check, paste0(file_path, "Output/elders_medvisit_check.csv"))
 
-#summary(elders_medvisit_clean)
+
+
+summary(elders_medvisit_clean)
 
 write_rds(elders_medvisit_clean, paste0(file_path, "Output/elders_medvisit_clean.rds"))
 ```

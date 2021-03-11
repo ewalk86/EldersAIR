@@ -41,6 +41,7 @@ nn_athomelog_initial <- read_xlsx(paste0(file_path, "Input/NN/athomelog.xlsx"),
          area = "NN",
          sampling_visit = as.numeric(SamplingVisit),
          at_home_day = as.factor(Day),
+         # making assumption participants were home during overnight hours
          "at_home_00:00:00" = as.factor("Yes"),
          "at_home_01:00:00" = as.factor("Yes"),
          "at_home_02:00:00" = as.factor("Yes"),
@@ -76,6 +77,7 @@ npt_athomelog_initial <- read_xlsx(paste0(file_path, "Input/NP/athomelog.xlsx"),
          area = "NPT",
          sampling_visit = as.numeric(SamplingVisit),
          at_home_day = as.factor(Day),
+         # making assumption participants were home during overnight hours
          "at_home_00:00:00" = as.factor("Yes"),
          "at_home_01:00:00" = as.factor("Yes"),
          "at_home_02:00:00" = as.factor("Yes"),
@@ -214,8 +216,11 @@ elders_health_extra <- rbind(nn_healthextra_initial, npt_healthextra_initial) %>
   right_join(elders_ids_linked, c("area", "home_winter_id", "adult_id_num")) %>% 
   arrange(area, adult_id_num, winter_id, sampling_visit) %>% 
   select(area, adult_id_num, adult_id_char, home, home_id_num, home_winter_id, 
-         winter_id, treatment, cold2m:bronch2mdr) %>% 
-  mutate_if(is_character, as_factor)
+         winter_id, treatment, sampling_visit, cold2m:bronch2mdr) %>% 
+  mutate(sampling_visit = as.factor(sampling_visit)) %>% 
+  mutate_if(is_character, as_factor) %>% 
+  filter_at(vars(cold2m:bronch2mdr), any_vars(!is.na(.))) %>% 
+  distinct(area, adult_id_num, winter_id, sampling_visit, .keep_all = T)
 
 summary(elders_health_extra)
 

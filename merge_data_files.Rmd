@@ -1,0 +1,120 @@
+---
+title: 'EldersAIR: data merging for analysis dataset'
+author: "Ethan Walker"
+date: "Started 11 March 2021, Updated 11 March 2021"
+output:
+  powerpoint_presentation: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, 
+                      include = TRUE, warning = FALSE,
+                      fig.height = 6, fig.width = 8)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+library(knitr)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", 
+               "#0072B2", "#D55E00", "#CC79A7")
+```
+
+
+```{r}
+# Load individual datasets
+
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) 
+
+elders_demographics <- read_rds(paste0(file_path, "Output/elders_demographics.rds"))
+
+elders_medvisit_clean <- read_rds(paste0(file_path, "Output/elders_medvisit_clean.rds"))
+
+elders_at_home_log_clean <- read_rds(paste0(file_path, "Output/elders_at_home_log_clean.rds"))
+
+elders_health_hx_clean <- read_rds(paste0(file_path, "Output/elders_health_hx_clean.rds"))
+
+elders_health_extra_clean <- read_rds(paste0(file_path, "Output/elders_health_extra_clean.rds"))
+
+#elders_pm_long <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds")) 
+
+elders_pm_at_home_visit <- read_rds(paste0(file_path, "Output/pm_at_home_visit.rds")) 
+```
+
+
+Merge PM and at-home data and summarize by sampling visit
+```{r}
+elders_at_home_log <- elders_at_home_log_clean %>% 
+  select(-home_winter_id, -home, -treatment)
+
+pm_at_home_ranked <- elders_pm_long %>% 
+  separate(pm_datetime_new, c("pm_date", "pm_time"), sep = " ", remove = F) %>% 
+  group_by(area, home, winter_id, sampling_visit) %>% 
+  distinct(pm_date, .keep_all = T) %>% 
+  mutate(at_home_day = rank(pm_date)) %>% 
+  select(area, home, winter_id, sampling_visit, pm_date, at_home_day) %>% 
+  ungroup()
+
+pm_at_home_visit <- elders_pm_long %>% 
+  mutate(sample_datetime = round_date(pm_datetime_new, unit = "hour")) %>% 
+  separate(sample_datetime, c("pm_date", "sample_time"), sep = " ", remove = F) %>% 
+  left_join(pm_at_home_ranked, by = c("area", "home", "winter_id", 
+                                      "sampling_visit", "pm_date")) %>% 
+  group_by(area, home, winter_id, sampling_visit, at_home_day) %>% 
+  mutate(pm_mean_at_home_day = mean(pm, na.rm = T)) %>% 
+  group_by(area, home, winter_id, sampling_visit, at_home_day, sample_time) %>% 
+  mutate(pm_mean_at_home_hour = mean(pm, na.rm = T),
+         at_home_day = as.factor(at_home_day)) %>% 
+  ungroup() %>% 
+  distinct(area, home, winter_id, sampling_visit, at_home_day, sample_time, .keep_all = T) %>% 
+  full_join(elders_at_home_log, by = c("area", "home_id_num", "winter_id", 
+                                       "sampling_visit", "at_home_day", "sample_time")) %>% 
+  filter(at_home == "Yes") %>% 
+  group_by(area, adult_id_num, winter_id, sampling_visit) %>% 
+  mutate(pm_mean_at_home_visit = mean(pm, na.rm = T)) %>% 
+  group_by(area, adult_id_num, winter_id) %>% 
+  mutate(pm_mean_at_home_winter = mean(pm, na.rm = T)) %>% 
+  ungroup() %>% 
+  distinct(area, adult_id_num, winter_id, sampling_visit, .keep_all = T) %>% 
+  select(area, adult_id_num, adult_id_char, home_id_num, home, home_winter_id,
+         winter_id, sampling_visit, treatment,
+         pm_sample_interval, pm_mean_winter, pm_mean_visit, pm_mean_at_home_visit,
+         pm_mean_at_home_winter, dtid, sample_obs, pm_comments) %>% 
+  filter(!is.na(home)) %>% 
+  mutate(area = as.factor(area)) %>% 
+  mutate_at(vars(home_id_num:winter_id), as.factor) %>% 
+  ungroup() %>% 
+  arrange(area, adult_id_num, winter_id, sampling_visit)
+
+#summary(pm_at_home_visit)
+
+write_rds(pm_at_home_visit, paste0(file_path, "Output/pm_at_home_visit.rds"))
+```
+
+Merge PM and health data by sampling visit
+```{r}
+health_pm_visit <- elders_medvisit_clean %>% 
+  full_join(elders_pm_at_home_visit,
+            by = c("area", "home", "home_id_num", "adult_id_char", "adult_id_num",
+                   "home_winter_id", "winter_id", "treatment", "sampling_visit")) %>% 
+  left_join(elders_health_extra_clean,
+            by = c("area", "home", "home_id_num", "adult_id_char", "adult_id_num",
+                   "home_winter_id", "winter_id", "treatment", "sampling_visit")) %>% 
+  left_join(elders_health_hx_clean,
+            by = c("area", "home", "home_id_num", "adult_id_char", "adult_id_num",
+                   "home_winter_id", "winter_id", "treatment")) 
+
+#summary(health_pm_visit)
+
+write_rds(health_pm_visit, paste0(file_path, "Output/elders_health_pm_visit_dataset.rds"))
+```
+
+
