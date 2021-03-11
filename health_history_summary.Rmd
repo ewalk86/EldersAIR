@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR Health History Summary"
 author: "Ethan Walker"
-date: "Started 11 March 2020, Updated 12 March 2020"
+date: "Started 11 March 2020, Updated 10 March 2021"
 output: pdf_document
 ---
 
@@ -29,9 +29,7 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 ```{r}
 # Load data
 
-elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) %>% 
-  filter(winter_id == 1 | winter_id == 2) %>% 
-  arrange(area, adult_id_num)
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
 
 elders_at_home_log <- read_rds(paste0(file_path, "Output/elders_at_home_log.rds"))
 elders_health_hx <- read_rds(paste0(file_path, "Output/elders_health_hx.rds"))

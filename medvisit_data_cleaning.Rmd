@@ -63,7 +63,7 @@ npt_medvisit_new <- npt_medvisit_initial %>%
   
 # fix values after check spiro files
 npt_medvisit_new2 <- npt_medvisit_new %>% 
-  mutate(sp02 = if_else(sp02 < 80, -999, sp02)) %>% 
+  #mutate(sp02 = if_else(sp02 < 80, -999, sp02)) %>% 
   mutate(sp02 = if_else(adult_id_num == 58 & sp02 == 80, -999, sp02)) %>% 
   mutate(pr = if_else(adult_id_num == 58 & pr == 80, -999, pr)) %>%
   mutate(bp_sys = if_else(adult_id_num == 58 & bp_sys == 80, -999, bp_sys)) %>%
@@ -111,9 +111,9 @@ nn_medvisit_new <- nn_medvisit_initial %>%
 
 # fix values after check spiro files
 nn_medvisit_new2 <- nn_medvisit_new %>% 
-  mutate(bp_dia = if_else(bp_dia < 50, -999, bp_dia)) %>% 
-  mutate(sp02 = if_else(sp02 < 80, -999, sp02)) %>% 
-  mutate(hr = if_else(hr < 40, -999, hr)) %>% 
+  #mutate(bp_dia = if_else(bp_dia < 50, -999, bp_dia)) %>% 
+  #mutate(sp02 = if_else(sp02 < 80, -999, sp02)) %>% 
+  #mutate(hr = if_else(hr < 40, -999, hr)) %>% 
   mutate(fev1_fvc_ratio = if_else(fvc == -999, -999, fev1_fvc_ratio)) %>% 
   mutate(fev1_fvc_ratio_pp = if_else(fvc == -999, -999, fev1_fvc_ratio_pp)) %>% 
   replace_with_na_all(condition = ~.x %in% c(-999, 0)) %>% 
@@ -153,7 +153,7 @@ nn_medvisit_new2 <- nn_medvisit_new %>%
 
 
 elders_medvisit <- rbind(npt_medvisit_new2, nn_medvisit_new2) %>% 
-  select(-gender) %>% 
+  #select(-gender) %>% 
   mutate(bmi = (weight_lbs/(height_inches^2)*703),
          home_winter_id = as.factor(home_winter_id),
          adult_id_num = as.factor(adult_id_num)) %>% 
@@ -163,7 +163,7 @@ elders_medvisit <- rbind(npt_medvisit_new2, nn_medvisit_new2) %>%
          adult_id_char, adult_id_num, sampling_visit,
          sp02:weight_lbs, bmi, fvc:spiro_result)
 
-#write_rds(elders_medvisit, paste0(file_path, "Output/elders_medvisit_clean.rds"))
+write_rds(elders_medvisit, paste0(file_path, "Output/elders_medvisit_initial.rds"))
 
 
 
@@ -179,7 +179,7 @@ save_var_names <- data.frame(t(elders_medvisit)) %>%
 ```{r}
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
-elders_medvisit <- read_rds(paste0(file_path, "Output/elders_medvisit_clean.rds")) %>% 
+elders_medvisit <- read_rds(paste0(file_path, "Output/elders_medvisit_initial.rds")) %>% 
   mutate(hypertension = if_else(bp_sys >= 140 | bp_dia >= 90, 1, 0),
          hypertension = as.numeric(hypertension),
          obstruction = if_else(fev1_fvc_ratio < 0.7 | fev1_pp < 75, 1, 0),
@@ -241,22 +241,52 @@ summary_stats
 ```
 
 
-# Further data checking/cleaning
+# Further data checking
 ```{r}
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
-elders_medvisit <- read_rds(paste0(file_path, "Output/elders_medvisit_clean.rds")) 
+elders_medvisit <- read_rds(paste0(file_path, "Output/elders_medvisit_initial.rds")) 
+
+summary(elders_medvisit)
   
 
 medvisit_data_checks <- elders_medvisit %>% 
   mutate(bp_check = if_else(bp_dia >= bp_sys, 1, 0), # no instances of dbp >= sbp
          hr_check = if_else(pr-hr >= abs(10), 1, 0), # 53 instances of pr/hr diff >= 10
          fvc_check = if_else(fev1 >= fvc, 1, 0)) %>% # 2 instances of fvc = fev1; none where fev1 > fvc
-  filter(fvc_check == 1)
+  filter(bp_check == 1)
 
 table(elders_medvisit$spiro_grade)
 table(elders_medvisit$spiro_status)
 table(elders_medvisit$spiro_result)
+```
+
+# Clean up for final dataset
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+elders_medvisit <- read_rds(paste0(file_path, "Output/elders_medvisit_initial.rds")) 
+
+elders_medvisit_clean <- elders_medvisit %>% 
+  mutate_if(is_character, as_factor) %>% 
+  mutate(sampling_visit = as.factor(sampling_visit)) %>% 
+  mutate(stage_2_htn = if_else(bp_sys >= 140 | bp_dia >= 90, "Yes", "No"),
+         stage_2_htn = as.factor(stage_2_htn),
+         fev1_fvc_ratio_0.7 = if_else(fev1_fvc_ratio < 0.7, "Yes", "No"),
+         fev1_fvc_ratio_0.7 = as.factor(fev1_fvc_ratio_0.7),
+         spiro_grade = factor(spiro_grade, levels = c("A", "B", "C", "D", "F")),
+         spiro_result = factor(spiro_result, levels = c("Normal", "Restrictive", 
+                                                        "Obstructive", "Both")))
+
+data_check <- elders_medvisit_clean %>% 
+  filter(sp02 < 80 | pr < 50 | bp_sys < 90 | bp_dia < 40 | hr < 50) %>% 
+  arrange(area, home, winter_id, sampling_visit)
+
+# write_csv(data_check, paste0(file_path, "Output/elders_medvisit_check.csv"))
+
+#summary(elders_medvisit_clean)
+
+write_rds(elders_medvisit_clean, paste0(file_path, "Output/elders_medvisit_clean.rds"))
 ```
 
 

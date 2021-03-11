@@ -1,7 +1,7 @@
 ---
 title: "Elders health and elder files data cleaning"
 author: "Ethan Walker"
-date: "Started 28 Feb 2020, Updated 1 March 2021"
+date: "Started 28 Feb 2020, Updated 10 March 2021"
 output: pdf_document 
 ---
 
@@ -34,61 +34,92 @@ elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
 
 # Load and merge files from different locations
 ```{r}
-nn_athomelog_initial <- read_xlsx(paste0(file_path, "Input/NN/athomelog.xlsx")) %>% 
+nn_athomelog_initial <- read_xlsx(paste0(file_path, "Input/NN/athomelog.xlsx"),
+                                   na = "NULL") %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          adult_id_num = as.character(AdultID),
          area = "NN",
          sampling_visit = as.numeric(SamplingVisit),
          at_home_day = as.factor(Day),
-         at_home_7 = as.factor(AtHome1),
-         at_home_8 = as.factor(AtHome2),
-         at_home_9 = as.factor(AtHome3),
-         at_home_10 = as.factor(AtHome4),
-         at_home_11 = as.factor(AtHome5),
-         at_home_12 = as.factor(AtHome6),
-         at_home_13 = as.factor(AtHome7),
-         at_home_14 = as.factor(AtHome8),
-         at_home_15 = as.factor(AtHome9),
-         at_home_16 = as.factor(AtHome10),
-         at_home_17 = as.factor(AtHome11),
-         at_home_18 = as.factor(AtHome12),
-         at_home_19 = as.factor(AtHome13),
-         at_home_20 = as.factor(AtHome14),
-         at_home_21 = as.factor(AtHome15),
-         at_home_22 = as.factor(AtHome16)) %>% 
-  select(home_winter_id:at_home_22)
+         "at_home_00:00:00" = as.factor("Yes"),
+         "at_home_01:00:00" = as.factor("Yes"),
+         "at_home_02:00:00" = as.factor("Yes"),
+         "at_home_03:00:00" = as.factor("Yes"),
+         "at_home_04:00:00" = as.factor("Yes"),
+         "at_home_05:00:00" = as.factor("Yes"),
+         "at_home_06:00:00" = as.factor("Yes"),
+         "at_home_07:00:00" = as.factor(AtHome1),
+         "at_home_08:00:00" = as.factor(AtHome2),
+         "at_home_09:00:00" = as.factor(AtHome3),
+         "at_home_10:00:00" = as.factor(AtHome4),
+         "at_home_11:00:00" = as.factor(AtHome5),
+         "at_home_12:00:00" = as.factor(AtHome6),
+         "at_home_13:00:00" = as.factor(AtHome7),
+         "at_home_14:00:00" = as.factor(AtHome8),
+         "at_home_15:00:00" = as.factor(AtHome9),
+         "at_home_16:00:00" = as.factor(AtHome10),
+         "at_home_17:00:00" = as.factor(AtHome11),
+         "at_home_18:00:00" = as.factor(AtHome12),
+         "at_home_19:00:00" = as.factor(AtHome13),
+         "at_home_20:00:00" = as.factor(AtHome14),
+         "at_home_21:00:00" = as.factor(AtHome15),
+         "at_home_22:00:00" = as.factor(AtHome16),
+         "at_home_23:00:00" = as.factor("Yes")) %>% 
+  select(home_winter_id:"at_home_23:00:00")
 
 
 
-npt_athomelog_initial <- read_xlsx(paste0(file_path, "Input/NP/athomelog.xlsx")) %>% 
+npt_athomelog_initial <- read_xlsx(paste0(file_path, "Input/NP/athomelog.xlsx"),
+                                   na = "NULL") %>% 
   mutate(home_winter_id = as.character(HomeWinterID),
          adult_id_num = as.character(AdultID),
          area = "NPT",
          sampling_visit = as.numeric(SamplingVisit),
          at_home_day = as.factor(Day),
-         at_home_7 = as.factor(AtHome1),
-         at_home_8 = as.factor(AtHome2),
-         at_home_9 = as.factor(AtHome3),
-         at_home_10 = as.factor(AtHome4),
-         at_home_11 = as.factor(AtHome5),
-         at_home_12 = as.factor(AtHome6),
-         at_home_13 = as.factor(AtHome7),
-         at_home_14 = as.factor(AtHome8),
-         at_home_15 = as.factor(AtHome9),
-         at_home_16 = as.factor(AtHome10),
-         at_home_17 = as.factor(AtHome11),
-         at_home_18 = as.factor(AtHome12),
-         at_home_19 = as.factor(AtHome13),
-         at_home_20 = as.factor(AtHome14),
-         at_home_21 = as.factor(AtHome15),
-         at_home_22 = as.factor(AtHome16)) %>% 
-  select(home_winter_id:at_home_22)     
+         "at_home_00:00:00" = as.factor("Yes"),
+         "at_home_01:00:00" = as.factor("Yes"),
+         "at_home_02:00:00" = as.factor("Yes"),
+         "at_home_03:00:00" = as.factor("Yes"),
+         "at_home_04:00:00" = as.factor("Yes"),
+         "at_home_05:00:00" = as.factor("Yes"),
+         "at_home_06:00:00" = as.factor("Yes"),
+         "at_home_07:00:00" = as.factor(AtHome1),
+         "at_home_08:00:00" = as.factor(AtHome2),
+         "at_home_09:00:00" = as.factor(AtHome3),
+         "at_home_10:00:00" = as.factor(AtHome4),
+         "at_home_11:00:00" = as.factor(AtHome5),
+         "at_home_12:00:00" = as.factor(AtHome6),
+         "at_home_13:00:00" = as.factor(AtHome7),
+         "at_home_14:00:00" = as.factor(AtHome8),
+         "at_home_15:00:00" = as.factor(AtHome9),
+         "at_home_16:00:00" = as.factor(AtHome10),
+         "at_home_17:00:00" = as.factor(AtHome11),
+         "at_home_18:00:00" = as.factor(AtHome12),
+         "at_home_19:00:00" = as.factor(AtHome13),
+         "at_home_20:00:00" = as.factor(AtHome14),
+         "at_home_21:00:00" = as.factor(AtHome15),
+         "at_home_22:00:00" = as.factor(AtHome16),
+         "at_home_23:00:00" = as.factor("Yes")) %>% 
+  select(home_winter_id:"at_home_23:00:00")     
 
 
 # Combine logs from all areas
 elders_at_home_log <- rbind(nn_athomelog_initial, npt_athomelog_initial) %>% 
-  left_join(elders_ids_linked, c("area", "home_winter_id", "adult_id_num"))
-# write_rds(elders_at_home_log, "Output/elders_at_home_log.rds")
+  right_join(elders_ids_linked, c("area", "home_winter_id", "adult_id_num")) %>% 
+  arrange(area, adult_id_num, winter_id, sampling_visit, at_home_day) %>% 
+  group_by(area, adult_id_num, winter_id, sampling_visit, at_home_day) %>% 
+  pivot_longer(cols = c("at_home_00:00:00":"at_home_23:00:00"), names_to = "sample_time",
+                        values_to = "at_home") %>% 
+  ungroup() %>% 
+  separate(sample_time, c("trash", "sample_time"), sep = "at_home_", remove = FALSE) %>% 
+  select(-trash) %>% 
+  mutate(sample_time = as.character(sample_time)) %>% 
+  mutate_at(vars(home_winter_id:home), as.factor)
+
+summary(elders_at_home_log)
+
+
+# write_rds(elders_at_home_log, paste0(file_path, "Output/elders_at_home_log_clean.rds"))
 
 save_var_names <- data.frame(t(elders_at_home_log)) %>% 
   rownames_to_column() %>% 
@@ -103,7 +134,8 @@ save_var_names <- data.frame(t(elders_at_home_log)) %>%
 
 # Load and merge files from different locations
 ```{r}
-nn_healthhistory_initial <- read_xlsx(paste0(file_path, "Input/NN/healthhistory.xlsx")) %>% 
+nn_healthhistory_initial <- read_xlsx(paste0(file_path, "Input/NN/healthhistory.xlsx"),
+                                      na = "NULL") %>% 
   rename_all(~str_replace_all(., "Date", "_date")) %>% 
   rename_all(tolower) %>% 
   mutate(home_winter_id = as.character(homewinterid),
@@ -112,12 +144,13 @@ nn_healthhistory_initial <- read_xlsx(paste0(file_path, "Input/NN/healthhistory.
          rheum_arth = ra,
          rheum_arth_date = ra_date) %>% 
   select(-id:-homewinterid, -ra, -ra_date, -whatmissing:-ignorereason) %>% 
-  select(home_winter_id, adult_id_num, area, rheum_arth, rheum_arth_date,
+  select(adult_id_num, area, rheum_arth, rheum_arth_date,
          lupus:cigarspipes)
          
 
 
-npt_healthhistory_initial <- read_xlsx(paste0(file_path, "Input/NP/healthhistory.xlsx")) %>% 
+npt_healthhistory_initial <- read_xlsx(paste0(file_path, "Input/NP/healthhistory.xlsx"),
+                                      na = "NULL") %>% 
   rename_all(~str_replace_all(., "Date", "_date")) %>% 
   rename_all(tolower) %>% 
   mutate(home_winter_id = as.character(homewinterid),
@@ -126,14 +159,20 @@ npt_healthhistory_initial <- read_xlsx(paste0(file_path, "Input/NP/healthhistory
          rheum_arth = ra,
          rheum_arth_date = ra_date) %>% 
   select(-id:-homewinterid, -ra, -ra_date, -whatmissing:-ignoremissingdata) %>% 
-  select(home_winter_id, adult_id_num, area, rheum_arth, rheum_arth_date,
+  select(adult_id_num, area, rheum_arth, rheum_arth_date,
          lupus:cigarspipes)  
 
 
 # Combine logs from all areas
 elders_health_hx <- rbind(nn_healthhistory_initial, npt_healthhistory_initial) %>% 
-  left_join(elders_ids_linked, c("area", "home_winter_id", "adult_id_num"))
-# write_rds(elders_health_hx, "Output/elders_health_hx.rds")
+  right_join(elders_ids_linked, c("area", "adult_id_num")) %>% 
+  select(area, adult_id_num, adult_id_char:treatment, rheum_arth:cigarspipes) %>% 
+  arrange(area, adult_id_num, winter_id) %>% 
+  mutate_at(vars(area:home), as.factor)
+
+summary(elders_health_hx)
+
+# write_rds(elders_health_hx, paste0(file_path, "Output/elders_health_hx_clean.rds"))
 
 
 save_var_names <- data.frame(t(elders_health_hx)) %>% 
@@ -149,7 +188,8 @@ save_var_names <- data.frame(t(elders_health_hx)) %>%
 
 # Load and merge files from different locations
 ```{r}
-nn_healthextra_initial <- read_xlsx(paste0(file_path, "Input/NN/healthextra.xlsx")) %>% 
+nn_healthextra_initial <- read_xlsx(paste0(file_path, "Input/NN/healthextra.xlsx"),
+                                      na = "NULL") %>% 
   rename_all(tolower) %>% 
   mutate(home_winter_id = as.character(homewinterid),
          adult_id_num = as.character(adultid),
@@ -159,7 +199,8 @@ nn_healthextra_initial <- read_xlsx(paste0(file_path, "Input/NN/healthextra.xlsx
          
 
 
-npt_healthextra_initial <- read_xlsx(paste0(file_path, "Input/NP/healthextra.xlsx")) %>% 
+npt_healthextra_initial <- read_xlsx(paste0(file_path, "Input/NP/healthextra.xlsx"),
+                                      na = "NULL") %>% 
   rename_all(tolower) %>% 
   mutate(home_winter_id = as.character(homewinterid),
          adult_id_num = as.character(adultid),
@@ -170,9 +211,15 @@ npt_healthextra_initial <- read_xlsx(paste0(file_path, "Input/NP/healthextra.xls
 
 # Combine logs from all areas
 elders_health_extra <- rbind(nn_healthextra_initial, npt_healthextra_initial) %>% 
-  left_join(elders_ids_linked, c("area", "home_winter_id", "adult_id_num"))
-# write_rds(elders_health_extra, "Output/elders_health_extra.rds")
+  right_join(elders_ids_linked, c("area", "home_winter_id", "adult_id_num")) %>% 
+  arrange(area, adult_id_num, winter_id, sampling_visit) %>% 
+  select(area, adult_id_num, adult_id_char, home, home_id_num, home_winter_id, 
+         winter_id, treatment, cold2m:bronch2mdr) %>% 
+  mutate_if(is_character, as_factor)
 
+summary(elders_health_extra)
+
+# write_rds(elders_health_extra, paste0(file_path, "Output/elders_health_extra_clean.rds"))
 
 
 save_var_names <- data.frame(t(elders_health_extra)) %>% 
