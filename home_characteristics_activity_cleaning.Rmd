@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial home characteristics/activity data work"
 author: "Ethan Walker"
-date: "Started 25 Feb 2020, Updated 25 Feb 2020"
+date: "Started 25 Feb 2020, Updated 12 March 2021"
 output: pdf_document
 ---
 
@@ -19,13 +19,16 @@ library(zoo)
 
 ```{r}
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
 ```
 
 
 # Load, format, and save home characteristics data
 ```{r}
 ## Box location: Update Box location once final data loaded
-np_homechar_initial <- read_xlsx(paste0(file_path, "Input/NP/np_homechar_20200225.xlsx")) %>% 
+npt_homechar_initial <- read_xlsx(paste0(file_path, "Input/NP/homechar.xlsx"),
+                                  na = "NULL") %>% 
   # rename variables
   mutate(home_winter_id = as.factor(HomeWinterID),
          residents_total = as.numeric(Residents),
@@ -55,7 +58,7 @@ np_homechar_initial <- read_xlsx(paste0(file_path, "Input/NP/np_homechar_2020022
          home_furnace = as.factor(ExistingFurnace),
          home_woodstove = as.factor(ExistingWoodstove),
          home_insert = as.factor(ExistingInsert),
-         area = "NP") %>% 
+         area = "NPT") %>% 
   select(home_winter_id, area, residents_total, residents_over55,
          residents_smoke, residents_smoke_inside,
          home_type, home_year_built, home_sqft, home_floors, home_bedrooms,
@@ -69,7 +72,8 @@ np_homechar_initial <- read_xlsx(paste0(file_path, "Input/NP/np_homechar_2020022
 
 
 ## Box location: Update Box location once final data loaded
-nn_homechar_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_homechar_20200225.xlsx")) %>% 
+nn_homechar_initial <- read_xlsx(paste0(file_path, "Input/NN/homechar.xlsx"),
+                                  na = "NULL") %>% 
   # rename variables
   mutate(home_winter_id = as.factor(HomeWinterID),
          residents_total = as.numeric(Residents),
@@ -113,34 +117,65 @@ nn_homechar_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_homechar_2020022
 
 
 # Combine locations and save
-elders_home_char <- rbind(np_homechar_initial, nn_homechar_initial)
-
-#write_rds(elders_home_char, paste0(file_path, "Output/elders_home_char.rds"))
+elders_home_char <- rbind(npt_homechar_initial, nn_homechar_initial)
 ```
 
 
 # Clean up all home characteristics data
 ```{r}
-elders_home_char <- read_rds(paste0(file_path, "Output/elders_home_char.rds"))
-
-elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
-
-elders_home_char_clean <- elders_home_char %>% 
-  left_join(elders_ids_linked, by = c("area", "home_winter_id")) %>% 
-  filter(!is.na(home_winter_id)) %>% 
-  mutate(home_sqft = if_else(home_sqft<200, 0, home_sqft)) %>% 
-  mutate(home_year_built = if_else(home_year_built<100, 0, home_year_built)) %>% 
+elders_home_char_check <- elders_home_char %>% 
+  right_join(elders_ids_linked, by = c("area", "home_winter_id")) %>% 
+  select(area, home_id_num, home, home_winter_id, winter_id, treatment,
+         residents_total:home_insert) %>% 
+  arrange(area, home, winter_id) %>% 
+  mutate(home_sqft = if_else(home_sqft<200, 0, home_sqft),
+         home_year_built = if_else(home_year_built<100, 0, home_year_built)) %>% 
   replace_with_na(replace = list(home_year_built = 0)) %>% 
   replace_with_na(replace = list(home_floors = 0)) %>% 
   replace_with_na(replace = list(home_windows = 0)) %>% 
   replace_with_na(replace = list(residents_total = 0)) %>% 
   replace_with_na(replace = list(residents_over55 = 0)) %>% 
   replace_with_na(replace = list(wood_cords = 0)) %>% 
-  replace_with_na(replace = list(home_sqft = 0))
+  replace_with_na(replace = list(home_sqft = 0)) %>% 
+  group_by(area, home) %>% 
+  mutate(home_type_check = if_else(home_type == lead(home_type), "same", "diff"),
+         home_year_check = if_else(abs(home_year_built - lead(home_year_built)) < 10, "same", "diff"),
+         home_sqft_check = if_else(abs(home_sqft - lead(home_sqft)) < 100, "same", "diff"),
+         home_floors_check = if_else(home_floors == lead(home_floors), "same", "diff"),
+         home_bedrooms_check = if_else(home_bedrooms == lead(home_bedrooms), "same", "diff"),
+         home_windows_check = if_else(home_windows == lead(home_windows), "same", "diff"),
+         stove_age_check = if_else(stove_age == lead(stove_age), "same", "diff"),
+         home_fireplace_check = if_else(home_fireplace == lead(home_fireplace), "same", "diff"),
+         home_woodstove_check = if_else(home_woodstove == lead(home_woodstove), "same", "diff")) %>% 
+  ungroup()
+
+summary(elders_home_char_check)
+
+
+elders_home_char_clean <- elders_home_char %>% 
+  right_join(elders_ids_linked, by = c("area", "home_winter_id")) %>% 
+  select(area, home_id_num, home, home_winter_id, winter_id, treatment,
+         residents_total:home_insert) %>% 
+  arrange(area, home, winter_id) %>% 
+  mutate(home_sqft = if_else(home_sqft<200, 0, home_sqft),
+         home_year_built = if_else(home_year_built<100, 0, home_year_built)) %>% 
+  replace_with_na(replace = list(home_year_built = 0)) %>% 
+  replace_with_na(replace = list(home_floors = 0)) %>% 
+  replace_with_na(replace = list(home_windows = 0)) %>% 
+  replace_with_na(replace = list(residents_total = 0)) %>% 
+  replace_with_na(replace = list(residents_over55 = 0)) %>% 
+  replace_with_na(replace = list(wood_cords = 0)) %>% 
+  replace_with_na(replace = list(home_sqft = 0)) %>% 
+  mutate_if(is.character, as.factor) %>% 
+  group_by(area, home, treatment) %>% 
+  mutate_all(~if_else(winter_id == 1 & is.na(.), lead(.), .)) %>% 
+  mutate_all(~if_else(winter_id == 2 & is.na(.), lag(.), .)) %>% 
+  ungroup() %>% 
+  distinct(area, home, winter_id, .keep_all = T)
+  
+summary(elders_home_char_clean)
 
 # write_rds(elders_home_char_clean, paste0(file_path, "Output/elders_home_char_clean.rds"))
-
-elders_home_char_clean <- read_rds(paste0(file_path, "Output/elders_home_char_clean.rds"))
 ```
 
 
@@ -150,7 +185,8 @@ elders_home_char_clean <- read_rds(paste0(file_path, "Output/elders_home_char_cl
 # Load, format, and save home activity data
 ```{r}
 ## Box location: Update Box location once final data loaded
-np_homeactivity_initial <- read_xlsx(paste0(file_path, "Input/NP/np_homeactivity_20200225.xlsx")) %>% 
+npt_homeactivity_initial <- read_xlsx(paste0(file_path, "Input/NP/homeactivity.xlsx"),
+                                      na = "NULL") %>% 
   # rename variables
   mutate(home_winter_id = as.factor(HomeWinterID),
          home_act_day = as.factor(Day),
@@ -167,7 +203,7 @@ np_homeactivity_initial <- read_xlsx(paste0(file_path, "Input/NP/np_homeactivity
          home_act_door = as.factor(OpenDoor),
          home_act_sweep = as.factor(Sweeping),
          sampling_visit = as.factor(SamplingVisit),
-         area = "NP") %>% 
+         area = "NPT") %>% 
   select(home_winter_id, area, sampling_visit, home_act_day,
          home_act_gas, home_act_elect, home_act_propane,
          home_act_oil, home_act_other, home_act_smoking,
@@ -178,7 +214,8 @@ np_homeactivity_initial <- read_xlsx(paste0(file_path, "Input/NP/np_homeactivity
 
 
 ## Box location: Update Box location once final data loaded
-nn_homeactivity_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_homeactivity_20200225.xlsx")) %>% 
+nn_homeactivity_initial <- read_xlsx(paste0(file_path, "Input/NN/homeactivity.xlsx"),
+                                      na = "NULL") %>% 
   # rename variables
   mutate(home_winter_id = as.factor(HomeWinterID),
          home_act_day = as.factor(Day),
@@ -206,24 +243,31 @@ nn_homeactivity_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_homeactivity
 
 
 # Combine locations and save
-elders_home_activity <- rbind(np_homeactivity_initial, nn_homeactivity_initial)
-
-#write_rds(elders_home_activity, paste0(file_path, "Output/elders_home_activity.rds"))
+elders_home_activity <- rbind(npt_homeactivity_initial, nn_homeactivity_initial)
 ```
 
 
 # Clean up all home activity data
 ```{r}
-elders_home_activity <- read_rds(paste0(file_path, "Output/elders_home_activity.rds"))
-
-elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
-
 elders_home_activity_clean <- elders_home_activity %>% 
-  left_join(elders_ids_linked, by = c("area", "home_winter_id")) %>% 
-  filter(!is.na(home_winter_id)) 
+  right_join(elders_ids_linked, by = c("area", "home_winter_id")) %>% 
+  select(-adult_id_char, -adult_id_num) %>% 
+  filter_at(vars(home_act_gas:home_act_sweep), any_vars(!is.na(.))) %>% 
+  mutate(area = as.factor(area),
+         home = as.factor(home)) %>% 
+  distinct(area, home, winter_id, sampling_visit, home_act_day, .keep_all = T) %>% 
+  mutate_at(vars(home_act_gas:home_act_sweep), ~if_else(. == "Yes", 1, 0)) %>% 
+  #mutate_at(vars(home_act_gas:home_act_sweep), as.factor) %>% 
+  group_by(area, home, winter_id, sampling_visit) %>% 
+  mutate_at(vars(home_act_gas:home_act_sweep), sum) %>% 
+  ungroup() %>% 
+  distinct(area, home, winter_id, sampling_visit, .keep_all = T) %>% 
+  select(-home_act_day) %>% 
+  arrange(area, home, winter_id, sampling_visit)
+
+
+summary(elders_home_activity_clean)
 
 # write_rds(elders_home_activity_clean, paste0(file_path, "Output/elders_home_activity_clean.rds"))
-
-elders_home_activity_clean <- read_rds(paste0(file_path, "Output/elders_home_activity_clean.rds"))
 ```
 

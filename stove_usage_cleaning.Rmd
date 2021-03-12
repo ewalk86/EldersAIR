@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial stove grades/usage data work"
 author: "Ethan Walker"
-date: "Started 25 Feb 2020, Updated 25 Feb 2020"
+date: "Started 25 Feb 2020, Updated 12 March 2021"
 output: pdf_document
 ---
 
@@ -60,7 +60,7 @@ elders_stove_grades <- rbind(npt_stove_initial, nn_stove_initial) %>%
   arrange(area, home_id_num, winter_id) %>% 
   select(area, home_id_num, home, home_winter_id, adult_id_num:treatment, stove_grade) %>% 
   distinct(area, home, winter_id, .keep_all = T) %>% 
-  arrange(area, home_id_num, stove_grade) %>% 
+  arrange(area, home, stove_grade) %>% 
   distinct(area, home_id_num, .keep_all = T) %>% 
   select(area, home_id_num, home, treatment, stove_grade) %>% 
   mutate(area = as.factor(area),
@@ -116,7 +116,9 @@ elders_stove_usage <- rbind(npt_stove_initial, nn_stove_initial) %>%
   select(area, home, home_id_num, home_winter_id, winter_id, treatment,
          sampling_visit:wood_type_other) %>% 
   mutate(area = as.factor(area),
-         home = as.factor(home))
+         home = as.factor(home)) %>% 
+  filter_at(vars(burn_level:wood_type_other), any_vars(!is.na(.))) %>% 
+  distinct(area, home, winter_id, sampling_visit, .keep_all = T)
 
 summary(elders_stove_usage)
 
@@ -132,10 +134,10 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
 ##### NP #####
 # Load data
-kw_initial_np <- read_xlsx(paste0(file_path, "Input/NP/filtretechange.xlsx"), 
+kw_initial_npt <- read_xlsx(paste0(file_path, "Input/NP/filtretechange.xlsx"), 
                                   na = c("NULL", "", "...", -99, -999, -9999))
 
-kw_np <- kw_initial_np %>% 
+kw_npt <- kw_initial_npt %>% 
   # rename variables
   mutate(home_winter_id = as.factor(HomeWinterID),
          kw_date = ymd(ChangeDate),
@@ -146,10 +148,6 @@ kw_np <- kw_initial_np %>%
   ungroup() %>% 
   arrange(home_winter_id, kw_date) 
   
-
-# Save as RDS
-write_rds(kw_np, paste0(file_path, "Output/kw_np.rds"))
-
 
 ##### NN #####
 # Load data
@@ -166,63 +164,26 @@ kw_nn <- kw_initial_nn %>%
   filter(!is.na(kw_hours)) %>%  
   ungroup() %>% 
   arrange(home_winter_id, kw_date) 
-  
-
-# Save as RDS
-write_rds(kw_nn, paste0(file_path, "Output/kw_nn.rds"))
-```
 
 # Join KW hour data from different areas
-```{r}
-file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
-
-kw_np <- read_rds(paste0(file_path, "Output/kw_np.rds"))
-kw_nn <- read_rds(paste0(file_path, "Output/kw_nn.rds"))
-
-elders_kw <- rbind(kw_np, kw_nn) %>% 
+elders_kw_clean <- rbind(kw_npt, kw_nn) %>% 
   ungroup() %>% 
-  arrange(area, home_winter_id, kw_date)
-
-write_rds(elders_kw, paste0(file_path, "Output/elders_kw.rds"))
-```
-
-# Clean up all KW hour data
-```{r}
-file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
-elders_kw <- read_rds(paste0(file_path, "Output/elders_kw.rds"))
-elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
-
-
-elders_kw_clean <- elders_kw %>% 
-  left_join(elders_ids_linked, by = c("area", "home_winter_id")) %>%  
-  filter(!is.na(home)) %>% 
+  arrange(area, home_winter_id, kw_date) %>% 
+  right_join(elders_ids_linked, by = c("area", "home_winter_id")) %>%  
+  filter(!is.na(kw_hours)) %>% 
   arrange(area, home_winter_id, kw_date) %>% 
   group_by(area, home_winter_id) %>% 
   mutate(kw_hours_last = last(kw_hours),
          diff_check = if_else(kw_hours_last < kw_hours, 1, 0),
-         diff_check2 = kw_hours_last - kw_hours)  
+         diff_check2 = kw_hours_last - kw_hours)
   #distinct(area, home_winter_id, diff_check, .keep_all = TRUE)
 
 summary(elders_kw_clean)
 
-kw_summary <- elders_kw_clean %>% 
-  select(-treatment_assigned, -treatment_actual) %>% 
-  left_join(treatments_masked, by = "home") %>% 
-  distinct(area, home, kw_hours_total) %>% 
-  ungroup() %>% 
-  filter(area == "NPT") %>% 
-  #group_by(newtx) %>% 
-  summarize(mean(kw_hours_total),
-            sd(kw_hours_total),
-            n(),
-            min(kw_hours_total),
-            median(kw_hours_total),
-            max(kw_hours_total))
-kw_summary
-
 
 write_rds(elders_kw_clean, paste0(file_path, "Output/elders_kw_clean.rds"))
 ```
+
 
 #####################################
 
@@ -232,7 +193,7 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
 ##### NP #####
 # Load data
-kw_report_np <- read_csv(paste0(file_path, "Input/NP/filtrete_report.csv"), 
+kw_report_npt <- read_csv(paste0(file_path, "Input/NP/filtrete_report.csv"), 
                                   na = c("NULL", "")) %>% 
   mutate(home_winter_id = as.factor(HomeWinterID),
          home = as.factor(Home),
@@ -250,10 +211,6 @@ kw_report_np <- read_csv(paste0(file_path, "Input/NP/filtrete_report.csv"),
   ungroup() %>% 
   arrange(home_winter_id, kw_date) 
   
-
-# Save as RDS
-write_rds(kw_report_np, paste0(file_path, "Output/kw_report_np.rds"))
-
 
 ##### NN #####
 # Load data
@@ -274,127 +231,41 @@ kw_report_nn <- read_csv(paste0(file_path, "Input/NN/filtrete_report.csv"),
   #filter(!is.na(kw_hours)) %>% 
   ungroup() %>% 
   arrange(home_winter_id, kw_date) 
-  
 
-# Save as RDS
-write_rds(kw_report_nn, paste0(file_path, "Output/kw_report_nn.rds"))
-```
 
 # Join KW report data from different areas
-```{r}
-file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
-
-kw_report_np <- read_rds(paste0(file_path, "Output/kw_report_np.rds"))
-kw_report_nn <- read_rds(paste0(file_path, "Output/kw_report_nn.rds"))
-
-elders_kw_report <- rbind(kw_report_np, kw_report_nn) %>% 
+elders_kw_report <- rbind(kw_report_npt, kw_report_nn) %>% 
   dplyr::select(-home) %>% 
   ungroup() %>% 
-  arrange(area, home_winter_id, kw_date)
-
-write_rds(elders_kw_report, paste0(file_path, "Output/elders_kw_report.rds"))
-```
-
-# Clean up all KW report data
-```{r}
-file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
-elders_kw_report <- read_rds(paste0(file_path, "Output/elders_kw_report.rds"))
-elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
-
-
-elders_kw_report_clean <- elders_kw_report %>% 
-  left_join(elders_ids_linked, by = c("area", "home_winter_id")) %>%  
-  arrange(area, home_winter_id) %>% 
+  arrange(area, home_winter_id, kw_date) %>% 
   mutate(filter_type = fct_collapse(filter_type,
                                     "Honeywell" = "Honeywell",
                                     "Large Filtrete" = "Large Filtrete",
                                     "Small Filtrete" = "Small Filtrete",
-                                    "Winix" = c("Winix", "winix"))) %>% 
+                                    "Winix" = c("Winix", "winix")))
+
+elders_filter_type <- elders_kw_report %>% 
+  select(area, home_winter_id, filter_type) %>% 
+  arrange(area, home_winter_id) %>% 
+  distinct(area, home_winter_id, .keep_all = T)
+
+write_rds(elders_filter_type, paste0(file_path, "Output/elders_filter_type.rds"))
+
+
+elders_kw_report_clean <- elders_kw_report %>% 
   mutate(kw_perc_expected = if_else(kw_hours == -999, 999999, kw_perc_expected),
          kw_perc_expected = if_else(kw_hours == 1000, 999999, kw_perc_expected),
          kw_perc_expected = abs(kw_perc_expected)) %>% 
   replace_with_na(replace = list(kw_perc_expected = 999999)) %>% 
-  mutate(kw_perc_expected = as.numeric(kw_perc_expected)) 
-  #filter(treatment_assigned == "Filter")
+  mutate(kw_perc_expected = as.numeric(kw_perc_expected),
+         area = as.factor(area)) %>% 
+  arrange(area, home_winter_id, desc(kw_date)) %>% 
+  filter(kw_perc_expected < 80000 & kw_expected > 0) %>% 
+  distinct(area, home_winter_id, .keep_all = T) %>% 
+  select(area, home_winter_id, kw_perc_expected)
 
-#summary(kids_kw_report_clean)
-
-kw_perc_exp_summary <- elders_kw_report_clean %>% 
-  filter(!is.na(kw_perc_expected)) %>% 
-  #filter(area == "WMT") %>% 
-  group_by(treatment) %>% 
-  summarize("Mean KW % Exp" = mean(kw_perc_expected),
-            "SD KW % Exp" = sd(kw_perc_expected),
-            "N KW % Exp" = n(),
-            "Min KW % Exp" = min(kw_perc_expected),
-            "25Q KW % Exp" = quantile(kw_perc_expected, 0.25),
-            "Med KW % Exp" = median(kw_perc_expected),
-            "75Q KW % Exp" = quantile(kw_perc_expected, 0.75),
-            "Max KW % Exp" = max(kw_perc_expected))
-kw_perc_exp_summary
-
-png("Kids_KW_perc_exp.png", width=960, height=480, bg = "white")
-grid.table(kw_perc_exp_summary)
-dev.off()
-
-
-
-boxplot(log(kw_perc_expected) ~ filter_type, data = kids_kw_report_clean)
-
-boxplot(kw_perc_expected ~ filter_type, data = kids_kw_report_clean)
-
-kw_exp_summary <- kids_kw_report_clean %>% 
-  filter(!is.na(kw_expected)) %>% 
-  #filter(area == "WMT") %>% 
-  group_by(filter_type) %>% 
-  summarize("Mean KW Exp" = mean(kw_expected),
-            "SD KW Exp" = sd(kw_expected),
-            "N KW Exp" = n(),
-            "Min KW Exp" = min(kw_expected),
-            "25Q KW Exp" = quantile(kw_expected, 0.25),
-            "Med KW Exp" = median(kw_expected),
-            "75Q KW Exp" = quantile(kw_expected, 0.75),
-            "Max KW Exp" = max(kw_expected))
-kw_exp_summary
-
-
-fivenum(kids_kw_report_clean$kw_perc_expected)
+summary(elders_kw_report_clean)
 
 
 write_rds(elders_kw_report_clean, paste0(file_path, "Output/elders_kw_report_clean.rds"))
 ```
-
-
-# Join KW data with PM data and summarize
-```{r}
-file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
-pm_data <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds"))  %>% 
-  arrange(area, home, pm_mean_winter) %>% 
-  distinct(area, home_winter_id, .keep_all = TRUE) %>% 
-  select(area, home, pm_mean_sampling_period)
-elders_kw_report_clean <- 
-  read_rds(paste0(file_path, "Output/elders_kw_report_clean.rds"))
-
-
-kw_perc_exp_summary <- kids_kw_report_clean %>% 
-  left_join(pm_data, by = c("area", "home")) %>% 
-  filter(!is.na(kw_perc_expected)) %>% 
-  #filter(area == "WMT") %>% 
-  group_by(filter_type, treatment_assigned) %>% 
-  summarize("Mean KW % Exp" = mean(kw_perc_expected),
-            "SD KW % Exp" = sd(kw_perc_expected),
-            "N KW % Exp" = n(),
-            "Min KW % Exp" = min(kw_perc_expected),
-            "Med KW % Exp" = median(kw_perc_expected),
-            "Max KW % Exp" = max(kw_perc_expected),
-            "Mean PM" = mean(pm_mean_sampling_period, na.rm = TRUE),
-            "Min PM" = min(pm_mean_sampling_period, na.rm = TRUE),
-            "Med PM" = median(pm_mean_sampling_period, na.rm = TRUE),
-            "Max PM" = max(pm_mean_sampling_period, na.rm = TRUE))
-kw_perc_exp_summary
-
-png("Kids_KW_perc_exp.png", width=1200, height=480, bg = "white")
-grid.table(kw_perc_exp_summary)
-dev.off()
-```
-

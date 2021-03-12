@@ -1,7 +1,7 @@
 ---
 title: 'EldersAIR: data merging for analysis dataset'
 author: "Ethan Walker"
-date: "Started 11 March 2021, Updated 11 March 2021"
+date: "Started 11 March 2021, Updated 12 March 2021"
 output:
   powerpoint_presentation: default
 ---
@@ -47,6 +47,20 @@ elders_health_extra_clean <- read_rds(paste0(file_path, "Output/elders_health_ex
 #elders_pm_long <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds")) 
 
 elders_pm_at_home_visit <- read_rds(paste0(file_path, "Output/pm_at_home_visit.rds")) 
+
+elders_stove_grades_clean <- read_rds(paste0(file_path, "Output/elders_stove_grades_clean.rds")) 
+
+elders_stove_usage_clean <- read_rds(paste0(file_path, "Output/elders_stove_usage_clean.rds")) 
+
+elders_kw_report_clean <- read_rds(paste0(file_path, "Output/elders_kw_report_clean.rds")) 
+
+elders_filter_type <- read_rds(paste0(file_path, "Output/elders_filter_type.rds")) 
+
+elders_temp_rh_clean <- read_rds(paste0(file_path, "Output/elders_temp_rh_clean.rds")) 
+
+elders_home_char_clean <- read_rds(paste0(file_path, "Output/elders_home_char_clean.rds")) 
+
+elders_home_activity_clean <- read_rds(paste0(file_path, "Output/elders_home_activity_clean.rds")) 
 ```
 
 
@@ -99,7 +113,8 @@ pm_at_home_visit <- elders_pm_long %>%
 write_rds(pm_at_home_visit, paste0(file_path, "Output/pm_at_home_visit.rds"))
 ```
 
-Merge PM and health data by sampling visit
+Merge PM, health, stove data 
+One observation per sampling visit (up to 4 obs per adult/home)
 ```{r}
 health_pm_visit <- elders_medvisit_clean %>% 
   full_join(elders_pm_at_home_visit,
@@ -110,7 +125,24 @@ health_pm_visit <- elders_medvisit_clean %>%
                    "home_winter_id", "winter_id", "treatment", "sampling_visit")) %>% 
   left_join(elders_health_hx_clean,
             by = c("area", "home", "home_id_num", "adult_id_char", "adult_id_num",
-                   "home_winter_id", "winter_id", "treatment")) 
+                   "home_winter_id", "winter_id", "treatment")) %>% 
+  left_join(elders_stove_grades_clean,
+            by = c("area", "home", "home_id_num", "treatment")) %>% 
+  left_join(elders_stove_usage_clean,
+            by = c("area", "home", "home_id_num", 
+                   "home_winter_id", "winter_id", "treatment", "sampling_visit")) %>% 
+  left_join(elders_kw_report_clean,
+            by = c("area", "home_winter_id")) %>% 
+  left_join(elders_filter_type,
+            by = c("area", "home_winter_id")) %>% 
+  left_join(elders_temp_rh_clean,
+            by = c("area", "home_winter_id", "sampling_visit")) %>% 
+  left_join(elders_home_activity_clean,
+            by = c("area", "home", "home_id_num", 
+                   "home_winter_id", "winter_id", "treatment", "sampling_visit")) %>% 
+  left_join(elders_home_char_clean,
+            by = c("area", "home", "home_id_num", 
+                   "home_winter_id", "winter_id", "treatment"))
 
 #summary(health_pm_visit)
 
