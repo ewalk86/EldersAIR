@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial wood moisture content data work"
 author: "Ethan Walker"
-date: "Started 25 Feb 2020, Updated 25 Feb 2020"
+date: "Started 25 Feb 2020, Updated 15 March 2021"
 output: pdf_document
 ---
 
@@ -19,13 +19,27 @@ library(zoo)
 
 ```{r}
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+elders_demographics <- read_rds(paste0(file_path, "Output/elders_demographics.rds")) %>% 
+  arrange(area, adult_id_char, winter_id) %>% 
+  group_by(area, adult_id_char, winter_id) %>% 
+  rename("1" = sampling_date,
+         "2" = sampling_date2) %>% 
+  pivot_longer(cols = c("1", "2"), names_to = "sampling_visit",
+               values_to = "sampling_date") %>% 
+  mutate(sampling_visit = as.factor(sampling_visit)) %>% 
+  ungroup() %>% 
+  select(area, home_winter_id, sampling_visit, sampling_date, ) %>% 
+  distinct(area, home_winter_id, sampling_date, .keep_all = T) %>% 
+  filter(!is.na(sampling_date)) 
 ```
 
 
 # Load, format, and save wood moisture data
 ```{r}
 ## Box location: Update Box location once final data loaded
-np_moisture_initial <- read_xlsx(paste0(file_path, "Input/NP/np_moisture_20200225.xlsx")) %>% 
+npt_moisture_initial <- read_xlsx(paste0(file_path, "Input/NP/moisture.xlsx"),
+                                  na = "NULL") %>% 
   # rename variables
   mutate(home_winter_id = as.factor(HomeWinterID),
          moisture_date = ymd(CompletedDate),
@@ -34,7 +48,7 @@ np_moisture_initial <- read_xlsx(paste0(file_path, "Input/NP/np_moisture_2020022
          moisture_3 = as.numeric(Moisture3),
          moisture_ave = as.numeric(MoistureAve),
          moisture_split = as.factor(Split),
-         area = "NP") %>% 
+         area = "NPT") %>% 
   # replace 0 and -999 values with NA
   replace_with_na(replace = list(moisture_1 = 0, moisture_2 = 0,
                                  moisture_3 = 0, moisture_ave = 0)) %>% 
@@ -57,7 +71,8 @@ np_moisture_initial <- read_xlsx(paste0(file_path, "Input/NP/np_moisture_2020022
 
 
 ## Box location: Update Box location once final data loaded
-nn_moisture_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_moisture_20200225.xlsx")) %>% 
+nn_moisture_initial <- read_xlsx(paste0(file_path, "Input/NN/moisture.xlsx"),
+                                  na = "NULL") %>% 
   # rename variables
   mutate(home_winter_id = as.factor(HomeWinterID),
          moisture_date = ymd(CompletedDate),
@@ -89,31 +104,37 @@ nn_moisture_initial <- read_xlsx(paste0(file_path, "Input/NN/nn_moisture_2020022
 
 
 # Combine locations and save
-elders_moisture <- rbind(np_moisture_initial, nn_moisture_initial)
-
-#write_rds(elders_moisture, paste0(file_path, "Output/elders_moisture.rds"))
-```
-
-
-
-# Clean up all moisture data
-```{r}
-elders_moisture <- read_rds(paste0(file_path, "Output/elders_moisture.rds"))
-
-elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
-
-elders_moisture_clean <- elders_moisture %>% 
-  left_join(elders_ids_linked, by = c("area", "home_winter_id")) %>% 
+elders_moisture <- rbind(npt_moisture_initial, nn_moisture_initial) %>% 
   filter(!is.na(home_winter_id)) %>% 
   # lower range on instrument = 5%
   # therefore, changing values < 5 to 5
   mutate(moisture_1 = if_else(moisture_1 < 5, 5, moisture_1),
          moisture_2 = if_else(moisture_2 < 5, 5, moisture_2),
          moisture_3 = if_else(moisture_3 < 5, 5, moisture_3),
-         moisture_ave = if_else(moisture_ave < 5, 5, moisture_ave))
+         moisture_ave = if_else(moisture_ave < 5, 5, moisture_ave),
+         area = as.factor(area)) %>% 
+  filter_at(vars(moisture_1:moisture_3), any_vars(!is.na(.))) %>% 
+  arrange(area, home_winter_id, moisture_date) %>% 
+  distinct(area, home_winter_id, moisture_date, .keep_all = T) 
+
+
+summary(elders_moisture)
+```
+
+
+# Join with demographic data to match on closest visit data
+```{r}
+elders_moisture_clean <- elders_moisture %>% 
+  full_join(elders_demographics, by = c("area", "home_winter_id")) %>% 
+  mutate(moisture_sample_date_diff = abs(moisture_date - sampling_date)) %>% 
+  group_by(area, home_winter_id, sampling_visit) %>% 
+  mutate(date_diff_rank = order(moisture_sample_date_diff)) %>% 
+  ungroup() %>% 
+  filter(date_diff_rank == 1) %>% 
+  select(area, home_winter_id, sampling_visit, moisture_date,
+         moisture_sample_date_diff, moisture_1:moisture_split)
 
 # write_rds(elders_moisture_clean, paste0(file_path, "Output/elders_moisture_clean.rds"))
-
-elders_moisture_clean <- read_rds(paste0(file_path, "Output/elders_moisture_clean.rds"))
 ```
+
 

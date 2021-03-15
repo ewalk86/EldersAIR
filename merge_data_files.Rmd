@@ -1,7 +1,7 @@
 ---
 title: 'EldersAIR: data merging for analysis dataset'
 author: "Ethan Walker"
-date: "Started 11 March 2021, Updated 12 March 2021"
+date: "Started 11 March 2021, Updated 15 March 2021"
 output:
   powerpoint_presentation: default
 ---
@@ -61,6 +61,8 @@ elders_temp_rh_clean <- read_rds(paste0(file_path, "Output/elders_temp_rh_clean.
 elders_home_char_clean <- read_rds(paste0(file_path, "Output/elders_home_char_clean.rds")) 
 
 elders_home_activity_clean <- read_rds(paste0(file_path, "Output/elders_home_activity_clean.rds")) 
+
+elders_moisture_clean <- read_rds(paste0(file_path, "Output/elders_moisture_clean.rds")) 
 ```
 
 
@@ -113,11 +115,32 @@ pm_at_home_visit <- elders_pm_long %>%
 write_rds(pm_at_home_visit, paste0(file_path, "Output/pm_at_home_visit.rds"))
 ```
 
+Prep demographics data for merging
+```{r}
+demographics <- elders_demographics %>% 
+  arrange(area, adult_id_char, winter_id) %>% 
+  group_by(area, adult_id_char, winter_id) %>% 
+  rename("1" = sampling_date,
+         "2" = sampling_date2) %>% 
+  pivot_longer(cols = c("1", "2"), names_to = "sampling_visit",
+               values_to = "sampling_date") %>% 
+  mutate(sampling_visit = as.factor(sampling_visit)) %>% 
+  select(area, home, home_id_num, home_winter_id, adult_id_char, adult_id_num,
+         winter_id, sampling_visit, sampling_date, treatment, intervention_date,
+         intervention_time, hispanic:residents_under18, -age) %>% 
+  filter(!is.na(sampling_date)) %>% 
+  arrange(area, adult_id_char, winter_id, sampling_visit)
+```
+
+
 Merge PM, health, stove data 
 One observation per sampling visit (up to 4 obs per adult/home)
 ```{r}
 health_pm_visit <- elders_medvisit_clean %>% 
   full_join(elders_pm_at_home_visit,
+            by = c("area", "home", "home_id_num", "adult_id_char", "adult_id_num",
+                   "home_winter_id", "winter_id", "treatment", "sampling_visit")) %>% 
+  left_join(demographics,
             by = c("area", "home", "home_id_num", "adult_id_char", "adult_id_num",
                    "home_winter_id", "winter_id", "treatment", "sampling_visit")) %>% 
   left_join(elders_health_extra_clean,
@@ -142,11 +165,24 @@ health_pm_visit <- elders_medvisit_clean %>%
                    "home_winter_id", "winter_id", "treatment", "sampling_visit")) %>% 
   left_join(elders_home_char_clean,
             by = c("area", "home", "home_id_num", 
-                   "home_winter_id", "winter_id", "treatment"))
+                   "home_winter_id", "winter_id", "treatment")) %>% 
+  left_join(elders_moisture_clean,
+            by = c("area", "home_winter_id", "sampling_visit"))
 
-#summary(health_pm_visit)
-
-write_rds(health_pm_visit, paste0(file_path, "Output/elders_health_pm_visit_dataset.rds"))
+# summary(health_pm_visit)
 ```
 
+Save final dataset
+```{r}
+write_rds(health_pm_visit, paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds"))
+
+write_csv(health_pm_visit, paste0(file_path, "Output/elders_cleaned_dataset_by_visit.csv"), na = " ")
+
+# save variable names to use in data dictionary
+save_var_names <- data.frame(t(health_pm_visit)) %>% 
+  rownames_to_column() %>% 
+  select(rowname)
+
+write_csv(save_var_names, paste0(file_path, "Output/health_pm_visit_var_names.csv"))
+```
 
