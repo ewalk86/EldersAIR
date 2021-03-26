@@ -33,8 +33,7 @@ elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
   filter(winter_id == 1 | winter_id == 2) %>% 
   arrange(area, adult_id_num)
 
-elders_medvisit <- read_rds(paste0(file_path, "Output/elders_medvisit_clean.rds")) %>% 
-  mutate(area = if_else(area == "NP", "NPT", area))
+elders_medvisit <- read_rds(paste0(file_path, "Output/elders_medvisit_clean.rds")) 
 ```
 
 # Cardiovascular outcomes from Med visit
