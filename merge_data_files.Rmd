@@ -167,19 +167,83 @@ health_pm_visit <- elders_medvisit_clean %>%
             by = c("area", "home", "home_id_num", 
                    "home_winter_id", "winter_id", "treatment")) %>% 
   left_join(elders_moisture_clean,
-            by = c("area", "home_winter_id", "sampling_visit"))
+            by = c("area", "home_winter_id", "sampling_visit")) 
 
-# summary(health_pm_visit)
+
+elders_cleaned_dataset_by_visit <- health_pm_visit %>% 
+  mutate(home_floors = as.factor(home_floors),
+         home_floors_2level = fct_collapse(home_floors,
+                                           "1" = "1",
+                                           "2+" = c("2", "3")),
+         home_sqm = home_sqft*0.0929,
+         home_sqm_2level = cut(home_sqm, breaks = c(0, 112, 10000),
+                               labels = c("<111", "111+")),
+         home_bedrooms = as.numeric(home_bedrooms),
+         home_year_built_2level = cut(home_year_built, 
+                                      breaks = c(0, 1981, 10000),
+                                      labels = c("<1981", "1981+")),
+         home_pets = as.factor(home_pets),
+         home_pets_3level = fct_collapse(home_pets,
+                                         "0" = "0",
+                                         "1" = "1",
+                                         "2+" = c("2", "3", "4", "5", "6", "7", "10")),
+         income = as.factor(income),
+         income_3level = fct_collapse(income,
+                                      "< $20,000" = "< $20,000",
+                                      "$20,000 to $39,999" = c("$20,000 to $29,999", "$30,000 to $39,999"),
+                                      "$40,000+" = c("$40,000 to $49,999", "$50,000 to $74,999", 
+                                                     "$75,000 to $99,999", ">= $100,000")),
+         stove_age = factor(stove_age,
+                            levels = c("0-5 years old", "6-10 years old", "11-15 years old",
+                                       "16 + years old", "Do not know")),
+         chimney_clean = factor(chimney_clean,
+                            levels = c("Less than 6 months ago", "6-12 months ago", 
+                                       "12-18 months ago", "More than 18 months ago")),
+         burn_level = factor(burn_level,
+                            levels = c("No burning", "Light burning", 
+                                       "Average burning", "Heavy burning")),
+         wood_collect = factor(wood_collect,
+                            levels = c("Less than 1 week", "Between 1 week and 1 month", 
+                                       "Between 1 month and 3 months", "Between 3 months and 6 months",
+                                       "Between 6 months and 1 year", "More than 1 year"))) %>% 
+  group_by(adult_id_char, winter_id) %>% 
+  mutate(sum_act_smoking = sum(home_act_smoking, na.rm = T),
+         sum_act_candle = sum(home_act_candle, na.rm = T),
+         sum_act_door = sum(home_act_door, na.rm = T),
+         sum_act_gas = sum(home_act_gas, na.rm = T),
+         sum_act_elect = sum(home_act_elect, na.rm = T),
+         sum_act_propane = sum(home_act_propane, na.rm = T),
+         sum_act_oil = sum(home_act_oil, na.rm = T),
+         sum_act_incense = sum(home_act_incense, na.rm = T),
+         sum_act_kerosene = sum(home_act_kerosene, na.rm = T),
+         sum_act_windows = sum(home_act_windows, na.rm = T),
+         sum_act_sweep = sum(home_act_sweep, na.rm = T)) %>% 
+  group_by(adult_id_char) %>% 
+  arrange(adult_id_char, sampling_date) %>% 
+  mutate(first_date = first(sampling_date),
+         cohort = round_date(first_date, unit = "year")) %>% 
+  separate(cohort, c("cohort", "trash"), sep = "-") %>% 
+  mutate(cohort = as.factor(cohort)) %>% 
+  select(-trash)
+  
+
+
+elders_distinct <- elders_cleaned_dataset_by_visit %>% 
+  arrange(area, home, winter_id, sampling_visit) %>% 
+  distinct(home, .keep_all = T)
+
+median(elders_distinct$home_year_built, na.rm = T)
+table(elders_distinct$sum_act_candle)
 ```
 
 Save final dataset
 ```{r}
-write_rds(health_pm_visit, paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds"))
+write_rds(elders_cleaned_dataset_by_visit, paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds"))
 
-write_csv(health_pm_visit, paste0(file_path, "Output/elders_cleaned_dataset_by_visit.csv"), na = " ")
+write_csv(elders_cleaned_dataset_by_visit, paste0(file_path, "Output/elders_cleaned_dataset_by_visit.csv"), na = " ")
 
 # save variable names to use in data dictionary
-save_var_names <- data.frame(t(health_pm_visit)) %>% 
+save_var_names <- data.frame(t(elders_cleaned_dataset_by_visit)) %>% 
   rownames_to_column() %>% 
   select(rowname)
 

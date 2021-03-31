@@ -1,0 +1,96 @@
+---
+title: 'EldersAIR: Main analysis - initial'
+author: "Ethan Walker"
+date: "Started 31 March 2021; Updated 31 March 2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, include = TRUE,
+                      message = FALSE, warning = FALSE)
+```
+
+```{r}
+library(readxl)
+library(naniar)
+library(lubridate)
+library(emmeans)
+library(broom)
+library(broom.mixed)
+library(zoo)
+library(lme4)
+library(lmerTest)
+library(mctest)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(MASS)
+library(faraway)
+library(DHARMa)
+```
+
+```{r}
+# Load data
+
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+treatments_blind_nn <- read_xlsx(paste0(file_path, "Input/NN/treatments_blind.xlsx")) %>% 
+  mutate(area = "NN")
+
+treatments_blind_npt <- read_xlsx(paste0(file_path, "Input/NP/treatments_blind.xlsx")) %>% 
+  mutate(area = "NPT")
+
+treatments_blind <- rbind(treatments_blind_nn, treatments_blind_npt) %>% 
+  mutate(home_id_num = as.factor(HomeID),
+         treatment_blind = as.factor(CodedCondition),
+         area = as.factor(area)) %>% 
+  dplyr::select(area, home_id_num, treatment_blind)
+
+elders_cleaned_dataset_by_visit <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) %>% 
+  left_join(treatments_blind, by = c("area", "home_id_num")) 
+```
+
+
+```{r}
+# Prep data to run through the model
+## select outcome variable
+### bp_sys, bp_dia, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp
+## calculate mean outcome per winter
+## spread data to 1 row per adult - so Winter 1/baseline outcome is a covariate
+analysis_data <- elders_cleaned_dataset_by_visit %>% 
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, adult_id_num, winter_id) %>% 
+  mutate(mean_outcome = mean(fvc_pp, na.rm = T)) %>% # select outcome here
+  ungroup() %>% 
+  distinct(area, adult_id_num, winter_id, .keep_all = T) %>% 
+  group_by(area, adult_id_num) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "mean_outcome") %>% 
+  mutate(mean_outcome = `2`,
+         baseline_outcome = `1`,
+         baseline_outcome = if_else(!is.na(mean_outcome), lag(baseline_outcome),
+                                    baseline_outcome)) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, mean_outcome = NaN)) %>% 
+  filter(!is.na(mean_outcome)) %>% 
+  ungroup()
+
+table(analysis_data$area, analysis_data$treatment_blind)
+```
+
+
+```{r}
+model_results <- lmer(mean_outcome ~ treatment_blind + baseline_outcome + 
+                      (1 | area), data = analysis_data)
+
+summary(model_results)
+
+tidy_results <- tidy(model_results, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value)
+tidy_results
+```
+
