@@ -94,3 +94,5 @@ tidy_results <- tidy(model_results, conf.int = TRUE) %>%
 tidy_results
 ```
 
+
+Add some diagnostic plots

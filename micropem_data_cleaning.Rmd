@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial Micropem data work"
 author: "Ethan Walker"
-date: "Started 2 March 2020, Updated 26 March 2021"
+date: "Started 2 March 2020, Updated 1 April 2021"
 output: pdf_document
 ---
 
@@ -437,7 +437,7 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 npt_micropem <- read_rds(paste0(file_path, "Output/npt_micropem_new.rds")) 
 
 
-npt_micropem_new <- npt_micropem %>%   
+npt_micropem_new <- npt_micropem_new3 %>%   
   group_by(area, mp_file_name) %>% 
   # new variables summarizing pm2.5 within each home
   mutate(pm_total_observations = n(),
@@ -450,7 +450,7 @@ npt_micropem_new <- npt_micropem %>%
          # total sampling interval, based on first and last datetimes
          pm_sample_interval = diff_datetime/86400,
          # expected number of observations with the sampling interval
-         expected_obs = pm_sample_interval*24*60,
+         expected_obs = as.numeric(pm_sample_interval*24*60),
          # difference between actual and expected observations
          actual_vs_expected_diff = pm_total_observations - expected_obs,
          # indicator variable if actual vs expected obs > 10 or greater
@@ -707,7 +707,7 @@ npt_summary_new
 ## This method filtered out 9 additional files, for a total of 16 files removed.
 # The steps below will use the methods on the full dataset
 
-npt_micropem_new <- npt_micropem %>% 
+npt_micropem_new2 <- npt_micropem_new %>% 
   group_by(mp_file_name) %>% 
   mutate(pm_personal_new = if_else(pm_personal < 0, 0, pm_personal),
          pm_mean_new = mean(pm_personal_new, na.rm = TRUE),
@@ -718,7 +718,61 @@ npt_micropem_new <- npt_micropem %>%
   filter(pm_indicator == 0) %>% 
   filter(pm_sample_interval > 1.6) 
 
-write_rds(npt_micropem_new, paste0(file_path, "Output/npt_micropem_new3.rds"))
+write_rds(npt_micropem_new2, paste0(file_path, "Output/npt_micropem_new3.rds"))
 ```
 
+
+# Calculate means and reduce number of rows
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+npt_micropem <- read_rds(paste0(file_path, "Output/npt_micropem_new3.rds")) 
+
+npt_micropem_clean <- npt_micropem %>% 
+  rename(mp_mean_visit = pm_mean_new) %>% 
+  separate(mp_file_name, into = c("adult_id_char", "trash"), sep = "_", remove = F) %>% 
+  mutate(adult_id_char = if_else(adult_id_char == "NPe5107a", "NPE5107a", adult_id_char),
+         adult_id_char = if_else(adult_id_char == "NPE5201", "NPE5201a", adult_id_char),
+         adult_id_char = if_else(adult_id_char == "NPE5206", "NPE5206a", adult_id_char),
+         adult_id_char = if_else(adult_id_char == "NPE5302", "NPE5302a", adult_id_char),
+         adult_id_char = if_else(adult_id_char == "NPE5303", "NPE5303a", adult_id_char),
+         adult_id_char = if_else(adult_id_char == "NPE5318", "NPE5318a", adult_id_char),
+         adult_id_char = if_else(adult_id_char == "NPE5402", "NPE5402a", adult_id_char),
+         adult_id_char = if_else(adult_id_char == "NPE5404", "NPE5404a", adult_id_char),
+         adult_id_char = if_else(adult_id_char == "NPE5406", "NPE5406a", adult_id_char),
+         adult_id_char = if_else(adult_id_char == "NPE5408", "NPE5408a", adult_id_char),
+         adult_id_char = if_else(adult_id_char == "NPE5410", "NPE5410a", adult_id_char),
+         adult_id_char = if_else(adult_id_char == "NPE5412", "NPE5412a", adult_id_char),
+         adult_id_char = if_else(adult_id_char == "NPE5414", "NPE5414a", adult_id_char),
+         adult_id_char = if_else(adult_id_char == "NPE5418a", "NPE5418", adult_id_char),
+         adult_id_char = if_else(adult_id_char == "NPE5413a", "NPE5413", adult_id_char),
+         adult_id_char = if_else(adult_id_char == "NPE5411a", "NPE5411", adult_id_char),
+         adult_id_char = if_else(adult_id_char == "NPE5407a", "NPE5407", adult_id_char),
+         adult_id_char = if_else(adult_id_char == "NPE5403a", "NPE5403", adult_id_char)) %>% 
+  group_by(adult_id_char, winter_id) %>% 
+  mutate(mp_mean_winter = mean(mp_mean_visit, na.rm = T)) %>% 
+  select(area, mp_file_name, adult_id_char, home:treatment, 
+         pm_total_observations:last_datetime,
+         mp_mean_visit, mp_mean_winter) %>% 
+  distinct(mp_file_name, .keep_all = T) %>% 
+  ungroup() %>% 
+  arrange(area, adult_id_char, winter_id, sampling_visit) %>% 
+  mutate(area = as.factor(area),
+         adult_id_char = as.factor(adult_id_char),
+         home_id_num = as.factor(home_id_num),
+         home_winter_id = as.factor(home_winter_id),
+         mpid = as.factor(mpid),
+         sampling_visit = as.factor(sampling_visit)) %>% 
+  rename(start_datetime_mp = start_datetime_pm,
+         stop_datetime_mp = stop_datetime_pm,
+         total_observations_mp = pm_total_observations,
+         first_datetime_mp = first_datetime,
+         last_datetime_mp = last_datetime) %>% 
+  select(-home, -start_date, -start_time, -stop_date, -stop_time,
+         -fb_file_name, -treatment)
+
+write_rds(npt_micropem_clean, paste0(file_path, "Output/npt_micropem_clean.rds"))
+
+summary(npt_micropem_clean)
+```
 

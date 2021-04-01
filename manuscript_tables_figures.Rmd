@@ -1,7 +1,7 @@
 ---
 title: 'EldersAIR: manuscript tables/figures'
 author: "Ethan Walker"
-date: "Started 1 March 2021, Updated 3 March 2021"
+date: "Started 1 March 2021, Updated 1 April 2021"
 output:
   powerpoint_presentation: default
 ---
@@ -28,17 +28,9 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
 
 
 ```{r}
-# Load individual datasets
+# Load data
 
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
-
-elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds"))
-
-elders_demographics <- read_rds(paste0(file_path, "Output/elders_demographics.rds"))
-
-elders_demographics_full <- read_rds(paste0(file_path, "Output/elders_demographics_full.rds"))
-
-elders_medvisit_clean <- read_rds(paste0(file_path, "Output/elders_medvisit_clean.rds"))
 
 treatments_blind_nn <- read_xlsx(paste0(file_path, "Input/NN/treatments_blind.xlsx")) %>% 
   mutate(area = "NN")
@@ -379,3 +371,4 @@ num_funct_treatment("home_act_door")
 num_funct_total("pm_mean_winter")
 num_funct_treatment("pm_mean_winter")
 ```
+

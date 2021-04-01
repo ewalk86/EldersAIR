@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR Med Visit Summary"
 author: "Ethan Walker"
-date: "Started 11 March 2020, Updated 12 March 2020"
+date: "Started 11 March 2020, Updated 1 April 2021"
 output: pdf_document
 ---
 
@@ -25,61 +25,297 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
 
 
 ```{r}
-file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
-
 # Load data
 
-elders_ids_linked <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) %>% 
-  filter(winter_id == 1 | winter_id == 2) %>% 
-  arrange(area, adult_id_num)
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
-elders_medvisit <- read_rds(paste0(file_path, "Output/elders_medvisit_clean.rds")) 
+treatments_blind_nn <- read_xlsx(paste0(file_path, "Input/NN/treatments_blind.xlsx")) %>% 
+  mutate(area = "NN")
+
+treatments_blind_npt <- read_xlsx(paste0(file_path, "Input/NP/treatments_blind.xlsx")) %>% 
+  mutate(area = "NPT")
+
+treatments_blind <- rbind(treatments_blind_nn, treatments_blind_npt) %>% 
+  mutate(home_id_num = as.factor(HomeID),
+         treatment_blind = as.factor(CodedCondition),
+         area = as.factor(area)) %>% 
+  select(area, home_id_num, treatment_blind)
+
+analysis_data <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) %>% 
+  left_join(treatments_blind, by = c("area", "home_id_num")) %>% 
+  ungroup()
 ```
 
 # Cardiovascular outcomes from Med visit
-```{r}
-medvisit_plot <- elders_medvisit %>% 
+```{r, fig.height=8.5, fig.width=8.5}
+medvisit_plot <- analysis_data %>% 
   filter(winter_id == 1) %>% 
-  select(area, sp02, pr, bp_sys, bp_dia, hr, age, height_inches,
-         weight_lbs, bmi) %>% 
+  select(area, treatment_blind, sp02, pr, bp_sys, bp_dia, hr, age, height_inches,
+         weight_lbs, bmi, adult_id_char) %>% 
   pivot_longer(cols = c("sp02":"bmi"), names_to = "var") %>% 
   filter(!is.na(value)) %>% 
-  ggplot(aes(area, value)) +
+  arrange(area, adult_id_char, var) %>% 
+  group_by(area, adult_id_char, var) %>% 
+  mutate(outcome = mean(value, na.rm = T)) %>% 
+  ungroup() %>% 
+  ggplot(aes(treatment_blind, outcome)) + 
     geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
-               fatten = 1, outlier.size = 1.5, width = 0.35) +theme_minimal() +
-    theme(strip.text = element_text(size = 16, colour = "black"),
-          axis.text.x = element_text(size = 16, colour = "black"),
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    labs(title = "Winter 1") +
+    theme_minimal() +
+    theme(plot.title = element_text(size = 18, colour = "black"),
+          strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black", 
+                                     angle = 45, vjust = 0.5),
           axis.text.y = element_text(size = 16, colour = "black"),
-          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_blank(),
           axis.title.x = element_blank(),
           axis.line.x = element_line(colour = "black", size = 1.2), 
           axis.line.y = element_line(colour = "black", size = 1.2), 
           axis.ticks = element_blank()) +
-    facet_wrap(~var, scales = "free_y")
+    facet_wrap(~var, scales = "free")
+medvisit_plot
+```
+
+```{r, fig.height=8.5, fig.width=8.5}
+medvisit_plot <- analysis_data %>% 
+  filter(winter_id == 2) %>% 
+  select(area, treatment_blind, sp02, pr, bp_sys, bp_dia, hr, age, height_inches,
+         weight_lbs, bmi, adult_id_char) %>% 
+  pivot_longer(cols = c("sp02":"bmi"), names_to = "var") %>% 
+  filter(!is.na(value)) %>% 
+  arrange(area, adult_id_char, var) %>% 
+  group_by(area, adult_id_char, var) %>% 
+  mutate(outcome = mean(value, na.rm = T)) %>% 
+  ungroup() %>% 
+  ggplot(aes(treatment_blind, outcome)) + 
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    labs(title = "Winter 2") +
+    theme_minimal() +
+    theme(plot.title = element_text(size = 18, colour = "black"),
+          strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black", 
+                                     angle = 45, vjust = 0.5),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) +
+    facet_wrap(~var, scales = "free")
 medvisit_plot
 ```
 
 
+```{r, fig.height=8.5, fig.width=8.5}
+medvisit_plot <- analysis_data %>% 
+  filter(winter_id == 1) %>% 
+  select(area, treatment_blind, sp02, pr, bp_sys, bp_dia, hr, age, height_inches,
+         weight_lbs, bmi, adult_id_char) %>% 
+  pivot_longer(cols = c("sp02":"bmi"), names_to = "var") %>% 
+  filter(!is.na(value)) %>% 
+  arrange(area, adult_id_char, var) %>% 
+  group_by(area, adult_id_char, var) %>% 
+  mutate(outcome = mean(value, na.rm = T)) %>% 
+  ungroup() %>% 
+  ggplot(aes(outcome)) + 
+    geom_histogram(aes(outcome), colour = "black") +
+    labs(title = "Winter 1") +
+    theme_minimal() +
+    theme(plot.title = element_text(size = 18, colour = "black"),
+          strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black", 
+                                     angle = 45, vjust = 0.5),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) +
+    facet_wrap(~var, scales = "free")
+medvisit_plot
+```
 
-```{r}
-# Cardio plot function
+```{r, fig.height=8.5, fig.width=8.5}
+medvisit_plot <- analysis_data %>% 
+  filter(winter_id == 2) %>% 
+  select(area, treatment_blind, sp02, pr, bp_sys, bp_dia, hr, age, height_inches,
+         weight_lbs, bmi, adult_id_char) %>% 
+  pivot_longer(cols = c("sp02":"bmi"), names_to = "var") %>% 
+  filter(!is.na(value)) %>% 
+  arrange(area, adult_id_char, var) %>% 
+  group_by(area, adult_id_char, var) %>% 
+  mutate(outcome = mean(value, na.rm = T)) %>% 
+  ungroup() %>% 
+  ggplot(aes(outcome)) + 
+    geom_histogram(aes(outcome), colour = "black") +
+    labs(title = "Winter 2") +
+    theme_minimal() +
+    theme(plot.title = element_text(size = 18, colour = "black"),
+          strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black", 
+                                     angle = 45, vjust = 0.5),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) +
+    facet_wrap(~var, scales = "free")
+medvisit_plot
+```
+
+
+# Spirometry outcomes from Med visit
+```{r, fig.height=6, fig.width=8.5}
+medvisit_plot <- analysis_data %>% 
+  filter(winter_id == 1) %>% 
+  filter(spiro_status == "Acceptable") %>% 
+  select(area, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp,
+         treatment_blind, adult_id_char) %>% 
+  pivot_longer(cols = c("fvc":"fev1_pp"), names_to = "var") %>% 
+  filter(!is.na(value)) %>% 
+  arrange(area, adult_id_char, var) %>% 
+  group_by(area, adult_id_char, var) %>% 
+  mutate(outcome = mean(value, na.rm = T)) %>% 
+  ungroup() %>% 
+  ggplot(aes(treatment_blind, value)) +
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    labs(title = "Winter 1") +
+    theme_minimal() +
+    theme(plot.title = element_text(size = 18, colour = "black"),
+          strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     vjust = 0.5),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) +
+    facet_wrap(~var, scales = "free")
+medvisit_plot
+```
+
+```{r, fig.height=6, fig.width=8.5}
+medvisit_plot <- analysis_data %>% 
+  filter(winter_id == 2) %>% 
+  filter(spiro_status == "Acceptable") %>% 
+  select(area, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp,
+         treatment_blind, adult_id_char) %>% 
+  pivot_longer(cols = c("fvc":"fev1_pp"), names_to = "var") %>% 
+  filter(!is.na(value)) %>% 
+  arrange(area, adult_id_char, var) %>% 
+  group_by(area, adult_id_char, var) %>% 
+  mutate(outcome = mean(value, na.rm = T)) %>% 
+  ungroup() %>% 
+  ggplot(aes(treatment_blind, value)) +
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    labs(title = "Winter 2") +
+    theme_minimal() +
+    theme(plot.title = element_text(size = 18, colour = "black"),
+          strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     vjust = 0.5),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) +
+    facet_wrap(~var, scales = "free")
+medvisit_plot
+```
+
+
+```{r, fig.height=8.5, fig.width=8.5}
+medvisit_plot <- analysis_data %>% 
+  filter(winter_id == 1) %>% 
+  filter(spiro_status == "Acceptable") %>% 
+  select(area, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp,
+         treatment_blind, adult_id_char) %>% 
+  pivot_longer(cols = c("fvc":"fev1_pp"), names_to = "var") %>% 
+  filter(!is.na(value)) %>% 
+  arrange(area, adult_id_char, var) %>% 
+  group_by(area, adult_id_char, var) %>% 
+  mutate(outcome = mean(value, na.rm = T),
+         var = as.factor(var)) %>% 
+  ungroup() %>% 
+  ggplot() + 
+    geom_histogram(aes(outcome), colour = "black") +
+    labs(title = "Winter 1") +
+    theme_minimal() +
+    theme(plot.title = element_text(size = 18, colour = "black"),
+          strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black", 
+                                     angle = 45, vjust = 0.5),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) +
+    facet_wrap(~var, scales = "free")
+medvisit_plot
+```
+
+```{r, fig.height=8.5, fig.width=8.5}
+medvisit_plot <- analysis_data %>% 
+  filter(winter_id == 2) %>% 
+  filter(spiro_status == "Acceptable") %>% 
+  select(area, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp,
+         treatment_blind, adult_id_char) %>% 
+  pivot_longer(cols = c("fvc":"fev1_pp"), names_to = "var") %>% 
+  filter(!is.na(value)) %>% 
+  arrange(area, adult_id_char, var) %>% 
+  group_by(area, adult_id_char, var) %>% 
+  mutate(outcome = mean(value, na.rm = T),
+         var = as.factor(var)) %>% 
+  ungroup() %>% 
+  ggplot() + 
+    geom_histogram(aes(outcome), colour = "black") +
+    labs(title = "Winter 2") +
+    theme_minimal() +
+    theme(plot.title = element_text(size = 18, colour = "black"),
+          strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black", 
+                                     angle = 45, vjust = 0.5),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) +
+    facet_wrap(~var, scales = "free")
+medvisit_plot
+```
+
+
+```{r, fig.height=6, fig.width=8.5, echo = FALSE, eval = FALSE, include = FALSE}
+# Health outcomes plot function
 
 medvisit_summary_function <- function(data, var, title_label, y_label) {
   
   medvisit_summary <- data %>% 
     filter(winter_id == 1) %>% 
     #select(var) %>% 
-    select(area, var) %>% 
-    group_by(area) %>% 
+    select(treatment_blind, var) %>% 
+    group_by(treatment_blind) %>% 
     summarize_all(list(mean=mean, sd=sd, min=min, med=median, max=max), na.rm = TRUE)
   medvisit_summary <<- medvisit_summary
   
   medvisit_plot <- data %>% 
     filter(winter_id == 1) %>% 
-    select(area, var) %>% 
+    select(area, adult_id_char, treatment_blind, var) %>% 
     rename(plot_var = var) %>% 
     filter(!is.na(plot_var)) %>% 
-    ggplot(aes(area, plot_var)) +
+    group_by(area, adult_id_char) %>% 
+    mutate(outcome = mean(plot_var, na.rm = T)) %>% 
+    ungroup() %>% 
+    ggplot(aes(treatment_blind, outcome)) +
     geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
                fatten = 1, outlier.size = 1.5, width = 0.35) +
     stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red",
@@ -105,98 +341,27 @@ medvisit_summary_function <- function(data, var, title_label, y_label) {
   
 }
 
-medvisit_summary_function(elders_medvisit, "sp02", "Sp02", "%")
-medvisit_summary_function(elders_medvisit, "pr", "Sp02 pulse rate", "beats/min")
-medvisit_summary_function(elders_medvisit, "bp_sys", "Systolic blood pressure", "mmHg")
-medvisit_summary_function(elders_medvisit, "bp_dia", "Diastolic blood pressure", "mmHg")
-medvisit_summary_function(elders_medvisit, "hr", "Heart rate from BP", "beats/min")
-medvisit_summary_function(elders_medvisit, "age", "Age", "years")
-medvisit_summary_function(elders_medvisit, "height_inches", "Height", "inches")
-medvisit_summary_function(elders_medvisit, "weight_lbs", "Weight", "pounds")
-medvisit_summary_function(elders_medvisit, "bmi", "BMI", "kg/m2")
+medvisit_summary_function(analysis_data, "sp02", "Sp02", "%")
+medvisit_summary_function(analysis_data, "pr", "Sp02 pulse rate", "beats/min")
+medvisit_summary_function(analysis_data, "bp_sys", "Systolic blood pressure", "mmHg")
+medvisit_summary_function(analysis_data, "bp_dia", "Diastolic blood pressure", "mmHg")
+medvisit_summary_function(analysis_data, "hr", "Heart rate from BP", "beats/min")
+medvisit_summary_function(analysis_data, "age", "Age", "years")
+medvisit_summary_function(analysis_data, "height_inches", "Height", "inches")
+medvisit_summary_function(analysis_data, "weight_lbs", "Weight", "pounds")
+medvisit_summary_function(analysis_data, "bmi", "BMI", "kg/m2")
+medvisit_summary_function(analysis_data, "fvc", "Forced vital capacity", "liters")
+medvisit_summary_function(analysis_data, "fev1", "Forced expiratory volume", "liters")
+medvisit_summary_function(analysis_data, "fev1_fvc_ratio", "FEV1/FVC ratio", " ")
+medvisit_summary_function(analysis_data, "fvc_pp", "FVC percent predicted", "%")
+medvisit_summary_function(analysis_data, "fev1_pp", "FEV1 percent predicted", "%")
 ```
 
 
-# Spirometry outcomes from Med visit
-## Using only observations when spiro session graded as "acceptable"
-```{r}
-medvisit_plot <- elders_medvisit %>% 
-  filter(winter_id == 1) %>% 
-  filter(spiro_status == "Acceptable") %>% 
-  select(area, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp) %>% 
-  pivot_longer(cols = c("fvc":"fev1_pp"), names_to = "var") %>% 
-  filter(!is.na(value)) %>% 
-  ggplot(aes(area, value)) +
-    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
-               fatten = 1, outlier.size = 1.5, width = 0.35) +theme_minimal() +
-    theme(strip.text = element_text(size = 16, colour = "black"),
-          axis.text.x = element_text(size = 16, colour = "black"),
-          axis.text.y = element_text(size = 16, colour = "black"),
-          axis.title.y = element_text(size = 16, colour = "black"),
-          axis.title.x = element_blank(),
-          axis.line.x = element_line(colour = "black", size = 1.2), 
-          axis.line.y = element_line(colour = "black", size = 1.2), 
-          axis.ticks = element_blank()) +
-    facet_wrap(~var, scales = "free_y")
-medvisit_plot
-```
 
+```{r, fig.height=3, fig.width=2.75, echo = FALSE, eval = FALSE, include = FALSE}
+###### From here down is older code for the ISEE 2020 poster ###########
 
-```{r}
-# Spiro plot function
-
-medvisit_summary_function <- function(data, var, title_label, y_label) {
-  
-  medvisit_summary <- data %>% 
-    filter(winter_id == 1) %>% 
-    filter(spiro_status == "Acceptable") %>% 
-    #select(var) %>% 
-    select(area, var) %>% 
-    group_by(area) %>% 
-    summarize_all(list(mean=mean, sd=sd, min=min, med=median, max=max), na.rm = TRUE)
-  medvisit_summary <<- medvisit_summary
-  
-  medvisit_plot <- data %>% 
-    filter(winter_id == 1) %>% 
-    filter(spiro_status == "Acceptable") %>% 
-    select(area, var) %>% 
-    rename(plot_var = var) %>% 
-    na.exclude() %>% 
-    ggplot(aes(area, plot_var)) +
-    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
-               fatten = 1, outlier.size = 1.5, width = 0.35) +
-    stat_summary(fun.y=mean, geom="point", shape=17, size=4, color="red",
-                 position=position_nudge(x = -0.1, y = 0)) +
-    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=mean, geom="text", 
-                 size=7, position=position_nudge(x = -0.3, y = 0)) +
-    stat_summary(fun.y=median, geom="point", shape=16, size=4, color="blue",
-                 position=position_nudge(x = 0.1, y = 0)) +
-    stat_summary(aes(label=round(..y.., digits = 1)), fun.y=median, geom="text", 
-                 size=7, position=position_nudge(x = 0.3, y = 0)) +
-    theme_minimal() +
-    labs(title = title_label, subtitle = "Mean = Red, Median = Blue") +
-    ylab(y_label) +
-    theme(title = element_text(size = 20, colour = "black"),
-          axis.text.x = element_text(size = 16, colour = "black"),
-          axis.text.y = element_text(size = 16, colour = "black"),
-          axis.title.y = element_text(size = 16, colour = "black"),
-          axis.title.x = element_blank(),
-          axis.line.x = element_line(colour = "black", size = 1.2), 
-          axis.line.y = element_line(colour = "black", size = 1.2), 
-          axis.ticks = element_blank()) 
-  medvisit_plot
-  
-}
-
-medvisit_summary_function(elders_medvisit, "fvc", "Forced vital capacity", "liters")
-medvisit_summary_function(elders_medvisit, "fev1", "Forced expiratory volume", "liters")
-medvisit_summary_function(elders_medvisit, "fev1_fvc_ratio", "FEV1/FVC ratio", " ")
-medvisit_summary_function(elders_medvisit, "fvc_pp", "FVC percent predicted", "%")
-medvisit_summary_function(elders_medvisit, "fev1_pp", "FEV1 percent predicted", "%")
-```
-
-
-```{r, fig.height=3, fig.width=2.75}
 # function for poster plots
 
 medvisit_summary_function <- function(data, var, title_label, y_label) {
@@ -226,7 +391,7 @@ medvisit_summary_function <- function(data, var, title_label, y_label) {
   
 }
 
-medvisit_summary_function(elders_medvisit, "fvc", "Forced vital \ncapacity", "Liters")
+medvisit_summary_function(analysis_data, "fvc", "Forced vital \ncapacity", "Liters")
 medvisit_summary_function(elders_medvisit, "fev1", "Forced expiratory \nvolume", "Liters")
 medvisit_summary_function(elders_medvisit, "fev1_fvc_ratio", "FEV1/FVC \nratio", " ")
 medvisit_summary_function(elders_medvisit, "fvc_pp", "FVC percent \npredicted", "%")
@@ -238,7 +403,7 @@ medvisit_summary_function(elders_medvisit, "bmi", "Body mass \nindex", "kg/m2")
 ```
 
 
-```{r, fig.height=3, fig.width=3}
+```{r, fig.height=3, fig.width=3, echo = FALSE, eval = FALSE, include = FALSE}
 # poster figures
 obstruction_data <- elders_medvisit %>% 
   arrange(home, adult_id_num, winter_id, sampling_visit) %>% 
@@ -306,7 +471,7 @@ medvisit_summary_function(obstruction_data, "obs_any", "FEV1/FVC ratio \n< 0.7")
 ```
 
 
-```{r}
+```{r, echo = FALSE, eval = FALSE, include = FALSE}
 summary_stats <- elders_medvisit %>% 
   filter(winter_id == 1) %>% 
   #filter(spiro_status == "Acceptable") %>% 

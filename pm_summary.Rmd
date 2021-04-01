@@ -1,0 +1,349 @@
+---
+title: "Elders PM Summary"
+author: "Ethan Walker"
+date: "Started 24 Feb 2020, Updated 1 April 2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, 
+                      include = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readr)
+library(naniar)
+library(readxl)
+library(knitr)
+library(lubridate)
+library(gridExtra)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", 
+               "#0072B2", "#D55E00", "#CC79A7")
+```
+
+```{r}
+# Load data
+
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+treatments_blind_nn <- read_xlsx(paste0(file_path, "Input/NN/treatments_blind.xlsx")) %>% 
+  mutate(area = "NN")
+
+treatments_blind_npt <- read_xlsx(paste0(file_path, "Input/NP/treatments_blind.xlsx")) %>% 
+  mutate(area = "NPT")
+
+treatments_blind <- rbind(treatments_blind_nn, treatments_blind_npt) %>% 
+  mutate(home_id_num = as.factor(HomeID),
+         treatment_blind = as.factor(CodedCondition),
+         area = as.factor(area)) %>% 
+  select(area, home_id_num, treatment_blind)
+
+analysis_data <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) %>% 
+  left_join(treatments_blind, by = c("area", "home_id_num")) 
+```
+
+# Area PM (dusttrak) summary stats
+```{r}
+summary_stats <- analysis_data %>% 
+  distinct(area, home, winter_id, .keep_all = TRUE) %>% 
+  group_by(treatment_blind, winter_id) %>% 
+  summarize("n" = n(),
+            "Mean PM" = round(mean(pm_mean_winter, na.rm = TRUE), 1), 
+            "SD PM" = round(sd(pm_mean_winter, na.rm = TRUE), 1),
+            "Min PM" = round(min(pm_mean_winter, na.rm = TRUE), 1), 
+            "25%" = round(quantile(pm_mean_winter, 0.25, na.rm = TRUE), 1),
+            "Median PM" = round(median(pm_mean_winter, na.rm = TRUE), 1),
+            "75%" = round(quantile(pm_mean_winter, 0.75, na.rm = TRUE), 1),
+            "Max PM" = round(max(pm_mean_winter, na.rm = TRUE), 1),
+            "Mean Sample Days" = round(mean(pm_sample_interval, na.rm = TRUE), 1),
+            "SD Sample Days" = round(sd(pm_sample_interval, na.rm = TRUE), 1)) %>% 
+   t() 
+kable(summary_stats, align = "c")
+```
+
+\pagebreak  
+
+```{r, fig.height=8.5, fig.width=8.5}
+area_pm_plot <- analysis_data %>% 
+  filter(winter_id == 1) %>% 
+  filter(pm_mean_visit < 150) %>% 
+  filter(pm_mean_at_home_visit < 150) %>% 
+  select(area, treatment_blind, adult_id_char, mp_mean_visit,
+         pm_mean_visit, pm_mean_at_home_visit, moisture_ave,
+         rh_indoor_min, rh_indoor_max, temp_indoor_min, temp_indoor_max) %>% 
+  rename(pm_at_home_mean = pm_mean_at_home_visit,
+         pm_mean = pm_mean_visit,
+         micropem_mean = mp_mean_visit) %>% 
+  pivot_longer(cols = c("micropem_mean":"temp_indoor_max"), names_to = "var") %>% 
+  filter(!is.na(value)) %>% 
+  arrange(area, adult_id_char, var) %>% 
+  group_by(area, adult_id_char, var) %>% 
+  mutate(outcome = mean(value, na.rm = T)) %>% 
+  ungroup() %>% 
+  ggplot(aes(treatment_blind, outcome)) + 
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    labs(title = "Winter 1") +
+    theme_minimal() +
+    theme(plot.title = element_text(size = 18, colour = "black"),
+          strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black", 
+                                     angle = 45, vjust = 0.5),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) +
+    facet_wrap(~var, scales = "free")
+area_pm_plot
+```
+
+
+```{r, fig.height=8.5, fig.width=8.5}
+area_pm_plot <- analysis_data %>% 
+  filter(winter_id == 2) %>% 
+  filter(pm_mean_visit < 150) %>% 
+  filter(pm_mean_at_home_visit < 150) %>% 
+  select(area, treatment_blind, adult_id_char, mp_mean_visit,
+         pm_mean_visit, pm_mean_at_home_visit, moisture_ave,
+         rh_indoor_min, rh_indoor_max, temp_indoor_min, temp_indoor_max) %>% 
+  rename(pm_at_home_mean = pm_mean_at_home_visit,
+         pm_mean = pm_mean_visit,
+         micropem_mean = mp_mean_visit) %>% 
+  pivot_longer(cols = c("micropem_mean":"temp_indoor_max"), names_to = "var") %>% 
+  filter(!is.na(value)) %>% 
+  arrange(area, adult_id_char, var) %>% 
+  group_by(area, adult_id_char, var) %>% 
+  mutate(outcome = mean(value, na.rm = T)) %>% 
+  ungroup() %>% 
+  ggplot(aes(treatment_blind, outcome)) + 
+    geom_boxplot(aes(size = 1), lwd = 1.2, colour = "black", 
+               fatten = 1, outlier.size = 1.5, width = 0.35) +
+    labs(title = "Winter 2") +
+    theme_minimal() +
+    theme(plot.title = element_text(size = 18, colour = "black"),
+          strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black", 
+                                     angle = 45, vjust = 0.5),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) +
+    facet_wrap(~var, scales = "free")
+area_pm_plot
+```
+
+
+```{r, fig.height=8.5, fig.width=8.5}
+area_pm_plot <- analysis_data %>% 
+  filter(winter_id == 1) %>% 
+  select(area, treatment_blind, adult_id_char, mp_mean_visit,
+         pm_mean_visit, pm_mean_at_home_visit, moisture_ave,
+         rh_indoor_min, rh_indoor_max, temp_indoor_min, temp_indoor_max) %>% 
+  rename(pm_at_home_mean = pm_mean_at_home_visit,
+         pm_mean = pm_mean_visit,
+         micropem_mean = mp_mean_visit) %>% 
+  pivot_longer(cols = c("micropem_mean":"temp_indoor_max"), names_to = "var") %>% 
+  filter(!is.na(value)) %>% 
+  arrange(area, adult_id_char, var) %>% 
+  group_by(area, adult_id_char, var) %>% 
+  mutate(outcome = mean(value, na.rm = T)) %>% 
+  ungroup() %>% 
+  ggplot() + 
+    geom_histogram(aes(outcome), colour = "black") +
+    labs(title = "Winter 1") +
+    theme_minimal() +
+    theme(plot.title = element_text(size = 18, colour = "black"),
+          strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black", 
+                                     angle = 45, vjust = 0.5),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) +
+    facet_wrap(~var, scales = "free")
+area_pm_plot
+```
+
+
+```{r, fig.height=8.5, fig.width=8.5}
+area_pm_plot <- analysis_data %>% 
+  filter(winter_id == 2) %>% 
+  select(area, treatment_blind, adult_id_char, mp_mean_visit,
+         pm_mean_visit, pm_mean_at_home_visit, moisture_ave,
+         rh_indoor_min, rh_indoor_max, temp_indoor_min, temp_indoor_max) %>% 
+  rename(pm_at_home_mean = pm_mean_at_home_visit,
+         pm_mean = pm_mean_visit,
+         micropem_mean = mp_mean_visit) %>% 
+  pivot_longer(cols = c("micropem_mean":"temp_indoor_max"), names_to = "var") %>% 
+  filter(!is.na(value)) %>% 
+  arrange(area, adult_id_char, var) %>% 
+  group_by(area, adult_id_char, var) %>% 
+  mutate(outcome = mean(value, na.rm = T)) %>% 
+  ungroup() %>% 
+  ggplot() + 
+    geom_histogram(aes(outcome), colour = "black") +
+    labs(title = "Winter 2") +
+    theme_minimal() +
+    theme(plot.title = element_text(size = 18, colour = "black"),
+          strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black", 
+                                     angle = 45, vjust = 0.5),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_blank(),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank()) +
+    facet_wrap(~var, scales = "free")
+area_pm_plot
+```
+
+\pagebreak  
+
+# Personal PM (micropem) summary stats
+```{r}
+summary_stats <- analysis_data %>% 
+  distinct(area, adult_id_char, winter_id, .keep_all = TRUE) %>% 
+  filter(!is.na(mp_mean_winter)) %>% 
+  group_by(treatment_blind, winter_id) %>% 
+  summarize("n" = n(),
+            "Mean PM" = round(mean(mp_mean_winter, na.rm = TRUE), 1), 
+            "SD PM" = round(sd(mp_mean_winter, na.rm = TRUE), 1),
+            "Min PM" = round(min(mp_mean_winter, na.rm = TRUE), 1), 
+            "25%" = round(quantile(mp_mean_winter, 0.25, na.rm = TRUE), 1),
+            "Median PM" = round(median(mp_mean_winter, na.rm = TRUE), 1),
+            "75%" = round(quantile(mp_mean_winter, 0.75, na.rm = TRUE), 1),
+            "Max PM" = round(max(mp_mean_winter, na.rm = TRUE), 1)) %>% 
+   t() 
+kable(summary_stats, align = "c")
+```
+
+
+
+
+
+```{r, echo = FALSE, eval = FALSE, include = FALSE}
+# homes that exceed PM guidelines
+pm_guidelines <- analysis_data %>% 
+  filter(winter_id == 1) %>% 
+  filter(pm_mean_winter > 12) %>% 
+  distinct(home, .keep_all = TRUE) %>% 
+  group_by(area) %>% 
+  count()
+pm_guidelines
+```
+
+
+
+```{r, echo = FALSE, eval = FALSE, include = FALSE}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds")) 
+elders_temp_rh_clean <- read_rds(paste0(file_path, "Output/elders_temp_rh_clean.rds"))
+
+
+# Summary data for results letters to send to participants
+home_summary <- elders_pm %>% 
+  left_join(elders_temp_rh_clean, by = c("area", "home", "winter_id", "sampling_visit")) %>% 
+  filter(area == "NPT") %>% 
+  filter(winter_id == 1 | winter_id == 2) %>% 
+  group_by(area, home, winter_id) %>% 
+  mutate("Min RH (%)" = round(mean(rh_indoor_min, na.rm = TRUE), digits = 0),
+         "Max RH (%)" = round(mean(rh_indoor_max, na.rm = TRUE), digits = 0),
+         "Mean PM2.5 (ug/m3)" = round(pm_mean_winter), digits = 0) %>% 
+  distinct(area, home, .keep_all = TRUE) %>% 
+  select(area, home, winter_id, "Mean PM2.5 (ug/m3)", "Min RH (%)", "Max RH (%)") %>%
+  rename(Area = area,
+         Home = home,
+         Winter = winter_id) %>% 
+  replace_with_na(replace = list("Min RH (%)" = "NaN")) %>% 
+  replace_with_na(replace = list("Max RH (%)" = "NaN")) %>% 
+  arrange(Home, Winter) 
+  
+write_csv(home_summary, paste0(file_path, "Output/elders_letter_data.csv"), na = "")
+
+
+overall_summary <- elders_pm %>% 
+  left_join(elders_temp_rh_clean, by = c("area", "home", "winter_id", "sampling_visit")) %>% 
+  filter(area == "NPT") %>% 
+  filter(winter_id == 1 | winter_id == 2) %>% 
+  group_by(winter_id) %>% 
+  summarize(mean_pm = round(mean(pm_mean_winter, na.rm = TRUE), digits = 0),
+            min_pm = round(min(pm_mean_winter, na.rm = TRUE), digits = 0),
+            max_pm = round(max(pm_mean_winter, na.rm = TRUE), digits = 0),
+            mean_min_rh = round(mean(rh_indoor_min, na.rm = TRUE), digits = 0),
+            min_min_rh = round(min(rh_indoor_min, na.rm = TRUE), digits = 0),
+            max_min_rh = round(max(rh_indoor_min, na.rm = TRUE), digits = 0),
+            mean_max_rh = round(mean(rh_indoor_max, na.rm = TRUE), digits = 0),
+            min_max_rh = round(min(rh_indoor_max, na.rm = TRUE), digits = 0),
+            max_max_rh = round(max(rh_indoor_max, na.rm = TRUE), digits = 0))
+overall_summary
+
+write_csv(overall_summary, paste0(file_path, "Output/elders_letter_summary_data.csv"), na = "")
+```
+
+
+```{r, echo = FALSE, eval = FALSE, include = FALSE}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+elders_pm <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds")) 
+
+
+elders_pm_visit <- elders_pm %>% 
+  arrange(area, home_winter_id, sampling_visit, pm_mean_visit) %>% 
+  distinct(area, home_winter_id, pm_mean_visit, .keep_all = TRUE)
+
+write_rds(elders_pm_visit, paste0(file_path, "Output/elders_pm_visit.rds"))
+
+
+elders_pm_winter <- elders_pm %>% 
+  arrange(area, home_winter_id, pm_mean_winter) %>% 
+  distinct(area, home_winter_id, pm_mean_winter, .keep_all = TRUE)
+
+write_rds(elders_pm_winter, paste0(file_path, "Output/elders_pm_winter.rds"))
+```
+
+
+```{r, echo = FALSE, eval = FALSE, include = FALSE}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+elders_pm_visit <- read_rds(paste0(file_path, "Output/elders_pm_visit.rds")) 
+elders_pm_winter <- read_rds(paste0(file_path, "Output/elders_pm_winter.rds")) 
+elders_kw_report_clean <- 
+  read_rds(paste0(file_path, "Output/elders_kw_report_clean.rds"))
+
+
+winter2_summary <- elders_pm_winter %>% 
+  left_join(elders_kw_report_clean, by = c("area", "home",
+                                           "treatment")) %>% 
+  mutate(treatment = as.character(treatment),
+         filter_type = as.character(filter_type),
+         treatment_filter_type = if_else(treatment == "Filter", filter_type, treatment),
+         treatment_filter_type = factor(treatment_filter_type,
+                                        levels = c("Placebo", "Education",
+                                                   "Large Filtrete", "Winix"))) %>% 
+  #filter(treatment_filter_type != "Filter" & treatment_filter_type != "Placebo") %>% 
+  filter(!is.na(treatment_filter_type)) %>% 
+  #filter(winter_id.x == 2) %>% 
+  group_by(winter_id.x, treatment) %>% 
+  summarize("Mean PM" = mean(pm_mean_winter, na.rm = TRUE),
+            "n" = n(),
+            "SD PM" = sd(pm_mean_winter, na.rm = TRUE),
+            "Min PM" = min(pm_mean_winter, na.rm = TRUE),
+            "Median PM" = median(pm_mean_winter, na.rm = TRUE),
+            "Max PM" = max(pm_mean_winter, na.rm = TRUE))
+winter2_summary
+
+
+png("Elders_PM_treatment_filter.png", width=1200, height=480, bg = "white")
+grid.table(winter2_summary)
+dev.off()
+```
+

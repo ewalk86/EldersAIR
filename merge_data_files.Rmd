@@ -1,7 +1,7 @@
 ---
 title: 'EldersAIR: data merging for analysis dataset'
 author: "Ethan Walker"
-date: "Started 11 March 2021, Updated 15 March 2021"
+date: "Started 11 March 2021, Updated 1 April 2021"
 output:
   powerpoint_presentation: default
 ---
@@ -47,6 +47,8 @@ elders_health_extra_clean <- read_rds(paste0(file_path, "Output/elders_health_ex
 #elders_pm_long <- read_rds(paste0(file_path, "Output/elders_pm_clean.rds")) 
 
 elders_pm_at_home_visit <- read_rds(paste0(file_path, "Output/pm_at_home_visit.rds")) 
+
+npt_micropem_clean <- read_rds(paste0(file_path, "Output/npt_micropem_clean.rds")) 
 
 elders_stove_grades_clean <- read_rds(paste0(file_path, "Output/elders_stove_grades_clean.rds")) 
 
@@ -149,6 +151,9 @@ health_pm_visit <- elders_medvisit_clean %>%
   left_join(elders_health_hx_clean,
             by = c("area", "home", "home_id_num", "adult_id_char", "adult_id_num",
                    "home_winter_id", "winter_id", "treatment")) %>% 
+  left_join(npt_micropem_clean,
+            by = c("area", "home_id_num", "adult_id_char", 
+                   "home_winter_id", "winter_id", "sampling_visit")) %>% 
   left_join(elders_stove_grades_clean,
             by = c("area", "home", "home_id_num", "treatment")) %>% 
   left_join(elders_stove_usage_clean,
@@ -224,7 +229,8 @@ elders_cleaned_dataset_by_visit <- health_pm_visit %>%
          cohort = round_date(first_date, unit = "year")) %>% 
   separate(cohort, c("cohort", "trash"), sep = "-") %>% 
   mutate(cohort = as.factor(cohort)) %>% 
-  select(-trash)
+  select(-trash) %>% 
+  ungroup()
   
 
 
