@@ -1,7 +1,7 @@
 ---
 title: "Elders PM Summary"
 author: "Ethan Walker"
-date: "Started 24 Feb 2020, Updated 1 April 2021"
+date: "Started 24 Feb 2020, Updated 2 April 2021"
 output: pdf_document
 ---
 
@@ -40,7 +40,7 @@ treatments_blind <- rbind(treatments_blind_nn, treatments_blind_npt) %>%
   mutate(home_id_num = as.factor(HomeID),
          treatment_blind = as.factor(CodedCondition),
          area = as.factor(area)) %>% 
-  select(area, home_id_num, treatment_blind)
+  dplyr::select(area, home_id_num, treatment_blind)
 
 analysis_data <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) %>% 
   left_join(treatments_blind, by = c("area", "home_id_num")) 
@@ -70,9 +70,9 @@ kable(summary_stats, align = "c")
 ```{r, fig.height=8.5, fig.width=8.5}
 area_pm_plot <- analysis_data %>% 
   filter(winter_id == 1) %>% 
-  filter(pm_mean_visit < 150) %>% 
-  filter(pm_mean_at_home_visit < 150) %>% 
-  select(area, treatment_blind, adult_id_char, mp_mean_visit,
+  #filter(pm_mean_visit < 150) %>% 
+  #filter(pm_mean_at_home_visit < 150) %>% 
+  dplyr::select(area, treatment_blind, adult_id_char, mp_mean_visit,
          pm_mean_visit, pm_mean_at_home_visit, moisture_ave,
          rh_indoor_min, rh_indoor_max, temp_indoor_min, temp_indoor_max) %>% 
   rename(pm_at_home_mean = pm_mean_at_home_visit,
@@ -107,9 +107,9 @@ area_pm_plot
 ```{r, fig.height=8.5, fig.width=8.5}
 area_pm_plot <- analysis_data %>% 
   filter(winter_id == 2) %>% 
-  filter(pm_mean_visit < 150) %>% 
-  filter(pm_mean_at_home_visit < 150) %>% 
-  select(area, treatment_blind, adult_id_char, mp_mean_visit,
+  #filter(pm_mean_visit < 150) %>% 
+  #filter(pm_mean_at_home_visit < 150) %>% 
+  dplyr::select(area, treatment_blind, adult_id_char, mp_mean_visit,
          pm_mean_visit, pm_mean_at_home_visit, moisture_ave,
          rh_indoor_min, rh_indoor_max, temp_indoor_min, temp_indoor_max) %>% 
   rename(pm_at_home_mean = pm_mean_at_home_visit,

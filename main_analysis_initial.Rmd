@@ -1,7 +1,7 @@
 ---
 title: 'EldersAIR: Main analysis - initial'
 author: "Ethan Walker"
-date: "Started 31 March 2021; Updated 31 March 2021"
+date: "Started 31 March 2021; Updated 2 April 2021"
 output: pdf_document
 ---
 
@@ -18,6 +18,7 @@ library(emmeans)
 library(broom)
 library(broom.mixed)
 library(zoo)
+library(car)
 library(lme4)
 library(lmerTest)
 library(mctest)
@@ -26,7 +27,7 @@ library(knitr)
 library(kableExtra)
 library(MASS)
 library(faraway)
-library(DHARMa)
+#library(DHARMa)
 ```
 
 ```{r}
@@ -57,33 +58,68 @@ elders_cleaned_dataset_by_visit <- read_rds(paste0(file_path, "Output/elders_cle
 ### bp_sys, bp_dia, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp
 ## calculate mean outcome per winter
 ## spread data to 1 row per adult - so Winter 1/baseline outcome is a covariate
-analysis_data <- elders_cleaned_dataset_by_visit %>% 
+analysis_data_1row <- elders_cleaned_dataset_by_visit %>% 
   arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
-  group_by(area, adult_id_num, winter_id) %>% 
-  mutate(mean_outcome = mean(fvc_pp, na.rm = T)) %>% # select outcome here
+  group_by(area, adult_id_char, winter_id) %>% 
+  mutate(mean_outcome = mean(fvc, na.rm = T)) %>% # select outcome here
   ungroup() %>% 
-  distinct(area, adult_id_num, winter_id, .keep_all = T) %>% 
-  group_by(area, adult_id_num) %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment_blind, mean_outcome) %>% 
+  distinct(area, adult_id_char, winter_id, .keep_all = T) %>% 
+  group_by(area, adult_id_char) %>% 
   pivot_wider(names_from = "winter_id", values_from = "mean_outcome") %>% 
   mutate(mean_outcome = `2`,
-         baseline_outcome = `1`,
-         baseline_outcome = if_else(!is.na(mean_outcome), lag(baseline_outcome),
-                                    baseline_outcome)) %>% 
+         baseline_outcome = `1`) %>% 
   replace_with_na(replace = list(baseline_outcome = NaN, mean_outcome = NaN)) %>% 
-  filter(!is.na(mean_outcome)) %>% 
+  #filter(!is.na(mean_outcome)) %>% 
   ungroup()
 
-table(analysis_data$area, analysis_data$treatment_blind)
+
+analysis_data_2row <- elders_cleaned_dataset_by_visit %>% 
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  mutate(outcome = fvc) %>% # select outcome here
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment_blind, outcome) %>% 
+  group_by(area, adult_id_char, sampling_visit) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "outcome") %>% 
+  arrange(area, home, adult_id_char, sampling_visit) %>% 
+  mutate(outcome = `2`,
+         baseline_outcome = `1`) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, outcome = NaN)) %>% 
+  filter(!is.na(outcome) | !is.na(baseline_outcome)) %>% 
+  ungroup()
+
+
+
+analysis_data_4row <- elders_cleaned_dataset_by_visit %>% 
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  mutate(outcome = fvc) %>%  # select outcome here
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment_blind, outcome)
+  
+
+
+#table(analysis_data$area, analysis_data$treatment_blind)
+#table(analysis_data$area, analysis_data$cohort)
 ```
 
+At this point (4/9/21), the 3 model scenarios below give similar estimates with
+largely overlapping confidence intervals. The 1-row data model seems to have better
+precision for some reason (narrower CIs). This holds true for all of the outcomes.
+Next steps will be to review the literature again and look for pros and cons of
+each method, potential sources of bias for the methods, how they handle missing
+data, etc. Also refer back to discussion with Jon about missing data, REML, and
+if I need to do anything else to account for missing observations.
+Also think about whether a time function/variable needs to be included if the 
+repeated measures models are used. Refer back to notes from 4/5/21 meeting with Jon.
 
-```{r}
-model_results <- lmer(mean_outcome ~ treatment_blind + baseline_outcome + 
-                      (1 | area), data = analysis_data)
+# Model Code - 1 row data
+```{r, echo=T}
+# 1 row data
+itt_health_results <- lmer(mean_outcome ~ treatment_blind + baseline_outcome + 
+                      (1 | home:cohort:area), data = analysis_data_1row)
 
-summary(model_results)
-
-tidy_results <- tidy(model_results, conf.int = TRUE) %>% 
+tidy_results <- tidy(itt_health_results, conf.int = TRUE) %>% 
   mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
   filter(group_filter == 1) %>% 
   mutate(term = gsub("treatment_blind", "", term)) %>% 
@@ -94,5 +130,95 @@ tidy_results <- tidy(model_results, conf.int = TRUE) %>%
 tidy_results
 ```
 
+## Model with (1 | cohort:area): variance for cohort random term = 0
+## Variance for only (1 | cohort) still = 0
+## Cohort does not explain any variance beyond what the residual variance does
+## Removing or leaving cohort in does not change the model results
+## This issue also does not happen for all outcomes, so leaving (1 | cohort:area) in primary model
+```{r, echo=T}
+isSingular(itt_health_results)
+#rePCA(itt_health_results)
+```
 
-Add some diagnostic plots
+# Model Summary
+```{r}
+summary(itt_health_results)
+```
+
+
+
+# Model Code - 2 row data
+```{r, echo=T}
+# 1 row data
+itt_health_results <- lmer(outcome ~ treatment_blind + baseline_outcome + 
+                      (1 | adult_id_char:home:cohort:area), data = analysis_data_2row)
+tidy_results <- tidy(itt_health_results, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value)
+tidy_results
+```
+
+```{r, echo=T}
+isSingular(itt_health_results)
+#rePCA(itt_health_results)
+```
+
+# Model Summary
+```{r}
+summary(itt_health_results)
+```
+
+
+
+# Model Code - 4 row data
+```{r}
+# 4 row data
+itt_health_results <- lmer(outcome ~ treatment_blind*winter_id + 
+                      (1 | adult_id_char:home:cohort:area), data = analysis_data_4row)
+
+int_emmeans <- emmeans(itt_health_results, revpairwise ~ treatment_blind | winter_id)
+
+save_contrasts <- confint(int_emmeans$contrasts) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((lower.CL), digits = 2),
+         conf.high = round((upper.CL), digits = 2)) %>% 
+  dplyr::select(contrast, winter_id, estimate, conf.low, conf.high)
+save_contrasts
+```
+
+# Model Summary
+```{r}
+summary(itt_health_results)
+
+emmeans(itt_health_results, pairwise ~ winter_id | treatment_blind)
+```
+
+
+# Tidy Model Results
+```{r}
+tidy_results <- tidy(itt_health_results, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value)
+tidy_results
+```
+
+# Model Diagnostic Plots
+```{r}
+plot(itt_health_results, main = "ITT Primary Model", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results), main = "ITT Primary Model")
+qqline(residuals(itt_health_results))
+```
+
+
+
