@@ -1,0 +1,1156 @@
+---
+title: 'EldersAIR: Main analysis - model comparisons/diagnostics'
+author: "Ethan Walker"
+date: "Started 16 April 2021; Updated 16 April 2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, include = TRUE,
+                      message = FALSE, warning = FALSE)
+```
+
+```{r}
+library(readxl)
+library(naniar)
+library(lubridate)
+library(emmeans)
+library(broom)
+library(broom.mixed)
+library(zoo)
+library(car)
+library(lme4)
+library(lmerTest)
+library(mctest)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+#library(MASS)
+library(faraway)
+library(splines)
+library(rptR)
+library(sjstats)
+```
+
+```{r}
+# Load data
+
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+treatments_blind_nn <- read_xlsx(paste0(file_path, "Input/NN/treatments_blind.xlsx")) %>% 
+  mutate(area = "NN")
+
+treatments_blind_npt <- read_xlsx(paste0(file_path, "Input/NP/treatments_blind.xlsx")) %>% 
+  mutate(area = "NPT")
+
+treatments_blind <- rbind(treatments_blind_nn, treatments_blind_npt) %>% 
+  mutate(home_id_num = as.factor(HomeID),
+         treatment_blind = as.factor(CodedCondition),
+         area = as.factor(area)) %>% 
+  select(area, home_id_num, treatment_blind)
+
+elders_cleaned_dataset_by_visit <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) %>% 
+  left_join(treatments_blind, by = c("area", "home_id_num")) 
+```
+
+
+```{r}
+# Prep analysis dataset
+analysis_data <- elders_cleaned_dataset_by_visit %>% 
+  mutate(treatment = factor(treatment,
+                            levels = c("Placebo", "Filter", "Education"),
+                            labels = c("Placebo", "Filter", "Education")),
+         visit_intervention_diff = round(difftime(sampling_date, intervention_date, 
+                                            units = "days"), digits = 0),
+         visit_intervention_diff = as.numeric(visit_intervention_diff),
+         visit_intervention_diff = if_else(winter_id == 1, 9999,
+                                           visit_intervention_diff))
+
+#table(analysis_data$area, analysis_data$treatment_blind)
+#table(analysis_data$area, analysis_data$cohort)
+```
+
+
+```{r}
+# Prep outcome variables
+### bp_sys, bp_dia, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp, pm_mean_visit
+bp_sys_data_1row <- analysis_data %>% 
+  mutate(outcome = bp_sys) %>% 
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, adult_id_char, winter_id) %>% 
+  mutate(mean_outcome = mean(outcome, na.rm = T)) %>% 
+  ungroup() %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment_blind, treatment, mean_outcome) %>% 
+  distinct(area, adult_id_char, winter_id, .keep_all = T) %>% 
+  group_by(area, adult_id_char) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "mean_outcome") %>% 
+  mutate(mean_outcome = `2`,
+         baseline_outcome = `1`) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, mean_outcome = NaN)) %>% 
+  ungroup()
+
+bp_sys_data_2row <- analysis_data %>% 
+  mutate(outcome = bp_sys) %>% 
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, home, adult_id_char, winter_id) %>% 
+  mutate(outcome = if_else(winter_id == 1, mean(outcome, na.rm = T), outcome)) %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment_blind, treatment, outcome,
+                visit_intervention_diff) %>% 
+  group_by(area, adult_id_char) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "outcome") %>% 
+  arrange(area, home, adult_id_char, sampling_visit) %>% 
+  mutate(outcome = `2`,
+         baseline_outcome = `1`,
+         baseline_outcome = if_else(is.na(baseline_outcome), first(baseline_outcome),
+                                    baseline_outcome)) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, outcome = NaN)) %>% 
+  filter(visit_intervention_diff != 9999) %>% 
+  ungroup()
+
+# bp_sys: try removing lines 127, 202, 95, 32, 48, 31, 17, 216, 128, 4
+bp_sys_data_2row_outliers <- bp_sys_data_2row [-c(127, 202, 95, 32, 48, 31, 17, 216, 128, 4), ] 
+
+bp_sys_data_4row <- analysis_data %>% 
+  mutate(outcome = bp_sys) %>% 
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  mutate(visit_intervention_diff = if_else(visit_intervention_diff == 9999, 0,
+                                           visit_intervention_diff)) %>%  
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment_blind, treatment, outcome,
+                visit_intervention_diff)
+
+```
+
+\pagebreak  
+
+# Systolic Blood Pressure models
+```{r, echo=T}
+itt_health_results_1row <- lmer(mean_outcome ~ treatment_blind + baseline_outcome + 
+                                (1 | home:cohort:area),
+                                data = bp_sys_data_1row)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+plot(itt_health_results_1row, main = "Sys BP 1-Row", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_1row), main = "Sys BP 1-Row")
+qqline(residuals(itt_health_results_1row))
+```
+
+\pagebreak  
+
+```{r, echo=T}
+itt_health_results_2row <- lmer(outcome ~ treatment_blind + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = bp_sys_data_2row)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+itt_health_results_2row_days <- lmer(outcome ~ treatment_blind + visit_intervention_diff + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = bp_sys_data_2row)
+
+itt_health_results_2row_visit <- lmer(outcome ~ treatment_blind + sampling_visit + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = bp_sys_data_2row)
+
+plot(itt_health_results_2row, main = "Sys BP 2-Row", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_2row), main = "Sys BP 2-Row")
+qqline(residuals(itt_health_results_2row))
+```
+
+\pagebreak  
+
+```{r, echo=T}
+itt_health_results_2row_outliers <- lmer(outcome ~ treatment_blind + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = bp_sys_data_2row_outliers)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+plot(itt_health_results_2row_outliers, main = "Sys BP 2-Row, 10 outliers removed", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_2row_outliers), main = "Sys BP 2-Row, 10 outliers removed")
+qqline(residuals(itt_health_results_2row_outliers))
+```
+
+\pagebreak  
+
+```{r, echo=T}
+itt_health_results_2row_int <- lmer(outcome ~ treatment_blind*sampling_visit + 
+                                    baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                    data = bp_sys_data_2row)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+plot(itt_health_results_2row_int, main = "Sys BP 2-Row, Visit interaction", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_2row_int), main = "Sys BP 2-Row, Visit interaction")
+qqline(residuals(itt_health_results_2row_int))
+```
+
+\pagebreak  
+
+```{r, echo=T}
+itt_health_results_4row <- lmer(outcome ~ treatment_blind*winter_id + 
+                                (1 | adult_id_char:home:cohort:area), 
+                                data = bp_sys_data_4row)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+plot(itt_health_results_4row, main = "Sys BP 4-Row, Winter interaction", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_4row), main = "Sys BP 4-Row, Winter interaction")
+qqline(residuals(itt_health_results_4row))
+```
+
+\pagebreak  
+
+```{r, fig.width=8, fig.height=6}
+# Combine model results
+tidy_results_1row <- tidy(itt_health_results_1row, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "1-row",
+         sampling_visit = "none") %>% 
+  dplyr::select(-p.value)
+
+tidy_results_2row <- tidy(itt_health_results_2row, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "2-row",
+         sampling_visit = "none") %>% 
+  dplyr::select(-p.value)
+
+tidy_results_2row_outliers <- tidy(itt_health_results_2row_outliers, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "2-row, outliers",
+         sampling_visit = "none") %>% 
+  dplyr::select(-p.value)
+
+tidy_results_2row_days <- tidy(itt_health_results_2row_days, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "2-row days covar",
+         sampling_visit = "days since intervention") %>% 
+  dplyr::select(-p.value)
+
+tidy_results_2row_visit <- tidy(itt_health_results_2row_visit, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "2-row visit covar",
+         sampling_visit = "covariate") %>% 
+  dplyr::select(-p.value)
+
+int_emmeans <- emmeans(itt_health_results_2row_int, revpairwise ~ treatment_blind | sampling_visit)
+
+tidy_results_2row_int <- confint(int_emmeans$contrasts) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((lower.CL), digits = 2),
+         conf.high = round((upper.CL), digits = 2)) %>% 
+  dplyr::select(contrast, sampling_visit, estimate, conf.low, conf.high) %>% 
+  filter(contrast == "Queso - Guac" | contrast == "Salsa - Guac") %>% 
+  mutate(contrast = as.character(contrast),
+         contrast = if_else(contrast == "Queso - Guac" & sampling_visit == 1, "Queso Visit 1", contrast),
+         contrast = if_else(contrast == "Salsa - Guac" & sampling_visit == 1, "Salsa Visit 1", contrast),
+         contrast = if_else(contrast == "Queso - Guac" & sampling_visit == 2, "Queso Visit 2", contrast),
+         contrast = if_else(contrast == "Salsa - Guac" & sampling_visit == 2, "Salsa Visit 2", contrast),
+         contrast = as.factor(contrast),
+         model = "2-row visit interaction") %>% 
+  rename(term = contrast)
+
+int_emmeans <- emmeans(itt_health_results_4row, revpairwise ~ treatment_blind | winter_id)
+
+tidy_results_4row <- confint(int_emmeans$contrasts) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((lower.CL), digits = 2),
+         conf.high = round((upper.CL), digits = 2)) %>% 
+  dplyr::select(contrast, winter_id, estimate, conf.low, conf.high) %>% 
+  filter((contrast == "Queso - Guac" | contrast == "Salsa - Guac") & winter_id == 2) %>% 
+  mutate(contrast = if_else(contrast == "Queso - Guac", "Queso", "Salsa"),
+         model = "4-row",
+         sampling_visit = "none") %>% 
+  rename(term = contrast) %>% 
+  dplyr::select(-winter_id)
+
+tidy_results_combined <- rbind(tidy_results_1row, tidy_results_2row, tidy_results_2row_outliers,
+                               tidy_results_2row_days, tidy_results_2row_visit,
+                               tidy_results_2row_int, tidy_results_4row)
+
+# Calculate ICC
+## The ratio of the between-cluster variance to the total variance
+## It can also be interpreted as the correlation among observations within the same cluster
+icc_model <- lmer(outcome ~ (1 | adult_id_char), bp_sys_data_4row)
+bp_sys_icc <- icc(icc_model)
+
+# Plot combined results
+itt_plot_estimates <- tidy_results_combined %>%
+  mutate(model = as.factor(model)) %>% 
+  ggplot(aes(group = term, shape = term)) +
+  geom_point(aes(x=model, y=estimate), 
+             position = position_dodge(width = 0.5), size = 4) +
+  geom_errorbar(aes(x=model, ymin=conf.low, ymax=conf.high), 
+             position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+  geom_hline(yintercept = 0) +
+  theme_bw() +  
+  ggtitle(label = "Sys BP Model comparison for ITT framework",
+          subtitle = "ICC for subject = 0.371") +
+  labs(y = "Estimate compared to Guac") +
+  labs(x = "", group = "", shape = "") +
+  theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
+itt_plot_estimates
+```
+
+\pagebreak  
+
+# Diastolic Blood Pressure models
+```{r}
+# Prep outcome variables
+### bp_sys, bp_dia, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp, pm_mean_visit
+bp_dia_data_1row <- analysis_data %>% 
+  mutate(outcome = bp_dia) %>% 
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, adult_id_char, winter_id) %>% 
+  mutate(mean_outcome = mean(outcome, na.rm = T)) %>% 
+  ungroup() %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment_blind, treatment, mean_outcome) %>% 
+  distinct(area, adult_id_char, winter_id, .keep_all = T) %>% 
+  group_by(area, adult_id_char) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "mean_outcome") %>% 
+  mutate(mean_outcome = `2`,
+         baseline_outcome = `1`) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, mean_outcome = NaN)) %>% 
+  ungroup()
+
+bp_dia_data_2row <- analysis_data %>% 
+  mutate(outcome = bp_dia) %>% 
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, home, adult_id_char, winter_id) %>% 
+  mutate(outcome = if_else(winter_id == 1, mean(outcome, na.rm = T), outcome)) %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment_blind, treatment, outcome,
+                visit_intervention_diff) %>% 
+  group_by(area, adult_id_char) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "outcome") %>% 
+  arrange(area, home, adult_id_char, sampling_visit) %>% 
+  mutate(outcome = `2`,
+         baseline_outcome = `1`,
+         baseline_outcome = if_else(is.na(baseline_outcome), first(baseline_outcome),
+                                    baseline_outcome)) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, outcome = NaN)) %>% 
+  filter(visit_intervention_diff != 9999) %>% 
+  ungroup()
+
+# bp_dia: try removing lines 42, 95, 192, 127, 48, 202, 191, 31, 223, 7
+bp_dia_data_2row_outliers <- bp_dia_data_2row [-c(42, 95, 192, 127, 48, 202, 191, 31, 223, 7), ] 
+
+bp_dia_data_4row <- analysis_data %>% 
+  mutate(outcome = bp_dia) %>% 
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  mutate(visit_intervention_diff = if_else(visit_intervention_diff == 9999, 0,
+                                           visit_intervention_diff)) %>%  
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment_blind, treatment, outcome,
+                visit_intervention_diff)
+
+```
+
+```{r, echo=T}
+itt_health_results_1row <- lmer(mean_outcome ~ treatment_blind + baseline_outcome + 
+                                (1 | home:cohort:area),
+                                data = bp_dia_data_1row)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+plot(itt_health_results_1row, main = "Dia BP 1-Row", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_1row), main = "Dia BP 1-Row")
+qqline(residuals(itt_health_results_1row))
+```
+
+\pagebreak  
+
+```{r, echo=T}
+itt_health_results_2row <- lmer(outcome ~ treatment_blind + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = bp_dia_data_2row)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+itt_health_results_2row_days <- lmer(outcome ~ treatment_blind + visit_intervention_diff + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = bp_dia_data_2row)
+
+itt_health_results_2row_visit <- lmer(outcome ~ treatment_blind + sampling_visit + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = bp_dia_data_2row)
+
+plot(itt_health_results_2row, main = "Dia BP 2-Row", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_2row), main = "Dia BP 2-Row")
+qqline(residuals(itt_health_results_2row))
+```
+
+\pagebreak  
+
+```{r, echo=T}
+itt_health_results_2row_outliers <- lmer(outcome ~ treatment_blind + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = bp_dia_data_2row_outliers)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+plot(itt_health_results_2row_outliers, main = "Dia BP 2-Row, 10 outliers removed", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_2row_outliers), main = "Dia BP 2-Row, 10 outliers removed")
+qqline(residuals(itt_health_results_2row_outliers))
+```
+
+\pagebreak  
+
+```{r, echo=T}
+itt_health_results_2row_int <- lmer(outcome ~ treatment_blind*sampling_visit + 
+                                    baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                    data = bp_dia_data_2row)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+plot(itt_health_results_2row_int, main = "Dia BP 2-Row, Visit interaction", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_2row_int), main = "Dia BP 2-Row, Visit interaction")
+qqline(residuals(itt_health_results_2row_int))
+```
+
+\pagebreak  
+
+```{r, echo=T}
+itt_health_results_4row <- lmer(outcome ~ treatment_blind*winter_id + 
+                                (1 | adult_id_char:home:cohort:area), 
+                                data = bp_dia_data_4row)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+plot(itt_health_results_4row, main = "Dia BP 4-Row, Winter interaction", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_4row), main = "Dia BP 4-Row, Winter interaction")
+qqline(residuals(itt_health_results_4row))
+```
+
+\pagebreak  
+
+```{r, fig.width=8, fig.height=6}
+# Combine model results
+tidy_results_1row <- tidy(itt_health_results_1row, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "1-row",
+         sampling_visit = "none") %>% 
+  dplyr::select(-p.value)
+
+tidy_results_2row <- tidy(itt_health_results_2row, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "2-row",
+         sampling_visit = "none") %>% 
+  dplyr::select(-p.value)
+
+tidy_results_2row_outliers <- tidy(itt_health_results_2row_outliers, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "2-row, outliers",
+         sampling_visit = "none") %>% 
+  dplyr::select(-p.value)
+
+tidy_results_2row_days <- tidy(itt_health_results_2row_days, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "2-row days covar",
+         sampling_visit = "days since intervention") %>% 
+  dplyr::select(-p.value)
+
+tidy_results_2row_visit <- tidy(itt_health_results_2row_visit, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "2-row visit covar",
+         sampling_visit = "covariate") %>% 
+  dplyr::select(-p.value)
+
+int_emmeans <- emmeans(itt_health_results_2row_int, revpairwise ~ treatment_blind | sampling_visit)
+
+tidy_results_2row_int <- confint(int_emmeans$contrasts) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((lower.CL), digits = 2),
+         conf.high = round((upper.CL), digits = 2)) %>% 
+  dplyr::select(contrast, sampling_visit, estimate, conf.low, conf.high) %>% 
+  filter(contrast == "Queso - Guac" | contrast == "Salsa - Guac") %>% 
+  mutate(contrast = as.character(contrast),
+         contrast = if_else(contrast == "Queso - Guac" & sampling_visit == 1, "Queso Visit 1", contrast),
+         contrast = if_else(contrast == "Salsa - Guac" & sampling_visit == 1, "Salsa Visit 1", contrast),
+         contrast = if_else(contrast == "Queso - Guac" & sampling_visit == 2, "Queso Visit 2", contrast),
+         contrast = if_else(contrast == "Salsa - Guac" & sampling_visit == 2, "Salsa Visit 2", contrast),
+         contrast = as.factor(contrast),
+         model = "2-row visit interaction") %>% 
+  rename(term = contrast)
+
+int_emmeans <- emmeans(itt_health_results_4row, revpairwise ~ treatment_blind | winter_id)
+
+tidy_results_4row <- confint(int_emmeans$contrasts) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((lower.CL), digits = 2),
+         conf.high = round((upper.CL), digits = 2)) %>% 
+  dplyr::select(contrast, winter_id, estimate, conf.low, conf.high) %>% 
+  filter((contrast == "Queso - Guac" | contrast == "Salsa - Guac") & winter_id == 2) %>% 
+  mutate(contrast = if_else(contrast == "Queso - Guac", "Queso", "Salsa"),
+         model = "4-row",
+         sampling_visit = "none") %>% 
+  rename(term = contrast) %>% 
+  dplyr::select(-winter_id)
+
+tidy_results_combined <- rbind(tidy_results_1row, tidy_results_2row, tidy_results_2row_outliers,
+                               tidy_results_2row_days, tidy_results_2row_visit,
+                               tidy_results_2row_int, tidy_results_4row)
+
+# Calculate ICC
+## The ratio of the between-cluster variance to the total variance
+## It can also be interpreted as the correlation among observations within the same cluster
+icc_model <- lmer(outcome ~ (1 | adult_id_char), bp_dia_data_4row)
+bp_dia_icc <- icc(icc_model)
+
+# Plot combined results
+itt_plot_estimates <- tidy_results_combined %>%
+  mutate(model = as.factor(model)) %>% 
+  ggplot(aes(group = term, shape = term)) +
+  geom_point(aes(x=model, y=estimate), 
+             position = position_dodge(width = 0.5), size = 4) +
+  geom_errorbar(aes(x=model, ymin=conf.low, ymax=conf.high), 
+             position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+  geom_hline(yintercept = 0) +
+  theme_bw() +  
+  ggtitle(label = "Dia BP Model comparison for ITT framework",
+          subtitle = "ICC for subject = 0.463") +
+  labs(y = "Estimate compared to Guac") +
+  labs(x = "", group = "", shape = "") +
+  theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
+itt_plot_estimates
+```
+
+\pagebreak  
+
+# Forced Vital Capacity models
+```{r}
+# Prep outcome variables
+### bp_sys, bp_dia, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp, pm_mean_visit
+fvc_data_1row <- analysis_data %>% 
+  mutate(outcome = fvc) %>% 
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, adult_id_char, winter_id) %>% 
+  mutate(mean_outcome = mean(outcome, na.rm = T)) %>% 
+  ungroup() %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment_blind, treatment, mean_outcome) %>% 
+  distinct(area, adult_id_char, winter_id, .keep_all = T) %>% 
+  group_by(area, adult_id_char) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "mean_outcome") %>% 
+  mutate(mean_outcome = `2`,
+         baseline_outcome = `1`) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, mean_outcome = NaN)) %>% 
+  ungroup()
+
+fvc_data_2row <- analysis_data %>% 
+  mutate(outcome = fvc) %>% 
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, home, adult_id_char, winter_id) %>% 
+  mutate(outcome = if_else(winter_id == 1, mean(outcome, na.rm = T), outcome)) %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment_blind, treatment, outcome,
+                visit_intervention_diff) %>% 
+  group_by(area, adult_id_char) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "outcome") %>% 
+  arrange(area, home, adult_id_char, sampling_visit) %>% 
+  mutate(outcome = `2`,
+         baseline_outcome = `1`,
+         baseline_outcome = if_else(is.na(baseline_outcome), first(baseline_outcome),
+                                    baseline_outcome)) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, outcome = NaN)) %>% 
+  filter(visit_intervention_diff != 9999) %>% 
+  ungroup()
+
+# fvc: try removing lines 93, 94, 34, 82, 35, 164, 142, 81, 219, 32
+fvc_data_2row_outliers <- fvc_data_2row [-c(93, 94, 34, 82, 35, 164, 142, 81, 219, 32), ] 
+
+fvc_data_4row <- analysis_data %>% 
+  mutate(outcome = fvc) %>% 
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  mutate(visit_intervention_diff = if_else(visit_intervention_diff == 9999, 0,
+                                           visit_intervention_diff)) %>%  
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment_blind, treatment, outcome,
+                visit_intervention_diff)
+
+```
+
+```{r, echo=T}
+itt_health_results_1row <- lmer(mean_outcome ~ treatment_blind + baseline_outcome + 
+                                (1 | home:cohort:area),
+                                data = fvc_data_1row)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+plot(itt_health_results_1row, main = "fvc 1-Row", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_1row), main = "fvc 1-Row")
+qqline(residuals(itt_health_results_1row))
+```
+
+\pagebreak  
+
+```{r, echo=T}
+itt_health_results_2row <- lmer(outcome ~ treatment_blind + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = fvc_data_2row)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+itt_health_results_2row_days <- lmer(outcome ~ treatment_blind + visit_intervention_diff + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = fvc_data_2row)
+
+itt_health_results_2row_visit <- lmer(outcome ~ treatment_blind + sampling_visit + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = fvc_data_2row)
+
+plot(itt_health_results_2row, main = "fvc 2-Row", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_2row), main = "fvc 2-Row")
+qqline(residuals(itt_health_results_2row))
+```
+
+\pagebreak  
+
+```{r, echo=T}
+itt_health_results_2row_outliers <- lmer(outcome ~ treatment_blind + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = fvc_data_2row_outliers)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+plot(itt_health_results_2row_outliers, main = "fvc 2-Row, 10 outliers removed", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_2row_outliers), main = "fvc 2-Row, 10 outliers removed")
+qqline(residuals(itt_health_results_2row_outliers))
+```
+
+\pagebreak  
+
+```{r, echo=T}
+itt_health_results_2row_int <- lmer(outcome ~ treatment_blind*sampling_visit + 
+                                    baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                    data = fvc_data_2row)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+plot(itt_health_results_2row_int, main = "fvc 2-Row, Visit interaction", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_2row_int), main = "fvc 2-Row, Visit interaction")
+qqline(residuals(itt_health_results_2row_int))
+```
+
+\pagebreak  
+
+```{r, echo=T}
+itt_health_results_4row <- lmer(outcome ~ treatment_blind*winter_id + 
+                                (1 | adult_id_char:home:cohort:area), 
+                                data = fvc_data_4row)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+plot(itt_health_results_4row, main = "fvc 4-Row, Winter interaction", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_4row), main = "fvc 4-Row, Winter interaction")
+qqline(residuals(itt_health_results_4row))
+```
+
+\pagebreak  
+
+```{r, fig.width=8, fig.height=6}
+# Combine model results
+tidy_results_1row <- tidy(itt_health_results_1row, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "1-row",
+         sampling_visit = "none") %>% 
+  dplyr::select(-p.value)
+
+tidy_results_2row <- tidy(itt_health_results_2row, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "2-row",
+         sampling_visit = "none") %>% 
+  dplyr::select(-p.value)
+
+tidy_results_2row_outliers <- tidy(itt_health_results_2row_outliers, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "2-row, outliers",
+         sampling_visit = "none") %>% 
+  dplyr::select(-p.value)
+
+tidy_results_2row_days <- tidy(itt_health_results_2row_days, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "2-row days covar",
+         sampling_visit = "days since intervention") %>% 
+  dplyr::select(-p.value)
+
+tidy_results_2row_visit <- tidy(itt_health_results_2row_visit, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "2-row visit covar",
+         sampling_visit = "covariate") %>% 
+  dplyr::select(-p.value)
+
+int_emmeans <- emmeans(itt_health_results_2row_int, revpairwise ~ treatment_blind | sampling_visit)
+
+tidy_results_2row_int <- confint(int_emmeans$contrasts) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((lower.CL), digits = 2),
+         conf.high = round((upper.CL), digits = 2)) %>% 
+  dplyr::select(contrast, sampling_visit, estimate, conf.low, conf.high) %>% 
+  filter(contrast == "Queso - Guac" | contrast == "Salsa - Guac") %>% 
+  mutate(contrast = as.character(contrast),
+         contrast = if_else(contrast == "Queso - Guac" & sampling_visit == 1, "Queso Visit 1", contrast),
+         contrast = if_else(contrast == "Salsa - Guac" & sampling_visit == 1, "Salsa Visit 1", contrast),
+         contrast = if_else(contrast == "Queso - Guac" & sampling_visit == 2, "Queso Visit 2", contrast),
+         contrast = if_else(contrast == "Salsa - Guac" & sampling_visit == 2, "Salsa Visit 2", contrast),
+         contrast = as.factor(contrast),
+         model = "2-row visit interaction") %>% 
+  rename(term = contrast)
+
+int_emmeans <- emmeans(itt_health_results_4row, revpairwise ~ treatment_blind | winter_id)
+
+tidy_results_4row <- confint(int_emmeans$contrasts) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((lower.CL), digits = 2),
+         conf.high = round((upper.CL), digits = 2)) %>% 
+  dplyr::select(contrast, winter_id, estimate, conf.low, conf.high) %>% 
+  filter((contrast == "Queso - Guac" | contrast == "Salsa - Guac") & winter_id == 2) %>% 
+  mutate(contrast = if_else(contrast == "Queso - Guac", "Queso", "Salsa"),
+         model = "4-row",
+         sampling_visit = "none") %>% 
+  rename(term = contrast) %>% 
+  dplyr::select(-winter_id)
+
+tidy_results_combined <- rbind(tidy_results_1row, tidy_results_2row, tidy_results_2row_outliers,
+                               tidy_results_2row_days, tidy_results_2row_visit,
+                               tidy_results_2row_int, tidy_results_4row)
+
+# Calculate ICC
+## The ratio of the between-cluster variance to the total variance
+## It can also be interpreted as the correlation among observations within the same cluster
+icc_model <- lmer(outcome ~ (1 | adult_id_char), fvc_data_4row)
+fvc_icc <- icc(icc_model)
+
+# Plot combined results
+itt_plot_estimates <- tidy_results_combined %>%
+  mutate(model = as.factor(model)) %>% 
+  ggplot(aes(group = term, shape = term)) +
+  geom_point(aes(x=model, y=estimate), 
+             position = position_dodge(width = 0.5), size = 4) +
+  geom_errorbar(aes(x=model, ymin=conf.low, ymax=conf.high), 
+             position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+  geom_hline(yintercept = 0) +
+  theme_bw() +  
+  ggtitle(label = "FVC Model comparison for ITT framework",
+          subtitle = "ICC for subject = 0.799") +
+  labs(y = "Estimate compared to Guac") +
+  labs(x = "", group = "", shape = "") +
+  theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
+itt_plot_estimates
+```
+
+\pagebreak  
+
+# Forced Exporatory Volume models
+```{r}
+# Prep outcome variables
+### bp_sys, bp_dia, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp, pm_mean_visit
+fev1_data_1row <- analysis_data %>% 
+  mutate(outcome = fev1) %>% 
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, adult_id_char, winter_id) %>% 
+  mutate(mean_outcome = mean(outcome, na.rm = T)) %>% 
+  ungroup() %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment_blind, treatment, mean_outcome) %>% 
+  distinct(area, adult_id_char, winter_id, .keep_all = T) %>% 
+  group_by(area, adult_id_char) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "mean_outcome") %>% 
+  mutate(mean_outcome = `2`,
+         baseline_outcome = `1`) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, mean_outcome = NaN)) %>% 
+  ungroup()
+
+fev1_data_2row <- analysis_data %>% 
+  mutate(outcome = fev1) %>% 
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, home, adult_id_char, winter_id) %>% 
+  mutate(outcome = if_else(winter_id == 1, mean(outcome, na.rm = T), outcome)) %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment_blind, treatment, outcome,
+                visit_intervention_diff) %>% 
+  group_by(area, adult_id_char) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "outcome") %>% 
+  arrange(area, home, adult_id_char, sampling_visit) %>% 
+  mutate(outcome = `2`,
+         baseline_outcome = `1`,
+         baseline_outcome = if_else(is.na(baseline_outcome), first(baseline_outcome),
+                                    baseline_outcome)) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, outcome = NaN)) %>% 
+  filter(visit_intervention_diff != 9999) %>% 
+  ungroup()
+
+# fev1: try removing lines 79, 34, 24, 80, 25, 82, 26, 230, 5, 6
+fev1_data_2row_outliers <- fev1_data_2row [-c(79, 34, 24, 80, 25, 82, 26, 230, 5, 6), ] 
+
+fev1_data_4row <- analysis_data %>% 
+  mutate(outcome = fev1) %>% 
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  mutate(visit_intervention_diff = if_else(visit_intervention_diff == 9999, 0,
+                                           visit_intervention_diff)) %>%  
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment_blind, treatment, outcome,
+                visit_intervention_diff)
+
+```
+
+```{r, echo=T}
+itt_health_results_1row <- lmer(mean_outcome ~ treatment_blind + baseline_outcome + 
+                                (1 | home:cohort:area),
+                                data = fev1_data_1row)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+plot(itt_health_results_1row, main = "fev1 1-Row", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_1row), main = "fev1 1-Row")
+qqline(residuals(itt_health_results_1row))
+```
+
+\pagebreak  
+
+```{r, echo=T}
+itt_health_results_2row <- lmer(outcome ~ treatment_blind + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = fev1_data_2row)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+itt_health_results_2row_days <- lmer(outcome ~ treatment_blind + visit_intervention_diff + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = fev1_data_2row)
+
+itt_health_results_2row_visit <- lmer(outcome ~ treatment_blind + sampling_visit + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = fev1_data_2row)
+
+plot(itt_health_results_2row, main = "fev1 2-Row", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_2row), main = "fev1 2-Row")
+qqline(residuals(itt_health_results_2row))
+```
+
+\pagebreak  
+
+```{r, echo=T}
+itt_health_results_2row_outliers <- lmer(outcome ~ treatment_blind + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = fev1_data_2row_outliers)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+plot(itt_health_results_2row_outliers, main = "fev1 2-Row, 10 outliers removed", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_2row_outliers), main = "fev1 2-Row, 10 outliers removed")
+qqline(residuals(itt_health_results_2row_outliers))
+```
+
+\pagebreak  
+
+```{r, echo=T}
+itt_health_results_2row_int <- lmer(outcome ~ treatment_blind*sampling_visit + 
+                                    baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                    data = fev1_data_2row)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+plot(itt_health_results_2row_int, main = "fev1 2-Row, Visit interaction", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_2row_int), main = "fev1 2-Row, Visit interaction")
+qqline(residuals(itt_health_results_2row_int))
+```
+
+\pagebreak  
+
+```{r, echo=T}
+itt_health_results_4row <- lmer(outcome ~ treatment_blind*winter_id + 
+                                (1 | adult_id_char:home:cohort:area), 
+                                data = fev1_data_4row)
+```
+
+```{r, fig.width=6, fig.height=3.5}
+plot(itt_health_results_4row, main = "fev1 4-Row, Winter interaction", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_4row), main = "fev1 4-Row, Winter interaction")
+qqline(residuals(itt_health_results_4row))
+```
+
+\pagebreak  
+
+```{r, fig.width=8, fig.height=6}
+# Combine model results
+tidy_results_1row <- tidy(itt_health_results_1row, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "1-row",
+         sampling_visit = "none") %>% 
+  dplyr::select(-p.value)
+
+tidy_results_2row <- tidy(itt_health_results_2row, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "2-row",
+         sampling_visit = "none") %>% 
+  dplyr::select(-p.value)
+
+tidy_results_2row_outliers <- tidy(itt_health_results_2row_outliers, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "2-row, outliers",
+         sampling_visit = "none") %>% 
+  dplyr::select(-p.value)
+
+tidy_results_2row_days <- tidy(itt_health_results_2row_days, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "2-row days covar",
+         sampling_visit = "days since intervention") %>% 
+  dplyr::select(-p.value)
+
+tidy_results_2row_visit <- tidy(itt_health_results_2row_visit, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "2-row visit covar",
+         sampling_visit = "covariate") %>% 
+  dplyr::select(-p.value)
+
+int_emmeans <- emmeans(itt_health_results_2row_int, revpairwise ~ treatment_blind | sampling_visit)
+
+tidy_results_2row_int <- confint(int_emmeans$contrasts) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((lower.CL), digits = 2),
+         conf.high = round((upper.CL), digits = 2)) %>% 
+  dplyr::select(contrast, sampling_visit, estimate, conf.low, conf.high) %>% 
+  filter(contrast == "Queso - Guac" | contrast == "Salsa - Guac") %>% 
+  mutate(contrast = as.character(contrast),
+         contrast = if_else(contrast == "Queso - Guac" & sampling_visit == 1, "Queso Visit 1", contrast),
+         contrast = if_else(contrast == "Salsa - Guac" & sampling_visit == 1, "Salsa Visit 1", contrast),
+         contrast = if_else(contrast == "Queso - Guac" & sampling_visit == 2, "Queso Visit 2", contrast),
+         contrast = if_else(contrast == "Salsa - Guac" & sampling_visit == 2, "Salsa Visit 2", contrast),
+         contrast = as.factor(contrast),
+         model = "2-row visit interaction") %>% 
+  rename(term = contrast)
+
+int_emmeans <- emmeans(itt_health_results_4row, revpairwise ~ treatment_blind | winter_id)
+
+tidy_results_4row <- confint(int_emmeans$contrasts) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((lower.CL), digits = 2),
+         conf.high = round((upper.CL), digits = 2)) %>% 
+  dplyr::select(contrast, winter_id, estimate, conf.low, conf.high) %>% 
+  filter((contrast == "Queso - Guac" | contrast == "Salsa - Guac") & winter_id == 2) %>% 
+  mutate(contrast = if_else(contrast == "Queso - Guac", "Queso", "Salsa"),
+         model = "4-row",
+         sampling_visit = "none") %>% 
+  rename(term = contrast) %>% 
+  dplyr::select(-winter_id)
+
+tidy_results_combined <- rbind(tidy_results_1row, tidy_results_2row, tidy_results_2row_outliers,
+                               tidy_results_2row_days, tidy_results_2row_visit,
+                               tidy_results_2row_int, tidy_results_4row)
+
+# Calculate ICC
+## The ratio of the between-cluster variance to the total variance
+## It can also be interpreted as the correlation among observations within the same cluster
+icc_model <- lmer(outcome ~ (1 | adult_id_char), fev1_data_4row)
+fev1_icc <- icc(icc_model)
+
+# Plot combined results
+itt_plot_estimates <- tidy_results_combined %>%
+  mutate(model = as.factor(model)) %>% 
+  ggplot(aes(group = term, shape = term)) +
+  geom_point(aes(x=model, y=estimate), 
+             position = position_dodge(width = 0.5), size = 4) +
+  geom_errorbar(aes(x=model, ymin=conf.low, ymax=conf.high), 
+             position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+  geom_hline(yintercept = 0) +
+  theme_bw() +  
+  ggtitle(label = "FEV1 Model comparison for ITT framework",
+          subtitle = "ICC for subject = 0.796") +
+  labs(y = "Estimate compared to Guac") +
+  labs(x = "", group = "", shape = "") +
+  theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
+itt_plot_estimates
+```
