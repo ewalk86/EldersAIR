@@ -1,7 +1,7 @@
 ---
 title: 'EldersAIR: manuscript tables/figures'
 author: "Ethan Walker"
-date: "Started 1 March 2021, Updated 1 April 2021"
+date: "Started 1 March 2021, Updated 19 April 2021"
 output:
   powerpoint_presentation: default
 ---
@@ -45,7 +45,10 @@ treatments_blind <- rbind(treatments_blind_nn, treatments_blind_npt) %>%
   select(area, home_id_num, treatment_blind)
 
 elders_cleaned_dataset_by_visit <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) %>% 
-  left_join(treatments_blind, by = c("area", "home_id_num")) 
+  left_join(treatments_blind, by = c("area", "home_id_num")) %>% 
+  mutate(treatment = factor(treatment,
+                            levels = c("Placebo", "Filter", "Education"),
+                            labels = c("Placebo", "Filter", "Education")))
 ```
 
 
@@ -177,7 +180,9 @@ char_funct_total <- function(var, data = elders_cleaned_dataset_by_visit){
 demographics_summary <- data %>% 
   rename(new_var = var) %>% 
   #filter(treatment_assigned == "Placebo") %>%
+  #filter(area == "NPT") %>% 
   arrange(home, winter_id, sampling_visit) %>% 
+  mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
   distinct(home, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
   mutate(total_n = n()) %>% 
   group_by(area) %>% 
@@ -195,17 +200,19 @@ char_funct_treatment <- function(var, data = elders_cleaned_dataset_by_visit){
 demographics_summary <- data %>% 
   rename(new_var = var) %>% 
   #filter(treatment_assigned == "Placebo") %>% 
+  #filter(area == "NPT") %>% 
   arrange(home, winter_id, sampling_visit) %>% 
+  mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
   distinct(home, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
   mutate(total_n = n()) %>% 
-  group_by(treatment_blind) %>% 
+  group_by(treatment) %>% 
   mutate(treatment_n = n()) %>% 
-  group_by(treatment_blind, new_var) %>% 
+  group_by(treatment, new_var) %>% 
   mutate(n = n(),
          percent = n()/treatment_n) %>% 
   distinct(new_var, .keep_all = TRUE) %>% 
   dplyr::select(new_var, n, percent) %>% 
-  arrange(treatment_blind, new_var)
+  arrange(treatment, new_var)
 demographics_summary
 }
 
@@ -259,9 +266,11 @@ demographics_summary <- data %>%
   rename(new_var = var) %>% 
   mutate(new_var = as.numeric(new_var)) %>% 
   #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>% 
+  #filter(area == "NPT") %>% 
   filter(winter_id == 1) %>% 
-  arrange(adult_id_char, winter_id, sampling_visit) %>% 
-  distinct(adult_id_char, sampling_visit, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
+  arrange(home, winter_id, sampling_visit) %>% 
+  mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
+  distinct(home, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
   filter(!is.na(new_var)) %>% 
   dplyr::select(new_var) %>% 
   summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
@@ -274,12 +283,14 @@ demographics_summary <- data %>%
   rename(new_var = var) %>%
   mutate(new_var = as.numeric(new_var)) %>% 
   #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>%
+  #filter(area == "NPT") %>% 
   filter(winter_id == 1) %>% 
-  arrange(adult_id_char, winter_id, sampling_visit) %>% 
-  distinct(adult_id_char, sampling_visit, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
+  arrange(home, winter_id, sampling_visit) %>% 
+  mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
+  distinct(home, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
   filter(!is.na(new_var)) %>% 
-  dplyr::select(treatment_blind, new_var) %>% 
-  group_by(treatment_blind) %>% 
+  dplyr::select(treatment, new_var) %>% 
+  group_by(treatment) %>% 
   summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
             min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
 demographics_summary
@@ -307,6 +318,7 @@ num_funct_treatment("home_bedrooms")
 # summary data for manuscript tables - averaged over multiple Winter 1 visits
 num_funct_total <- function(var, data = elders_cleaned_dataset_by_visit){
 demographics_summary <- data %>% 
+  #filter(area == "NPT") %>% 
   rename(new_var = var) %>% 
   mutate(new_var = as.numeric(new_var)) %>% 
   group_by(home, winter_id) %>% 
@@ -314,6 +326,7 @@ demographics_summary <- data %>%
   ungroup() %>% 
   filter(winter_id == 1) %>% 
   arrange(home, winter_id, sampling_visit) %>% 
+  mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
   distinct(home, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
   filter(!is.na(mean_var)) %>% 
   dplyr::select(mean_var) %>% 
@@ -324,6 +337,7 @@ demographics_summary
 
 num_funct_treatment <- function(var, data = elders_cleaned_dataset_by_visit){
 demographics_summary <- data %>% 
+  #filter(area == "NPT") %>% 
   rename(new_var = var) %>%
   mutate(new_var = as.numeric(new_var)) %>% 
   group_by(home, winter_id) %>% 
@@ -331,10 +345,11 @@ demographics_summary <- data %>%
   ungroup() %>% 
   filter(winter_id == 1) %>% 
   arrange(home, winter_id, sampling_visit) %>% 
+  mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
   distinct(home, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
   filter(!is.na(mean_var)) %>% 
-  dplyr::select(treatment_blind, mean_var) %>% 
-  group_by(treatment_blind) %>% 
+  dplyr::select(treatment, mean_var) %>% 
+  group_by(treatment) %>% 
   summarize(mean_new_var = mean(mean_var), sd_var = sd(mean_var), n_var = n(), 
             min_var = min(mean_var), med_var = median(mean_var), max_var = max(mean_var))
 demographics_summary
@@ -370,5 +385,90 @@ num_funct_treatment("home_act_door")
 # distinct by home
 num_funct_total("pm_mean_winter")
 num_funct_treatment("pm_mean_winter")
+```
+
+
+# Check sociodemographic, health, exposure values
+# Among those who missed a session/dropped and those who completed all sessions
+```{r}
+char_funct_4visits <- function(var, data = elders_cleaned_dataset_by_visit){
+demographics_summary <- data %>% 
+  rename(new_var = var) %>% 
+  arrange(adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(adult_id_char) %>% 
+  mutate(participant_n = n()) %>% 
+  ungroup() %>% 
+  filter(participant_n == 4) %>% 
+  mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
+  distinct(adult_id_char, .keep_all = TRUE) %>% 
+  mutate(total_n = n()) %>% 
+  group_by(new_var) %>% 
+  mutate(n = n(),
+         percent = n()/total_n) %>% 
+  distinct(new_var, .keep_all = TRUE) %>% 
+  dplyr::select(new_var, n, percent) %>% 
+  arrange(new_var)
+demographics_summary
+}
+
+char_funct_miss_winter2 <- function(var, data = elders_cleaned_dataset_by_visit){
+demographics_summary <- data %>% 
+  rename(new_var = var) %>% 
+  arrange(adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(adult_id_char) %>% 
+  mutate(winter_id = as.numeric(winter_id)) %>% 
+  mutate(winter_check = if_else(sum(winter_id)<3, "missed2", "present2")) %>% 
+  ungroup() %>% 
+  filter(winter_check == "missed2") %>% 
+  mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
+  distinct(adult_id_char, .keep_all = TRUE) %>% 
+  mutate(total_n = n()) %>% 
+  group_by(new_var) %>% 
+  mutate(n = n(),
+         percent = n()/total_n) %>% 
+  distinct(new_var, .keep_all = TRUE) %>% 
+  dplyr::select(new_var, n, percent) %>% 
+  arrange(new_var)
+demographics_summary
+}
+
+char_funct_miss_visit <- function(var, data = elders_cleaned_dataset_by_visit){
+demographics_summary <- data %>% 
+  rename(new_var = var) %>% 
+  arrange(adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(adult_id_char) %>% 
+  mutate(participant_n = n()) %>% 
+  ungroup() %>% 
+  filter(participant_n < 4) %>% 
+  mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
+  distinct(adult_id_char, .keep_all = TRUE) %>% 
+  mutate(total_n = n()) %>% 
+  group_by(new_var) %>% 
+  mutate(n = n(),
+         percent = n()/total_n) %>% 
+  distinct(new_var, .keep_all = TRUE) %>% 
+  dplyr::select(new_var, n, percent) %>% 
+  arrange(new_var)
+demographics_summary
+}
+
+
+
+# distinct by participant
+char_funct_4visits("gender")
+char_funct_miss_winter2("gender")
+char_funct_miss_visit("gender")
+
+char_funct_total("education")
+char_funct_treatment("income_3level")
+char_funct_treatment("home_floors_2level")
+char_funct_treatment("home_pets_3level")
+char_funct_total("residents_smoke")
+char_funct_total("stove_age")
+char_funct_treatment("chimney_clean")
+char_funct_total("wood_collect_method")
+char_funct_treatment("wood_collect")
+char_funct_total("stove_grade")
+char_funct_treatment("burn_level")
 ```
 
