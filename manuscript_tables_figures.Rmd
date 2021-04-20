@@ -458,17 +458,133 @@ demographics_summary
 char_funct_4visits("gender")
 char_funct_miss_winter2("gender")
 char_funct_miss_visit("gender")
+char_funct_4visits("education")
+char_funct_miss_winter2("education")
+char_funct_miss_visit("education")
+char_funct_4visits("income_3level")
+char_funct_miss_winter2("income_3level")
+char_funct_miss_visit("income_3level")
+char_funct_4visits("home_floors_2level")
+char_funct_miss_winter2("home_floors_2level")
+char_funct_miss_visit("home_floors_2level")
+char_funct_4visits("home_pets_3level")
+char_funct_miss_winter2("home_pets_3level")
+char_funct_miss_visit("home_pets_3level")
+char_funct_4visits("residents_smoke")
+char_funct_miss_winter2("residents_smoke")
+char_funct_miss_visit("residents_smoke")
+char_funct_4visits("stove_age")
+char_funct_miss_winter2("stove_age")
+char_funct_miss_visit("stove_age")
+char_funct_4visits("chimney_clean")
+char_funct_miss_winter2("chimney_clean")
+char_funct_miss_visit("chimney_clean")
+char_funct_4visits("wood_collect_method")
+char_funct_miss_winter2("wood_collect_method")
+char_funct_miss_visit("wood_collect_method")
+char_funct_4visits("wood_collect")
+char_funct_miss_winter2("wood_collect")
+char_funct_miss_visit("wood_collect")
+char_funct_4visits("stove_grade")
+char_funct_miss_winter2("stove_grade")
+char_funct_miss_visit("stove_grade")
+char_funct_4visits("burn_level")
+char_funct_miss_winter2("burn_level")
+char_funct_miss_visit("burn_level")
+```
 
-char_funct_total("education")
-char_funct_treatment("income_3level")
-char_funct_treatment("home_floors_2level")
-char_funct_treatment("home_pets_3level")
-char_funct_total("residents_smoke")
-char_funct_total("stove_age")
-char_funct_treatment("chimney_clean")
-char_funct_total("wood_collect_method")
-char_funct_treatment("wood_collect")
-char_funct_total("stove_grade")
-char_funct_treatment("burn_level")
+# Check sociodemographic, health, exposure values
+# Among those who missed a session/dropped and those who completed all sessions
+```{r}
+num_funct_4visits <- function(var, data = elders_cleaned_dataset_by_visit){
+demographics_summary <- data %>% 
+  rename(new_var = var) %>% 
+  mutate(new_var = as.numeric(new_var)) %>% 
+  arrange(adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(adult_id_char) %>% 
+  mutate(participant_n = n()) %>% 
+  ungroup() %>% 
+  filter(participant_n == 4) %>% 
+  filter(winter_id == 1) %>% 
+  mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
+  distinct(adult_id_char, .keep_all = TRUE) %>% 
+  filter(!is.na(new_var)) %>% 
+  dplyr::select(new_var) %>% 
+  summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
+            min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
+demographics_summary
+}
+
+num_funct_miss_winter2 <- function(var, data = elders_cleaned_dataset_by_visit){
+demographics_summary <- data %>% 
+  rename(new_var = var) %>% 
+  mutate(new_var = as.numeric(new_var)) %>% 
+  arrange(adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(adult_id_char) %>% 
+  mutate(winter_id = as.numeric(winter_id)) %>% 
+  mutate(winter_check = if_else(sum(winter_id)<3, "missed2", "present2")) %>% 
+  ungroup() %>% 
+  filter(winter_check == "missed2") %>% 
+  filter(winter_id == 1) %>% 
+  mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
+  distinct(adult_id_char, .keep_all = TRUE) %>% 
+  filter(!is.na(new_var)) %>% 
+  dplyr::select(new_var) %>% 
+  summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
+            min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
+demographics_summary
+}
+
+num_funct_miss_visit <- function(var, data = elders_cleaned_dataset_by_visit){
+demographics_summary <- data %>% 
+  rename(new_var = var) %>% 
+  mutate(new_var = as.numeric(new_var)) %>% 
+  arrange(adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(adult_id_char) %>% 
+  mutate(participant_n = n()) %>% 
+  ungroup() %>% 
+  filter(participant_n < 4) %>% 
+  filter(winter_id == 1) %>% 
+  mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
+  distinct(adult_id_char, .keep_all = TRUE) %>% 
+  filter(!is.na(new_var)) %>% 
+  dplyr::select(new_var) %>% 
+  summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
+            min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
+demographics_summary
+}
+
+
+
+num_funct_4visits("age")
+num_funct_miss_winter2("age")
+num_funct_miss_visit("age")
+num_funct_4visits("bp_sys")
+num_funct_miss_winter2("bp_sys")
+num_funct_miss_visit("bp_sys")
+num_funct_4visits("bp_dia")
+num_funct_miss_winter2("bp_dia")
+num_funct_miss_visit("bp_dia")
+num_funct_4visits("bmi")
+num_funct_miss_winter2("bmi")
+num_funct_miss_visit("bmi")
+num_funct_4visits("fvc")
+num_funct_miss_winter2("fvc")
+num_funct_miss_visit("fvc")
+num_funct_4visits("fev1")
+num_funct_miss_winter2("fev1")
+num_funct_miss_visit("fev1")
+num_funct_4visits("fev1_fvc_ratio")
+num_funct_miss_winter2("fev1_fvc_ratio")
+num_funct_miss_visit("fev1_fvc_ratio")
+num_funct_4visits("fvc_pp")
+num_funct_miss_winter2("fvc_pp")
+num_funct_miss_visit("fvc_pp")
+num_funct_4visits("fev1_pp")
+num_funct_miss_winter2("fev1_pp")
+num_funct_miss_visit("fev1_pp")
+num_funct_4visits("pm_mean_winter")
+num_funct_miss_winter2("pm_mean_winter")
+num_funct_miss_visit("pm_mean_winter")
 ```
 

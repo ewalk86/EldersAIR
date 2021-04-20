@@ -65,6 +65,7 @@ analysis_data <- elders_cleaned_dataset_by_visit %>%
          visit_intervention_diff = as.numeric(visit_intervention_diff),
          visit_intervention_diff = if_else(winter_id == 1, 9999,
                                            visit_intervention_diff)) %>% 
+  filter(spiro_status == "Acceptable") %>%  # only use this filter for spiro outcomes
   mutate(outcome = fev1)  # select outcome here
 
   
@@ -99,7 +100,7 @@ Two ways of dealing with/looking at time since intervention:
    visit_intervention_diff is days since intervention; included as numeric covariate  
    sampling_visit designates Visit 1 or Visit 2 of Winter 2; included as interaction term  
 ```{r, echo=T}
-itt_health_results_2row <- lmer(outcome ~ treatment_blind + visit_intervention_diff + 
+itt_health_results_2row <- lmer(outcome ~ treatment + 
                                 baseline_outcome + (1 | adult_id_char:home:cohort:area), 
                                 data = analysis_data_2row)
 
