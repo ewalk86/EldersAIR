@@ -1,7 +1,7 @@
 ---
 title: 'EldersAIR: Main analysis - final version and manuscript results'
 author: "Ethan Walker"
-date: "Started 16 April 2021; Updated 16 April 2021"
+date: "Started 16 April 2021; Updated 26 April 2021"
 output: pdf_document
 ---
 
@@ -29,6 +29,7 @@ library(kableExtra)
 library(faraway)
 library(splines)
 library(influence.ME)
+library(sjstats)
 ```
 
 ```{r}
@@ -36,26 +37,11 @@ library(influence.ME)
 
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
-treatments_blind_nn <- read_xlsx(paste0(file_path, "Input/NN/treatments_blind.xlsx")) %>% 
-  mutate(area = "NN")
-
-treatments_blind_npt <- read_xlsx(paste0(file_path, "Input/NP/treatments_blind.xlsx")) %>% 
-  mutate(area = "NPT")
-
-treatments_blind <- rbind(treatments_blind_nn, treatments_blind_npt) %>% 
-  mutate(home_id_num = as.factor(HomeID),
-         treatment_blind = as.factor(CodedCondition),
-         area = as.factor(area)) %>% 
-  select(area, home_id_num, treatment_blind)
-
-elders_cleaned_dataset_by_visit <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) %>% 
-  left_join(treatments_blind, by = c("area", "home_id_num")) 
+elders_cleaned_dataset_by_visit <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) 
 ```
 
 
 ```{r}
-## select outcome variable
-### bp_sys, bp_dia, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp, pm_mean_visit
 analysis_data <- elders_cleaned_dataset_by_visit %>% 
   mutate(treatment = factor(treatment,
                             levels = c("Placebo", "Filter", "Education"),
@@ -64,18 +50,28 @@ analysis_data <- elders_cleaned_dataset_by_visit %>%
                                             units = "days"), digits = 0),
          visit_intervention_diff = as.numeric(visit_intervention_diff),
          visit_intervention_diff = if_else(winter_id == 1, 9999,
-                                           visit_intervention_diff)) %>% 
-  filter(spiro_status == "Acceptable") %>%  # only use this filter for spiro outcomes
-  mutate(outcome = fev1)  # select outcome here
+                                           visit_intervention_diff)) 
+```
 
-  
-analysis_data_2row <- analysis_data %>% 
+
+# ITT Model Code - Data formatted as 2 rows per person  
+outcome = outcome from Winter 2 visits (up to 2 repeated measures)  
+baseline_outcome = mean outcome from Winter 1    
+
+# Systolic Blood Pressure
+```{r}
+## select outcome variable
+### bp_sys, bp_dia, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp, pm_mean_visit
+bp_sys_data_2row <- analysis_data %>% 
+  #filter(spiro_status == "Acceptable") %>%  # only use this filter for spiro outcomes
+  mutate(outcome = bp_sys) %>%  # select outcome here
   arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
   group_by(area, home, adult_id_char, winter_id) %>% 
   mutate(outcome = if_else(winter_id == 1, mean(outcome, na.rm = T), outcome)) %>% 
   dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
-                cohort, treatment_blind, treatment, outcome,
-                visit_intervention_diff) %>% 
+                cohort, treatment, outcome, income, education, residents_smoke, 
+                home_sqm_2level, burn_level, gender, chimney_clean, stove_age, 
+                stove_grade, age, bmi, visit_intervention_diff) %>% 
   group_by(area, adult_id_char) %>% 
   pivot_wider(names_from = "winter_id", values_from = "outcome") %>% 
   arrange(area, home, adult_id_char, sampling_visit) %>% 
@@ -88,66 +84,887 @@ analysis_data_2row <- analysis_data %>%
   ungroup()
 
 
-#table(analysis_data$area, analysis_data$treatment_blind)
-#table(analysis_data$area, analysis_data$cohort)
-```
 
-
-# ITT Model Code - Data formatted as 2 rows per person  
-outcome = outcome from Winter 2 visits (up to 2 repeated measures)  
-baseline_outcome = mean outcome from Winter 1  
-Two ways of dealing with/looking at time since intervention:  
-   visit_intervention_diff is days since intervention; included as numeric covariate  
-   sampling_visit designates Visit 1 or Visit 2 of Winter 2; included as interaction term  
-```{r, echo=T}
-itt_health_results_2row <- lmer(outcome ~ treatment + 
+itt_health_results_primary <- lmer(outcome ~ treatment + 
                                 baseline_outcome + (1 | adult_id_char:home:cohort:area), 
-                                data = analysis_data_2row)
+                                data = bp_sys_data_2row)
 
 
-isSingular(itt_health_results_2row)
+#isSingular(itt_health_results_primary)
 
-summary(itt_health_results_2row)
+#summary(itt_health_results_primary)
 
-tidy_results_2row <- tidy(itt_health_results_2row, conf.int = TRUE) %>% 
+tidy_results_primary <- tidy(itt_health_results_primary, conf.int = TRUE) %>% 
   mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
   filter(group_filter == 1) %>% 
-  mutate(term = gsub("treatment_blind", "", term)) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
   mutate(estimate = round((estimate), digits = 2),
          conf.low = round((conf.low), digits = 2),
          conf.high = round((conf.high), digits = 2)) %>% 
   dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
   mutate(term = gsub("treatment", "", term),
-         model = "2-row") %>% 
+         model = "Primary") %>% 
   dplyr::select(-p.value)
-tidy_results_2row
+kable(tidy_results_primary)
 
 
-plot(itt_health_results_2row, main = "ITT Primary Model", 
+itt_health_results_confounders <- lmer(outcome ~ treatment + 
+                                education + residents_smoke + home_sqm_2level +
+                                burn_level + gender + chimney_clean + stove_grade + 
+                                age + bmi + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = bp_sys_data_2row)
+
+
+tidy_results_confounders <- tidy(itt_health_results_confounders, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "Confounders") %>% 
+  dplyr::select(-p.value)
+
+
+itt_health_results_nohome <- lmer(outcome ~ treatment + 
+                                baseline_outcome + (1 | adult_id_char:cohort:area), 
+                                data = bp_sys_data_2row)
+
+
+tidy_results_nohome <- tidy(itt_health_results_nohome, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "No Home Term") %>% 
+  dplyr::select(-p.value)
+
+
+# Remove 10 highest outliers based on Cook's distance
+bp_sys_data_outliers <- bp_sys_data_2row [-c(95, 48, 127, 17, 96, 128, 202, 254, 109, 216), ] 
+
+itt_health_results_outliers <- lmer(outcome ~ treatment + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = bp_sys_data_outliers)
+
+
+tidy_results_outliers <- tidy(itt_health_results_outliers, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "Outliers Removed") %>% 
+  dplyr::select(-p.value)
+
+
+
+tidy_results_combined <- rbind(tidy_results_primary, tidy_results_confounders,
+                               tidy_results_nohome, tidy_results_outliers)
+
+
+# Calculate ICC
+## The ratio of the between-cluster variance to the total variance
+## It can also be interpreted as the correlation among observations within the same cluster
+icc_model <- lmer(outcome ~ (1 | adult_id_char), bp_sys_data_2row)
+bp_sys_icc <- icc(icc_model)
+
+
+itt_plot_estimates <- tidy_results_combined %>%
+  mutate(model = factor(model,
+                        levels = c("Primary", "Confounders", "No Home Term",
+                                   "Outliers Removed"))) %>% 
+  ggplot(aes(group = term, shape = term)) +
+    geom_point(aes(x=model, y=estimate), 
+               position = position_dodge(width = 0.5), size = 4) +
+    geom_errorbar(aes(x=model, ymin=conf.low, ymax=conf.high), 
+                  position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+    geom_hline(yintercept = 0) +
+    theme_bw() +  
+    ggtitle(label = "Sys BP Model - ITT framework",
+            subtitle = "ICC for subject = 0.58") +
+    labs(y = "Estimate compared to Placebo") +
+    labs(x = "", group = "", shape = "") +
+    theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
+itt_plot_estimates
+
+
+plot(itt_health_results_primary, main = "ITT Primary Model", 
      xlab = "fitted values", ylab = "residuals")
-qqnorm(residuals(itt_health_results_2row), main = "ITT Primary Model")
-qqline(residuals(itt_health_results_2row))
+qqnorm(residuals(itt_health_results_primary), main = "ITT Primary Model")
+qqline(residuals(itt_health_results_primary))
+```
+
+\pagebreak  
+
+# Diastolic Blood Pressure
+```{r}
+## select outcome variable
+### bp_sys, bp_dia, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp, pm_mean_visit
+bp_dia_data_2row <- analysis_data %>% 
+  #filter(spiro_status == "Acceptable") %>%  # only use this filter for spiro outcomes
+  mutate(outcome = bp_dia) %>%  # select outcome here
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, home, adult_id_char, winter_id) %>% 
+  mutate(outcome = if_else(winter_id == 1, mean(outcome, na.rm = T), outcome)) %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment, outcome, income, education, residents_smoke, 
+                home_sqm_2level, burn_level, gender, chimney_clean, stove_age, 
+                stove_grade, age, bmi, visit_intervention_diff) %>% 
+  group_by(area, adult_id_char) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "outcome") %>% 
+  arrange(area, home, adult_id_char, sampling_visit) %>% 
+  mutate(outcome = `2`,
+         baseline_outcome = `1`,
+         baseline_outcome = if_else(is.na(baseline_outcome), first(baseline_outcome),
+                                    baseline_outcome)) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, outcome = NaN)) %>% 
+  filter(visit_intervention_diff != 9999) %>% 
+  ungroup()
+
+
+
+itt_health_results_primary <- lmer(outcome ~ treatment + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = bp_dia_data_2row)
+
+
+#isSingular(itt_health_results_primary)
+
+#summary(itt_health_results_primary)
+
+tidy_results_primary <- tidy(itt_health_results_primary, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "Primary") %>% 
+  dplyr::select(-p.value)
+kable(tidy_results_primary)
+
+
+itt_health_results_confounders <- lmer(outcome ~ treatment + 
+                                education + residents_smoke + home_sqm_2level +
+                                burn_level + gender + chimney_clean + stove_grade + 
+                                age + bmi + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = bp_dia_data_2row)
+
+
+tidy_results_confounders <- tidy(itt_health_results_confounders, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "Confounders") %>% 
+  dplyr::select(-p.value)
+
+
+itt_health_results_nohome <- lmer(outcome ~ treatment + 
+                                baseline_outcome + (1 | adult_id_char:cohort:area), 
+                                data = bp_dia_data_2row)
+
+
+tidy_results_nohome <- tidy(itt_health_results_nohome, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "No Home Term") %>% 
+  dplyr::select(-p.value)
+
+
+# Remove 10 highest outliers based on Cook's distance
+bp_dia_data_outliers <- bp_dia_data_2row [-c(42, 95, 48, 192, 127, 223, 202, 128, 204, 52), ] 
+
+itt_health_results_outliers <- lmer(outcome ~ treatment + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = bp_dia_data_outliers)
+
+
+tidy_results_outliers <- tidy(itt_health_results_outliers, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "Outliers Removed") %>% 
+  dplyr::select(-p.value)
+
+
+
+tidy_results_combined <- rbind(tidy_results_primary, tidy_results_confounders,
+                               tidy_results_nohome, tidy_results_outliers)
+
+
+# Calculate ICC
+## The ratio of the between-cluster variance to the total variance
+## It can also be interpreted as the correlation among observations within the same cluster
+icc_model <- lmer(outcome ~ (1 | adult_id_char), bp_dia_data_2row)
+bp_dia_icc <- icc(icc_model)
+
+
+itt_plot_estimates <- tidy_results_combined %>%
+  mutate(model = factor(model,
+                        levels = c("Primary", "Confounders", "No Home Term",
+                                   "Outliers Removed"))) %>% 
+  ggplot(aes(group = term, shape = term)) +
+    geom_point(aes(x=model, y=estimate), 
+               position = position_dodge(width = 0.5), size = 4) +
+    geom_errorbar(aes(x=model, ymin=conf.low, ymax=conf.high), 
+                  position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+    geom_hline(yintercept = 0) +
+    theme_bw() +  
+    ggtitle(label = "Dia BP Model - ITT framework",
+            subtitle = "ICC for subject = 0.61") +
+    labs(y = "Estimate compared to Placebo") +
+    labs(x = "", group = "", shape = "") +
+    theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
+itt_plot_estimates
+
+
+plot(itt_health_results_primary, main = "ITT Primary Model", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_primary), main = "ITT Primary Model")
+qqline(residuals(itt_health_results_primary))
+```
+
+\pagebreak  
+
+# FVC
+```{r}
+## select outcome variable
+### bp_sys, bp_dia, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp, pm_mean_visit
+fvc_data_2row <- analysis_data %>% 
+  #filter(spiro_status == "Acceptable") %>%  # only use this filter for spiro outcomes
+  mutate(outcome = fvc) %>%  # select outcome here
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, home, adult_id_char, winter_id) %>% 
+  mutate(outcome = if_else(winter_id == 1, mean(outcome, na.rm = T), outcome)) %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment, outcome, income, education, residents_smoke, 
+                home_sqm_2level, burn_level, gender, chimney_clean, stove_age, 
+                stove_grade, age, bmi, visit_intervention_diff) %>% 
+  group_by(area, adult_id_char) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "outcome") %>% 
+  arrange(area, home, adult_id_char, sampling_visit) %>% 
+  mutate(outcome = `2`,
+         baseline_outcome = `1`,
+         baseline_outcome = if_else(is.na(baseline_outcome), first(baseline_outcome),
+                                    baseline_outcome)) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, outcome = NaN)) %>% 
+  filter(visit_intervention_diff != 9999) %>% 
+  ungroup()
+
+fvc_data_acceptable <- analysis_data %>% 
+  filter(spiro_status == "Acceptable") %>%  # only use this filter for spiro outcomes
+  mutate(outcome = fvc) %>%  # select outcome here
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, home, adult_id_char, winter_id) %>% 
+  mutate(outcome = if_else(winter_id == 1, mean(outcome, na.rm = T), outcome)) %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment, outcome, income, education, residents_smoke, 
+                home_sqm_2level, burn_level, gender, chimney_clean, stove_age, 
+                stove_grade, age, bmi, visit_intervention_diff) %>% 
+  group_by(area, adult_id_char) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "outcome") %>% 
+  arrange(area, home, adult_id_char, sampling_visit) %>% 
+  mutate(outcome = `2`,
+         baseline_outcome = `1`,
+         baseline_outcome = if_else(is.na(baseline_outcome), first(baseline_outcome),
+                                    baseline_outcome)) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, outcome = NaN)) %>% 
+  filter(visit_intervention_diff != 9999) %>% 
+  ungroup()
+
+
+
+itt_health_results_primary <- lmer(outcome ~ treatment + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = fvc_data_2row)
+
+
+#isSingular(itt_health_results_primary)
+
+#summary(itt_health_results_primary)
+
+tidy_results_primary <- tidy(itt_health_results_primary, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "Primary") %>% 
+  dplyr::select(-p.value)
+kable(tidy_results_primary)
+
+
+itt_health_results_acceptable <- lmer(outcome ~ treatment + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = fvc_data_acceptable)
+
+
+tidy_results_acceptable <- tidy(itt_health_results_acceptable, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "Acceptable Sessions") %>% 
+  dplyr::select(-p.value)
+
+
+itt_health_results_confounders <- lmer(outcome ~ treatment + 
+                                education + residents_smoke + home_sqm_2level +
+                                burn_level + gender + chimney_clean + stove_grade + 
+                                age + bmi + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = fvc_data_2row)
+
+
+tidy_results_confounders <- tidy(itt_health_results_confounders, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "Confounders") %>% 
+  dplyr::select(-p.value)
+
+
+itt_health_results_nohome <- lmer(outcome ~ treatment + 
+                                baseline_outcome + (1 | adult_id_char:cohort:area), 
+                                data = fvc_data_2row)
+
+
+tidy_results_nohome <- tidy(itt_health_results_nohome, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "No Home Term") %>% 
+  dplyr::select(-p.value)
+
+
+# Remove 10 highest outliers based on Cook's distance
+fvc_data_outliers <- fvc_data_2row [-c(93, 94, 82, 34, 142, 164, 35, 219, 89, 81), ] 
+
+itt_health_results_outliers <- lmer(outcome ~ treatment + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = fvc_data_outliers)
+
+
+tidy_results_outliers <- tidy(itt_health_results_outliers, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "Outliers Removed") %>% 
+  dplyr::select(-p.value)
+
+
+
+tidy_results_combined <- rbind(tidy_results_primary, tidy_results_acceptable, 
+                               tidy_results_confounders,
+                               tidy_results_nohome, tidy_results_outliers)
+
+
+# Calculate ICC
+## The ratio of the between-cluster variance to the total variance
+## It can also be interpreted as the correlation among observations within the same cluster
+icc_model <- lmer(outcome ~ (1 | adult_id_char), fvc_data_2row)
+fvc_icc <- icc(icc_model)
+
+
+itt_plot_estimates <- tidy_results_combined %>%
+  mutate(model = factor(model,
+                        levels = c("Primary", "Acceptable Sessions",
+                                   "Confounders", "No Home Term",
+                                   "Outliers Removed"))) %>% 
+  ggplot(aes(group = term, shape = term)) +
+    geom_point(aes(x=model, y=estimate), 
+               position = position_dodge(width = 0.5), size = 4) +
+    geom_errorbar(aes(x=model, ymin=conf.low, ymax=conf.high), 
+                  position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+    geom_hline(yintercept = 0) +
+    theme_bw() +  
+    ggtitle(label = "FVC Model - ITT framework",
+            subtitle = "ICC for subject = 0.86") +
+    labs(y = "Estimate compared to Placebo") +
+    labs(x = "", group = "", shape = "") +
+    theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
+itt_plot_estimates
+
+
+plot(itt_health_results_primary, main = "ITT Primary Model", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_primary), main = "ITT Primary Model")
+qqline(residuals(itt_health_results_primary))
+```
+
+\pagebreak  
+
+# FEV1
+```{r}
+## select outcome variable
+### bp_sys, bp_dia, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp, pm_mean_visit
+fev1_data_2row <- analysis_data %>% 
+  #filter(spiro_status == "Acceptable") %>%  # only use this filter for spiro outcomes
+  mutate(outcome = fev1) %>%  # select outcome here
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, home, adult_id_char, winter_id) %>% 
+  mutate(outcome = if_else(winter_id == 1, mean(outcome, na.rm = T), outcome)) %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment, outcome, income, education, residents_smoke, 
+                home_sqm_2level, burn_level, gender, chimney_clean, stove_age, 
+                stove_grade, age, bmi, visit_intervention_diff) %>% 
+  group_by(area, adult_id_char) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "outcome") %>% 
+  arrange(area, home, adult_id_char, sampling_visit) %>% 
+  mutate(outcome = `2`,
+         baseline_outcome = `1`,
+         baseline_outcome = if_else(is.na(baseline_outcome), first(baseline_outcome),
+                                    baseline_outcome)) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, outcome = NaN)) %>% 
+  filter(visit_intervention_diff != 9999) %>% 
+  ungroup()
+
+fev1_data_acceptable <- analysis_data %>% 
+  filter(spiro_status == "Acceptable") %>%  # only use this filter for spiro outcomes
+  mutate(outcome = fev1) %>%  # select outcome here
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, home, adult_id_char, winter_id) %>% 
+  mutate(outcome = if_else(winter_id == 1, mean(outcome, na.rm = T), outcome)) %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment, outcome, income, education, residents_smoke, 
+                home_sqm_2level, burn_level, gender, chimney_clean, stove_age, 
+                stove_grade, age, bmi, visit_intervention_diff) %>% 
+  group_by(area, adult_id_char) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "outcome") %>% 
+  arrange(area, home, adult_id_char, sampling_visit) %>% 
+  mutate(outcome = `2`,
+         baseline_outcome = `1`,
+         baseline_outcome = if_else(is.na(baseline_outcome), first(baseline_outcome),
+                                    baseline_outcome)) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, outcome = NaN)) %>% 
+  filter(visit_intervention_diff != 9999) %>% 
+  ungroup()
+
+
+
+itt_health_results_primary <- lmer(outcome ~ treatment + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = fev1_data_2row)
+
+
+#isSingular(itt_health_results_primary)
+
+#summary(itt_health_results_primary)
+
+tidy_results_primary <- tidy(itt_health_results_primary, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "Primary") %>% 
+  dplyr::select(-p.value)
+kable(tidy_results_primary)
+
+
+itt_health_results_acceptable <- lmer(outcome ~ treatment + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = fev1_data_acceptable)
+
+
+tidy_results_acceptable <- tidy(itt_health_results_acceptable, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "Acceptable Sessions") %>% 
+  dplyr::select(-p.value)
+
+
+itt_health_results_confounders <- lmer(outcome ~ treatment + 
+                                education + residents_smoke + home_sqm_2level +
+                                burn_level + gender + chimney_clean + stove_grade + 
+                                age + bmi + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = fev1_data_2row)
+
+
+tidy_results_confounders <- tidy(itt_health_results_confounders, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "Confounders") %>% 
+  dplyr::select(-p.value)
+
+
+itt_health_results_nohome <- lmer(outcome ~ treatment + 
+                                baseline_outcome + (1 | adult_id_char:cohort:area), 
+                                data = fev1_data_2row)
+
+
+tidy_results_nohome <- tidy(itt_health_results_nohome, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "No Home Term") %>% 
+  dplyr::select(-p.value)
+
+
+# Remove 10 highest outliers based on Cook's distance
+fev1_data_outliers <- fev1_data_2row [-c(79, 219, 34, 82, 80, 24, 142, 81, 164, 14), ] 
+
+itt_health_results_outliers <- lmer(outcome ~ treatment + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = fev1_data_outliers)
+
+
+tidy_results_outliers <- tidy(itt_health_results_outliers, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((conf.low), digits = 2),
+         conf.high = round((conf.high), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "Outliers Removed") %>% 
+  dplyr::select(-p.value)
+
+
+
+tidy_results_combined <- rbind(tidy_results_primary, tidy_results_acceptable, 
+                               tidy_results_confounders,
+                               tidy_results_nohome, tidy_results_outliers)
+
+
+# Calculate ICC
+## The ratio of the between-cluster variance to the total variance
+## It can also be interpreted as the correlation among observations within the same cluster
+icc_model <- lmer(outcome ~ (1 | adult_id_char), fev1_data_2row)
+fev1_icc <- icc(icc_model)
+
+
+itt_plot_estimates <- tidy_results_combined %>%
+  mutate(model = factor(model,
+                        levels = c("Primary", "Acceptable Sessions",
+                                   "Confounders", "No Home Term",
+                                   "Outliers Removed"))) %>% 
+  ggplot(aes(group = term, shape = term)) +
+    geom_point(aes(x=model, y=estimate), 
+               position = position_dodge(width = 0.5), size = 4) +
+    geom_errorbar(aes(x=model, ymin=conf.low, ymax=conf.high), 
+                  position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+    geom_hline(yintercept = 0) +
+    theme_bw() +  
+    ggtitle(label = "FEV1 Model - ITT framework",
+            subtitle = "ICC for subject = 0.91") +
+    labs(y = "Estimate compared to Placebo") +
+    labs(x = "", group = "", shape = "") +
+    theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
+itt_plot_estimates
+
+
+plot(itt_health_results_primary, main = "ITT Primary Model", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_health_results_primary), main = "ITT Primary Model")
+qqline(residuals(itt_health_results_primary))
+```
+
+\pagebreak  
+
+# PM2.5
+```{r}
+## select outcome variable
+### bp_sys, bp_dia, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp, pm_mean_visit
+pm_data_2row <- analysis_data %>% 
+  #filter(spiro_status == "Acceptable") %>%  # only use this filter for spiro outcomes
+  mutate(outcome = pm_mean_visit) %>%  # select outcome here
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, home, adult_id_char, winter_id) %>% 
+  mutate(outcome = if_else(winter_id == 1, mean(outcome, na.rm = T), outcome)) %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment, outcome, income, education, residents_smoke, 
+                home_sqm_2level, burn_level, gender, chimney_clean, stove_age, 
+                stove_grade, age, bmi, visit_intervention_diff) %>% 
+  group_by(area, adult_id_char) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "outcome") %>% 
+  arrange(area, home, adult_id_char, sampling_visit) %>% 
+  mutate(outcome = `2`,
+         baseline_outcome = `1`,
+         baseline_outcome = if_else(is.na(baseline_outcome), first(baseline_outcome),
+                                    baseline_outcome)) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, outcome = NaN)) %>% 
+  filter(visit_intervention_diff != 9999) %>% 
+  ungroup()
+
+pm_at_home_data <- analysis_data %>% 
+  mutate(outcome = pm_mean_at_home_visit) %>%  # select outcome here
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, home, adult_id_char, winter_id) %>% 
+  mutate(outcome = if_else(winter_id == 1, mean(outcome, na.rm = T), outcome)) %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment, outcome, income, education, residents_smoke, 
+                home_sqm_2level, burn_level, gender, chimney_clean, stove_age, 
+                stove_grade, age, bmi, visit_intervention_diff) %>% 
+  group_by(area, adult_id_char) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "outcome") %>% 
+  arrange(area, home, adult_id_char, sampling_visit) %>% 
+  mutate(outcome = `2`,
+         baseline_outcome = `1`,
+         baseline_outcome = if_else(is.na(baseline_outcome), first(baseline_outcome),
+                                    baseline_outcome)) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, outcome = NaN)) %>% 
+  filter(visit_intervention_diff != 9999) %>% 
+  ungroup()
+
+
+
+itt_pm_results_primary <- lmer(log(outcome) ~ treatment + 
+                                baseline_outcome + (1 | home:cohort:area), 
+                                data = pm_data_2row)
+
+
+#isSingular(itt_pm_results_primary)
+
+#summary(itt_pm_results_primary)
+
+tidy_results_primary <- tidy(itt_pm_results_primary, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((exp(estimate)-1)*100, digits = 2),
+         conf.low = round((exp(conf.low)-1)*100, digits = 2),
+         conf.high = round((exp(conf.high)-1)*100, digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "Primary") %>% 
+  dplyr::select(-p.value)
+kable(tidy_results_primary)
+
+
+itt_pm_results_athome <- lmer(log(outcome) ~ treatment + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = pm_at_home_data)
+
+
+tidy_results_athome <- tidy(itt_pm_results_athome, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((exp(estimate)-1)*100, digits = 2),
+         conf.low = round((exp(conf.low)-1)*100, digits = 2),
+         conf.high = round((exp(conf.high)-1)*100, digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "At-home PM") %>% 
+  dplyr::select(-p.value)
+
+
+itt_pm_results_confounders <- lmer(log(outcome) ~ treatment + 
+                                education + residents_smoke + home_sqm_2level +
+                                burn_level + gender + chimney_clean + stove_grade + 
+                                age + bmi + 
+                                baseline_outcome + (1 | home:cohort:area), 
+                                data = pm_data_2row)
+
+
+tidy_results_confounders <- tidy(itt_pm_results_confounders, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((exp(estimate)-1)*100, digits = 2),
+         conf.low = round((exp(conf.low)-1)*100, digits = 2),
+         conf.high = round((exp(conf.high)-1)*100, digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "Confounders") %>% 
+  dplyr::select(-p.value)
+
+
+tidy_results_combined <- rbind(tidy_results_primary, tidy_results_athome, 
+                               tidy_results_confounders)
+
+
+# Calculate ICC
+## The ratio of the between-cluster variance to the total variance
+## It can also be interpreted as the correlation among observations within the same cluster
+icc_model <- lmer(outcome ~ (1 | home), pm_data_2row)
+pm_icc <- icc(icc_model)
+
+
+itt_plot_estimates <- tidy_results_combined %>%
+  mutate(model = factor(model,
+                        levels = c("Primary", "At-home PM",
+                                   "Confounders"))) %>% 
+  ggplot(aes(group = term, shape = term)) +
+    geom_point(aes(x=model, y=estimate), 
+               position = position_dodge(width = 0.5), size = 4) +
+    geom_errorbar(aes(x=model, ymin=conf.low, ymax=conf.high), 
+                  position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+    geom_hline(yintercept = 0) +
+    theme_bw() +  
+    ggtitle(label = "PM Model - ITT framework",
+            subtitle = "ICC for subject = 0.44") +
+    labs(y = "% difference compared to Placebo") +
+    labs(x = "", group = "", shape = "") +
+    theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
+itt_plot_estimates
+
+
+plot(itt_pm_results_primary, main = "ITT Primary Model", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_pm_results_primary), main = "ITT Primary Model")
+qqline(residuals(itt_pm_results_primary))
 ```
 
 
+
+
+```{r, eval=F}
 # ITT primary model identify potential influential datapoints
-```{r}
-influential <- influence(itt_health_results_2row, obs = TRUE)
+
+influential <- influence(itt_health_results_primary, obs = TRUE)
 cooks <- cooks.distance.estex(influential, sort = TRUE)
 plot.estex(influential, which = "cook")
 
-# bp_sys: try removing lines 127, 202, 95, 32, 48, 31, 17, 216, 128, 4
-# bp_dia: try removing lines 42, 95, 192, 127, 48, 202, 191, 31, 223, 7
-# fvc: try removing lines 93, 94, 34, 82, 35, 164, 142, 81, 219, 32
-# fev1: try removing lines 79, 34, 24, 80, 25, 82, 26, 230, 5, 6
-# fev1_fvc_ratio: try removing lines
-# fvc_pp: try removing lines
-# fev1_pp: try removing lines
+# bp_sys: try removing lines 95, 48, 127, 17, 96, 128, 202, 254, 109, 216
+# bp_dia: try removing lines 42, 95, 48, 192, 127, 223, 202, 128, 204, 52
+# fvc: try removing lines 93, 94, 82, 34, 142, 164, 35, 219, 89, 81
+# fev1: try removing lines 79, 219, 34, 82, 80, 24, 142, 81, 164, 14
+
+# fev1_fvc_ratio: try removing lines 67, 113, 140, 49, 82, 27, 4, 3, 105, 151
+# fvc_pp: try removing lines 27, 60, 66, 137, 41, 140, 42, 115, 113, 90
+# fev1_pp: try removing lines 27, 113, 60, 67, 137, 66, 42, 41, 115, 90
 ```
 
 
+```{r, eval=F}
 # ITT Effect modification model code
-```{r}
+
 itt_health_results_2row_int <- lmer(outcome ~ treatment_blind*sampling_visit + 
                                     baseline_outcome + (1 | adult_id_char:home:cohort:area), 
                                     data = analysis_data_2row)
