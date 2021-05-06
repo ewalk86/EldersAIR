@@ -1,0 +1,578 @@
+---
+title: 'EldersAIR: Main analysis - PM/Exposure Outcomes'
+author: "Ethan Walker"
+date: "Started 6 May 2021; Updated 6 May 2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, include = TRUE,
+                      message = FALSE, warning = FALSE)
+```
+
+```{r}
+library(readxl)
+library(naniar)
+library(lubridate)
+library(emmeans)
+library(broom)
+library(broom.mixed)
+library(zoo)
+library(car)
+library(lme4)
+library(lmerTest)
+library(mctest)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+#library(MASS)
+library(faraway)
+library(splines)
+library(influence.ME)
+library(sjstats)
+```
+
+```{r}
+# Load data
+
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+elders_cleaned_dataset_by_visit <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) 
+```
+
+
+```{r}
+analysis_data <- elders_cleaned_dataset_by_visit %>% 
+  mutate(treatment = factor(treatment,
+                            levels = c("Placebo", "Filter", "Education"),
+                            labels = c("Placebo", "Filter", "Education")),
+         visit_intervention_diff = round(difftime(sampling_date, intervention_date, 
+                                            units = "days"), digits = 0),
+         visit_intervention_diff = as.numeric(visit_intervention_diff),
+         visit_intervention_diff = if_else(winter_id == 1, 9999,
+                                           visit_intervention_diff)) %>% 
+  # All but 4 homes (all NPT homes that used Large Filtretes) in the Filter arm used Winix units
+  # Filter type isn't really feasible to use in the analysis due to this small sample size
+  mutate(treatment_filter_type = as.character(treatment),
+         filter_type = as.character(filter_type),
+         treatment_filter_type2 = if_else(treatment_filter_type == "Filter", filter_type,
+                                         treatment_filter_type),
+         treatment_filter_type = factor(treatment_filter_type2,
+                                        levels = c("Placebo", "Education",
+                                                   "Large Filtrete", "Winix")),
+         filter_type = as.factor(filter_type),
+         kw_perc_expected = if_else(treatment == "Education", 100, kw_perc_expected)) %>% 
+  mutate(treatment = as.character(treatment),
+         perc_exp_quart = cut(kw_perc_expected,
+                                  breaks = c(0, 25, 46, 71, 1000),
+                                  labels = c("0-25 compliance", "25-50 compliance",
+                                             "50-75 compliance", "75-100 compliance")),
+         perc_exp_quart = as.character(perc_exp_quart),
+         filter_compliance = if_else(treatment == "Filter",
+                                     perc_exp_quart, 
+                                     treatment),
+         treatment = factor(treatment,
+                            levels = c("Placebo", "Education", "Filter")),
+         filter_compliance = factor(filter_compliance,
+                                    levels = c("Placebo", "Education",
+                                               "0-25 compliance", "25-50 compliance",
+                                               "50-75 compliance", "75-100 compliance"))) %>% 
+  select(-treatment_filter_type2) 
+```
+
+# Indoor/Area PM2.5
+```{r}
+pm_data_2row <- analysis_data %>% 
+  mutate(outcome = pm_mean_visit) %>%  # select outcome here
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, home, adult_id_char, winter_id) %>% 
+  mutate(outcome = if_else(winter_id == 1, mean(outcome, na.rm = T), outcome)) %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment, outcome, income, education, residents_smoke, 
+                home_sqm_2level, burn_level, gender, chimney_clean, stove_age, 
+                stove_grade, age, bmi, visit_intervention_diff,
+                treatment_filter_type, filter_compliance, kw_perc_expected) %>% 
+  ungroup() %>% 
+  distinct(area, home, winter_id, sampling_visit, .keep_all = T) %>% 
+  group_by(area, home) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "outcome") %>% 
+  arrange(area, home, sampling_visit) %>% 
+  mutate(outcome = `2`,
+         baseline_outcome = `1`,
+         baseline_outcome = if_else(is.na(baseline_outcome), first(baseline_outcome),
+                                    baseline_outcome)) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, outcome = NaN)) %>% 
+  filter(visit_intervention_diff != 9999) %>% 
+  ungroup()
+
+pm_at_home_data <- analysis_data %>% 
+  mutate(outcome = pm_mean_at_home_visit) %>%  # select outcome here
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, home, adult_id_char, winter_id) %>% 
+  mutate(outcome = if_else(winter_id == 1, mean(outcome, na.rm = T), outcome)) %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment, outcome, income, education, residents_smoke, 
+                home_sqm_2level, burn_level, gender, chimney_clean, stove_age, 
+                stove_grade, age, bmi, visit_intervention_diff,
+                treatment_filter_type, filter_compliance, kw_perc_expected) %>% 
+  ungroup() %>% 
+  distinct(area, adult_id_char, winter_id, sampling_visit, .keep_all = T) %>% 
+  group_by(area, adult_id_char) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "outcome") %>% 
+  arrange(area, adult_id_char, sampling_visit) %>% 
+  mutate(outcome = `2`,
+         baseline_outcome = `1`,
+         baseline_outcome = if_else(is.na(baseline_outcome), first(baseline_outcome),
+                                    baseline_outcome)) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, outcome = NaN)) %>% 
+  filter(visit_intervention_diff != 9999) %>% 
+  ungroup()
+
+
+
+itt_pm_results_primary <- lmer(log(outcome) ~ treatment + 
+                                baseline_outcome + (1 | home:cohort:area), 
+                                data = pm_data_2row)
+
+
+#isSingular(itt_pm_results_primary)
+
+#summary(itt_pm_results_primary)
+
+tidy_results_primary <- tidy(itt_pm_results_primary, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((exp(estimate)-1)*100, digits = 2),
+         conf.low = round((exp(conf.low)-1)*100, digits = 2),
+         conf.high = round((exp(conf.high)-1)*100, digits = 2),
+         p.value = round((p.value), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "Primary") 
+kable(tidy_results_primary)
+
+
+itt_pm_results_athome <- lmer(log(outcome) ~ treatment + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = pm_at_home_data)
+
+
+tidy_results_athome <- tidy(itt_pm_results_athome, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((exp(estimate)-1)*100, digits = 2),
+         conf.low = round((exp(conf.low)-1)*100, digits = 2),
+         conf.high = round((exp(conf.high)-1)*100, digits = 2),
+         p.value = round((p.value), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "At-home PM") 
+
+
+itt_pm_results_filter_type <- lmer(log(outcome) ~ treatment_filter_type + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort), 
+                                data = pm_data_2row)
+
+
+tidy_results_filter_type <- tidy(itt_pm_results_filter_type, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_filter_type", "", term)) %>% 
+  mutate(estimate = round((exp(estimate)-1)*100, digits = 2),
+         conf.low = round((exp(conf.low)-1)*100, digits = 2),
+         conf.high = round((exp(conf.high)-1)*100, digits = 2),
+         p.value = round((p.value), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "Filter Type") 
+
+
+itt_pm_results_filter_compliance <- lmer(log(outcome) ~ filter_compliance + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort), 
+                                data = pm_data_2row)
+
+
+tidy_results_filter_compliance <- tidy(itt_pm_results_filter_compliance, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("filter_compliance", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("filter_compliance", "", term)) %>% 
+  mutate(estimate = round((exp(estimate)-1)*100, digits = 2),
+         conf.low = round((exp(conf.low)-1)*100, digits = 2),
+         conf.high = round((exp(conf.high)-1)*100, digits = 2),
+         p.value = round((p.value), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "Filter Compliance") 
+
+
+itt_pm_results_confounders <- lmer(log(outcome) ~ treatment + 
+                                education + residents_smoke + home_sqm_2level +
+                                burn_level + gender + chimney_clean + stove_grade + 
+                                age + bmi + 
+                                baseline_outcome + (1 | home:cohort:area), 
+                                data = pm_data_2row)
+
+
+tidy_results_confounders <- tidy(itt_pm_results_confounders, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((exp(estimate)-1)*100, digits = 2),
+         conf.low = round((exp(conf.low)-1)*100, digits = 2),
+         conf.high = round((exp(conf.high)-1)*100, digits = 2),
+         p.value = round((p.value), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "Confounders")
+
+
+# Calculate ICC
+## The ratio of the between-cluster variance to the total variance
+## It can also be interpreted as the correlation among observations within the same cluster
+icc_model <- lmer(outcome ~ (1 | home), pm_data_2row)
+pm_icc <- icc(icc_model)
+
+
+tidy_results_combined <- rbind(tidy_results_primary, tidy_results_filter_type,
+                               tidy_results_filter_compliance, 
+                               tidy_results_athome, tidy_results_confounders)
+
+
+kable(tidy_results_primary)
+
+itt_plot_estimates <- tidy_results_combined %>%
+  mutate(model = factor(model,
+                        levels = c("Primary", "Filter Type", "At-home PM",
+                                   "Filter Compliance", 
+                                   "Confounders"))) %>% 
+  ggplot(aes(group = term, shape = term)) +
+    geom_point(aes(x=model, y=estimate), 
+               position = position_dodge(width = 0.5), size = 4) +
+    geom_errorbar(aes(x=model, ymin=conf.low, ymax=conf.high), 
+                  position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+    geom_hline(yintercept = 0) +
+    theme_bw() +  
+    ggtitle(label = "PM Model - ITT framework",
+            subtitle = "ICC for Household = 0.42") +
+    labs(y = "% difference compared to Placebo") +
+    labs(x = "", group = "", shape = "") +
+    theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
+itt_plot_estimates
+
+
+plot(itt_pm_results_primary, main = "ITT Primary Model", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_pm_results_primary), main = "ITT Primary Model")
+qqline(residuals(itt_pm_results_primary))
+```
+
+\pagebreak  
+
+# Personal PM2.5
+```{r}
+pm_data_2row <- analysis_data %>% 
+  mutate(outcome = mp_mean_visit) %>%  # select outcome here
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, home, adult_id_char, winter_id) %>% 
+  mutate(outcome = if_else(winter_id == 1, mean(outcome, na.rm = T), outcome)) %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment, outcome, income, education, residents_smoke, 
+                home_sqm_2level, burn_level, gender, chimney_clean, stove_age, 
+                stove_grade, age, bmi, visit_intervention_diff,
+                treatment_filter_type, filter_compliance, kw_perc_expected) %>% 
+  ungroup() %>% 
+  distinct(area, home, winter_id, sampling_visit, .keep_all = T) %>% 
+  group_by(area, home) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "outcome") %>% 
+  arrange(area, home, sampling_visit) %>% 
+  mutate(outcome = `2`,
+         baseline_outcome = `1`,
+         baseline_outcome = if_else(is.na(baseline_outcome), first(baseline_outcome),
+                                    baseline_outcome)) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, outcome = NaN)) %>% 
+  filter(visit_intervention_diff != 9999) %>% 
+  ungroup() 
+
+
+itt_pm_results_primary <- lmer(log(outcome) ~ treatment + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort), 
+                                data = pm_data_2row)
+
+
+#isSingular(itt_pm_results_primary)
+
+#summary(itt_pm_results_primary)
+
+tidy_results_primary <- tidy(itt_pm_results_primary, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((exp(estimate)-1)*100, digits = 2),
+         conf.low = round((exp(conf.low)-1)*100, digits = 2),
+         conf.high = round((exp(conf.high)-1)*100, digits = 2),
+         p.value = round((p.value), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "Primary") 
+
+
+itt_pm_results_filter_type <- lmer(log(outcome) ~ treatment_filter_type + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort), 
+                                data = pm_data_2row)
+
+
+tidy_results_filter_type <- tidy(itt_pm_results_filter_type, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment_filter_type", "", term)) %>% 
+  mutate(estimate = round((exp(estimate)-1)*100, digits = 2),
+         conf.low = round((exp(conf.low)-1)*100, digits = 2),
+         conf.high = round((exp(conf.high)-1)*100, digits = 2),
+         p.value = round((p.value), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "Filter Type") 
+
+
+itt_pm_results_filter_compliance <- lmer(log(outcome) ~ filter_compliance + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort), 
+                                data = pm_data_2row)
+
+
+tidy_results_filter_compliance <- tidy(itt_pm_results_filter_compliance, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("filter_compliance", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("filter_compliance", "", term)) %>% 
+  mutate(estimate = round((exp(estimate)-1)*100, digits = 2),
+         conf.low = round((exp(conf.low)-1)*100, digits = 2),
+         conf.high = round((exp(conf.high)-1)*100, digits = 2),
+         p.value = round((p.value), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(model = "Filter Compliance") 
+
+
+itt_pm_results_confounders <- lmer(log(outcome) ~ treatment + 
+                                education + residents_smoke + home_sqm_2level +
+                                burn_level + gender + chimney_clean + stove_grade + 
+                                age + bmi + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort), 
+                                data = pm_data_2row)
+
+
+tidy_results_confounders <- tidy(itt_pm_results_confounders, conf.int = TRUE) %>% 
+  mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
+  filter(group_filter == 1) %>% 
+  mutate(term = gsub("treatment", "", term)) %>% 
+  mutate(estimate = round((exp(estimate)-1)*100, digits = 2),
+         conf.low = round((exp(conf.low)-1)*100, digits = 2),
+         conf.high = round((exp(conf.high)-1)*100, digits = 2),
+         p.value = round((p.value), digits = 2)) %>% 
+  dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
+  mutate(term = gsub("treatment", "", term),
+         model = "Confounders")
+
+
+# Calculate ICC
+## The ratio of the between-cluster variance to the total variance
+## It can also be interpreted as the correlation among observations within the same cluster
+icc_model <- lmer(outcome ~ (1 | home), pm_data_2row)
+pm_icc <- icc(icc_model)
+
+
+tidy_results_combined <- rbind(tidy_results_primary, tidy_results_filter_type,
+                               #tidy_results_filter_compliance, 
+                               tidy_results_confounders)
+
+
+kable(tidy_results_primary)
+
+itt_plot_estimates <- tidy_results_combined %>%
+  mutate(model = factor(model,
+                        levels = c("Primary", "Filter Type", 
+                                   #"Filter Compliance", 
+                                   "Confounders"))) %>% 
+  ggplot(aes(group = term, shape = term)) +
+    geom_point(aes(x=model, y=estimate), 
+               position = position_dodge(width = 0.5), size = 4) +
+    geom_errorbar(aes(x=model, ymin=conf.low, ymax=conf.high), 
+                  position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+    geom_hline(yintercept = 0) +
+    theme_bw() +  
+    ggtitle(label = "PM Model - ITT framework",
+            subtitle = "ICC for Household = 0.41") +
+    labs(y = "% difference compared to Placebo") +
+    labs(x = "", group = "", shape = "") +
+    theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
+itt_plot_estimates
+
+
+plot(itt_pm_results_primary, main = "ITT Primary Model", 
+     xlab = "fitted values", ylab = "residuals")
+qqnorm(residuals(itt_pm_results_primary), main = "ITT Primary Model")
+qqline(residuals(itt_pm_results_primary))
+```
+
+\pagebreak  
+
+# Indoor/Area PM2.5 Interaction Analysis
+```{r}
+# Prep Data
+pm_data_2row <- analysis_data %>% 
+  mutate(outcome = pm_mean_visit) %>%  # select outcome here
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, home, adult_id_char, winter_id) %>% 
+  mutate(outcome = if_else(winter_id == 1, mean(outcome, na.rm = T), outcome)) %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment, outcome, income, education, residents_smoke, 
+                home_sqm_2level, burn_level, gender, chimney_clean, stove_age, 
+                stove_grade, age, bmi, visit_intervention_diff, home_floors_2level,
+                treatment_filter_type, filter_compliance, kw_perc_expected,
+                home_year_built_2level, wood_collect, wood_collect_method) %>% 
+  ungroup() %>% 
+  distinct(area, home, winter_id, sampling_visit, .keep_all = T) %>% 
+  group_by(area, home) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "outcome") %>% 
+  arrange(area, home, sampling_visit) %>% 
+  mutate(outcome = `2`,
+         baseline_outcome = `1`,
+         baseline_outcome = if_else(is.na(baseline_outcome), first(baseline_outcome),
+                                    baseline_outcome)) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, outcome = NaN)) %>% 
+  filter(visit_intervention_diff != 9999) %>% 
+  ungroup() 
+
+
+
+int_function <- function(data, interaction_var, interaction_label) {
+  
+  new_model_data <- data %>% 
+    rename(int_var = interaction_var)
+  
+  
+# Run primary model and print results
+itt_results_int <<- lmer(log(outcome) ~ treatment*int_var + 
+                                baseline_outcome + (1 | home:cohort:area), 
+                                data = new_model_data)
+
+#write_rds(itt_results_int, paste0(file_path, "Output/itt_pm_results_int_age.rds"))
+
+
+save_summary <<- summary(itt_results_int)
+
+int_emmeans <<- emmeans(itt_results_int, revpairwise ~ treatment | int_var)
+
+#summary(int_emmeans, conf.int = TRUE)
+
+save_contrasts_full <<- summary(int_emmeans)
+
+save_contrasts <<- confint(int_emmeans$contrasts) %>% 
+  mutate(estimate = round((exp(estimate)), digits = 2),
+         conf.low = round((exp(lower.CL)), digits = 2),
+         conf.high = round((exp(upper.CL)), digits = 2)) %>% 
+  dplyr::select(contrast, int_var, estimate, conf.low, conf.high)
+
+obs <<- table(model.frame(itt_results_int)$treatment)
+
+n_table <<- table(new_model_data$int_var, new_model_data$treatment)
+
+plot_results <- save_contrasts %>% 
+  ggplot(aes(group = contrast, shape = contrast)) +
+  geom_point(aes(x=int_var, y=estimate), 
+             position = position_dodge(width = 0.5), size = 4) +
+  geom_errorbar(aes(x=int_var, ymin=conf.low, ymax=conf.high), 
+             position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+  geom_hline(yintercept = 1) +
+  theme_bw() +  
+  ggtitle(label = "Interaction contrasts for ITT framework, PM outcome",
+          subtitle = paste0("Interaction term = ", interaction_label)) +
+  labs(y = "% difference vs placebo") +
+  labs(x = "", group = "", shape = "") +
+  theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
+
+pm_summary_table <<- new_model_data %>% 
+  filter(!is.na(int_var)) %>% 
+  group_by(int_var, treatment) %>% 
+  summarize("Mean PM" = mean(outcome, na.rm = TRUE),
+            "n" = n(),
+            "SD PM" = sd(outcome, na.rm = TRUE),
+            "Min PM" = min(outcome, na.rm = TRUE),
+            "Median PM" = median(outcome, na.rm = TRUE),
+            "Max PM" = max(outcome, na.rm = TRUE))
+
+
+plot_results 
+
+}
+
+# Try: home_floors_2level, home_sqm_2level, education, income,
+# home_year_built_2level, stove_age, stove_grade, chimney_clean,
+# wood_collect, wood_collect_method, burn_level, residents_smoke
+int_function(pm_data_2row, "home_floors_2level", "Floors in home")
+int_function(pm_data_2row, "home_sqm_2level", "Home Square Meters")
+int_function(pm_data_2row, "education", "Education")
+int_function(pm_data_2row, "income", "Income")
+int_function(pm_data_2row, "home_year_built_2level", "Year home was built")
+int_function(pm_data_2row, "stove_age", "Stove age")
+int_function(pm_data_2row, "stove_grade", "Stove grade")
+int_function(pm_data_2row, "chimney_clean", "When was chimney cleaned")
+int_function(pm_data_2row, "wood_collect", "When was wood collected")
+int_function(pm_data_2row, "wood_collect_method", "Wood collect method")
+int_function(pm_data_2row, "burn_level", "Burn level")
+int_function(pm_data_2row, "residents_smoke", "Residents Smoke")
+
+
+n_table
+save_contrasts
+pm_summary_table
+save_summary
+save_contrasts_full
+obs <- pm_data_2row %>% 
+  filter(!is.na(outcome)) %>% 
+  filter(!is.na(baseline_outcome)) %>%
+  filter(!is.na(area)) %>% 
+  filter(!is.na(cohort)) %>% 
+  filter(!is.na(treatment)) %>% 
+  filter(!is.na(residents_smoke)) %>%
+  group_by(residents_smoke, treatment) %>% 
+  count()
+obs
+Anova(itt_results_int)
+
+#((exp(-.418)-1)*100)
+```
+

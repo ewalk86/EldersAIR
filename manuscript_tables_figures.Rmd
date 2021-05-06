@@ -588,3 +588,38 @@ num_funct_miss_winter2("pm_mean_winter")
 num_funct_miss_visit("pm_mean_winter")
 ```
 
+
+```{r}
+kw_filtertype_data <- elders_cleaned_dataset_by_visit %>% 
+  select(area, home, adult_id_char, winter_id, sampling_visit, treatment,
+         filter_type, kw_perc_expected) %>% 
+  mutate(treatment_filter_type = as.character(treatment),
+         filter_type = as.character(filter_type),
+         treatment_filter_type2 = if_else(treatment_filter_type == "Filter", filter_type,
+                                         treatment_filter_type),
+         treatment_filter_type = as.factor(treatment_filter_type2),
+         filter_type = as.factor(filter_type)) %>% 
+  select(-treatment_filter_type2) 
+  group_by(treatment) %>% 
+  summarize(mean(kw_perc_expected, na.rm = T), median(kw_perc_expected, na.rm = T))
+kw_filtertype_data
+
+summary(kw_filtertype_data)
+
+
+compliance_summary <- elders_cleaned_dataset_by_visit %>% 
+  filter(winter_id == 2) %>% 
+  distinct(area, home, .keep_all = T) %>% 
+  filter(treatment == "Filter") %>% 
+  filter(!is.na(kw_perc_expected)) %>% 
+  summarize("Mean KW % Exp" = mean(kw_perc_expected),
+            "SD KW % Exp" = sd(kw_perc_expected),
+            "N KW % Exp" = n(),
+            "Min KW % Exp" = min(kw_perc_expected),
+            "25Q KW % Exp" = quantile(kw_perc_expected, 0.25),
+            "Med KW % Exp" = median(kw_perc_expected),
+            "75Q KW % Exp" = quantile(kw_perc_expected, 0.75),
+            "Max KW % Exp" = max(kw_perc_expected))
+compliance_summary
+```
+

@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR Med Visit Summary"
 author: "Ethan Walker"
-date: "Started 11 March 2020, Updated 1 April 2021"
+date: "Started 11 March 2020, Updated 3 May 2021"
 output: pdf_document
 ---
 
@@ -46,8 +46,8 @@ analysis_data <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_vi
   ungroup()
 ```
 
-# Cardiovascular outcomes from Med visit
-```{r, fig.height=8.5, fig.width=8.5}
+
+```{r, fig.height=8.5, fig.width=8.5, eval = FALSE}
 medvisit_plot <- analysis_data %>% 
   filter(winter_id == 1) %>% 
   select(area, treatment_blind, sp02, pr, bp_sys, bp_dia, hr, age, height_inches,
@@ -77,7 +77,7 @@ medvisit_plot <- analysis_data %>%
 medvisit_plot
 ```
 
-```{r, fig.height=8.5, fig.width=8.5}
+```{r, fig.height=8.5, fig.width=8.5, eval = FALSE}
 medvisit_plot <- analysis_data %>% 
   filter(winter_id == 2) %>% 
   select(area, treatment_blind, sp02, pr, bp_sys, bp_dia, hr, age, height_inches,
@@ -108,7 +108,7 @@ medvisit_plot
 ```
 
 
-```{r, fig.height=8.5, fig.width=8.5}
+```{r, fig.height=8.5, fig.width=8.5, eval = FALSE}
 medvisit_plot <- analysis_data %>% 
   filter(winter_id == 1) %>% 
   select(area, treatment_blind, sp02, pr, bp_sys, bp_dia, hr, age, height_inches,
@@ -137,7 +137,7 @@ medvisit_plot <- analysis_data %>%
 medvisit_plot
 ```
 
-```{r, fig.height=8.5, fig.width=8.5}
+```{r, fig.height=8.5, fig.width=8.5, eval = FALSE}
 medvisit_plot <- analysis_data %>% 
   filter(winter_id == 2) %>% 
   select(area, treatment_blind, sp02, pr, bp_sys, bp_dia, hr, age, height_inches,
@@ -167,8 +167,8 @@ medvisit_plot
 ```
 
 
-# Spirometry outcomes from Med visit
-```{r, fig.height=6, fig.width=8.5}
+
+```{r, fig.height=6, fig.width=8.5, eval = FALSE}
 medvisit_plot <- analysis_data %>% 
   filter(winter_id == 1) %>% 
   filter(spiro_status == "Acceptable") %>% 
@@ -199,7 +199,7 @@ medvisit_plot <- analysis_data %>%
 medvisit_plot
 ```
 
-```{r, fig.height=6, fig.width=8.5}
+```{r, fig.height=6, fig.width=8.5, eval = FALSE}
 medvisit_plot <- analysis_data %>% 
   filter(winter_id == 2) %>% 
   filter(spiro_status == "Acceptable") %>% 
@@ -231,7 +231,7 @@ medvisit_plot
 ```
 
 
-```{r, fig.height=8.5, fig.width=8.5}
+```{r, fig.height=8.5, fig.width=8.5, eval = FALSE}
 medvisit_plot <- analysis_data %>% 
   filter(winter_id == 1) %>% 
   filter(spiro_status == "Acceptable") %>% 
@@ -262,7 +262,7 @@ medvisit_plot <- analysis_data %>%
 medvisit_plot
 ```
 
-```{r, fig.height=8.5, fig.width=8.5}
+```{r, fig.height=8.5, fig.width=8.5, eval = FALSE}
 medvisit_plot <- analysis_data %>% 
   filter(winter_id == 2) %>% 
   filter(spiro_status == "Acceptable") %>% 
@@ -291,6 +291,131 @@ medvisit_plot <- analysis_data %>%
           axis.ticks = element_blank()) +
     facet_wrap(~var, scales = "free")
 medvisit_plot
+```
+
+
+```{r}
+# Summarize data for Paul to review
+
+# Load data
+
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+health_data <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) %>% 
+  select(area, home, adult_id_char, winter_id, sampling_visit, sp02:spiro_result) %>% 
+  arrange(area, adult_id_char, winter_id, sampling_visit) %>% 
+  rename(sp02_pulse_rate = pr,
+         systolic_bp = bp_sys,
+         diastolic_bp = bp_dia,
+         heart_rate_bp = hr,
+         sex = gender,
+         fvc_percent_predicted = fvc_pp,
+         fev1_percent_predicted = fev1_pp,
+         fev1_fvc_ratio_percent_predicted = fev1_fvc_ratio_pp)
+
+write_csv(health_data, paste0(file_path, "Output/eldersair_health_data.csv"), na = "")
+```
+
+```{r}
+health_summary_function <- function(data, var, var_label) {
+
+  health_summary <- data %>% 
+   rename(new_var = var) %>% 
+   filter(!is.na(new_var)) %>% 
+   summarize("Mean" = round(mean(new_var), digits = 1),
+             "Std Dev" = round(sd(new_var), digits = 1),
+             "# Observations" = n(),
+             "Min" = round(min(new_var), digits = 1),
+             "Median" = round(median(new_var), digits = 1),
+             "Max" = round(max(new_var), digits = 1))  %>% 
+   mutate("Health Metric" = var_label) %>% 
+   select(`Health Metric`, Mean:Max) 
+kable(health_summary)
+
+}
+
+acceptable_function <- function(data, var, var_label) {
+
+  health_summary <- data %>% 
+   filter(spiro_status == "Acceptable") %>% 
+   rename(new_var = var) %>% 
+   filter(!is.na(new_var)) %>% 
+   summarize("Mean" = round(mean(new_var), digits = 1),
+             "Std Dev" = round(sd(new_var), digits = 1),
+             "# Observations" = n(),
+             "Min" = round(min(new_var), digits = 1),
+             "Median" = round(median(new_var), digits = 1),
+             "Max" = round(max(new_var), digits = 1))  %>% 
+   mutate("Health Metric" = var_label) %>% 
+   select(`Health Metric`, Mean:Max) 
+kable(health_summary)
+
+}
+```
+
+
+```{r}
+health_summary_function(health_data, "sp02", "SPO2")
+```
+Minimum SPO2 (and other low values) are likely bad readings from user error or 
+instrument malfunction. Do we sensor these values in the analysis or leave as-is?  
+\linebreak
+\linebreak
+  
+```{r}
+health_summary_function(health_data, "sp02_pulse_rate", "Pulse rate - from SPO2")
+```
+\linebreak
+  
+```{r}
+health_summary_function(health_data, "systolic_bp", "Systolic BP")
+```
+\linebreak
+  
+```{r}
+health_summary_function(health_data, "diastolic_bp", "Diastolic BP")
+```
+Do we sensor very low and unrealistic values such as Diastolic BP of 20mmHg?  
+\linebreak
+  
+```{r}
+health_summary_function(health_data, "heart_rate_bp", "Heart rate - from BP")
+```
+\linebreak
+  
+```{r}
+health_summary_function(health_data, "fvc", "FVC")
+acceptable_function(health_data, "fvc", "FVC - Acceptable")
+```
+For all Spirometry outcomes, should we use only the sessions marked as "Acceptable"?  
+\linebreak
+\linebreak
+
+```{r}
+health_summary_function(health_data, "fev1", "FEV1")
+acceptable_function(health_data, "fev1", "FEV1 - Acceptable")
+```
+\linebreak
+
+```{r}
+health_summary_function(health_data, "fev1_fvc_ratio", "FEV1/FVC Ratio")
+acceptable_function(health_data, "fev1_fvc_ratio", "FEV1/FVC Ratio - Acceptable")
+```
+\linebreak
+
+```{r}
+health_summary_function(health_data, "fvc_percent_predicted", "FVC Percent Predicted")
+acceptable_function(health_data, "fvc_percent_predicted", "FVC Percent Predicted - Acceptable")
+```
+How accurate are the percept predicted values?  
+What metrics are used to calculate percent predicted? Age and height? Also race/ethnicity?  
+Should percent predicted values be used as a primary outcome in the publications?  
+\linebreak
+\linebreak
+
+```{r}
+health_summary_function(health_data, "fev1_percent_predicted", "FEV1 Percent Predicted")
+acceptable_function(health_data, "fev1_percent_predicted", "FEV1 Percent Predicted - Acceptable")
 ```
 
 
