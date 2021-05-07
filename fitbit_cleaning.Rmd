@@ -162,7 +162,7 @@ np_clean <- np_joined %>%
          min_very_act = as.numeric(min_very_act),
          act_cals = gsub(",", "", act_cals),
          act_cals = as.numeric(act_cals),
-         area = "NP") %>% 
+         area = "NPT") %>% 
   rename(fb_file_name = file_name)
 ```
 
@@ -177,5 +177,35 @@ elders_fitbit_clean <- elders_fitbit_joined %>%
   select(-trash1, -floors)
 
 write_rds(elders_fitbit_clean, paste0(file_path, "Output/elders_fitbit_clean.rds"))
+```
+
+
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+elders_fitbit <- read_rds(paste0(file_path, "Output/elders_fitbit_clean.rds")) %>% 
+  mutate(area = if_else(area == "NP", "NPT", area))
+
+fitbit_date <- elders_fitbit %>% 
+  select(area, adult_id_num, home_winter_id, winter_id, sampling_visit, 
+         date, steps, distance:act_cals, cals_burned, fb_file_name) %>% 
+  mutate_if(is.character, as.factor) %>% 
+  arrange(area, adult_id_num, winter_id, sampling_visit) %>% 
+  filter(!is.na(adult_id_num))
+
+summary(fitbit_date)
+
+write_rds(fitbit_date, paste0(file_path, "Output/elders_fitbit_date.rds"))
+
+fitbit_visit <- fitbit_date %>% 
+  group_by(area, adult_id_num, winter_id, sampling_visit) %>% 
+  mutate_if(is.numeric, sum, na.rm = T) %>% 
+  ungroup() %>% 
+  distinct(area, adult_id_num, winter_id, sampling_visit, .keep_all = T) %>% 
+  select(-date)
+
+summary(fitbit_visit)
+
+write_rds(fitbit_visit, paste0(file_path, "Output/elders_fitbit_visit.rds"))
 ```
 

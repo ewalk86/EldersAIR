@@ -37,47 +37,7 @@ library(sjstats)
 
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
-elders_cleaned_dataset_by_visit <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) 
-```
-
-
-```{r}
-analysis_data <- elders_cleaned_dataset_by_visit %>% 
-  mutate(treatment = factor(treatment,
-                            levels = c("Placebo", "Filter", "Education"),
-                            labels = c("Placebo", "Filter", "Education")),
-         visit_intervention_diff = round(difftime(sampling_date, intervention_date, 
-                                            units = "days"), digits = 0),
-         visit_intervention_diff = as.numeric(visit_intervention_diff),
-         visit_intervention_diff = if_else(winter_id == 1, 9999,
-                                           visit_intervention_diff)) %>% 
-  # All but 4 homes (all NPT homes that used Large Filtretes) in the Filter arm used Winix units
-  # Filter type isn't really feasible to use in the analysis due to this small sample size
-  mutate(treatment_filter_type = as.character(treatment),
-         filter_type = as.character(filter_type),
-         treatment_filter_type2 = if_else(treatment_filter_type == "Filter", filter_type,
-                                         treatment_filter_type),
-         treatment_filter_type = factor(treatment_filter_type2,
-                                        levels = c("Placebo", "Education",
-                                                   "Large Filtrete", "Winix")),
-         filter_type = as.factor(filter_type),
-         kw_perc_expected = if_else(treatment == "Education", 100, kw_perc_expected)) %>% 
-  mutate(treatment = as.character(treatment),
-         perc_exp_quart = cut(kw_perc_expected,
-                                  breaks = c(0, 25, 46, 71, 1000),
-                                  labels = c("0-25 compliance", "25-50 compliance",
-                                             "50-75 compliance", "75-100 compliance")),
-         perc_exp_quart = as.character(perc_exp_quart),
-         filter_compliance = if_else(treatment == "Filter",
-                                     perc_exp_quart, 
-                                     treatment),
-         treatment = factor(treatment,
-                            levels = c("Placebo", "Education", "Filter")),
-         filter_compliance = factor(filter_compliance,
-                                    levels = c("Placebo", "Education",
-                                               "0-25 compliance", "25-50 compliance",
-                                               "50-75 compliance", "75-100 compliance"))) %>% 
-  select(-treatment_filter_type2) 
+analysis_data <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) 
 ```
 
 
