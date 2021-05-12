@@ -1,7 +1,7 @@
 ---
 title: 'EldersAIR: Main analysis - PM/Exposure Outcomes'
 author: "Ethan Walker"
-date: "Started 6 May 2021; Updated 7 May 2021"
+date: "Started 6 May 2021; Updated 12 May 2021"
 output: pdf_document
 ---
 
@@ -42,7 +42,8 @@ analysis_data <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_vi
 
 # Indoor/Area PM2.5
 ```{r}
-pm_data_2row <- analysis_data %>% 
+pm_data_2row <- analysis_data %>%
+  #filter(area == "NN") %>% 
   mutate(outcome = pm_mean_visit) %>%  # select outcome here
   arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
   group_by(area, home, adult_id_char, winter_id) %>% 
@@ -54,7 +55,7 @@ pm_data_2row <- analysis_data %>%
                 treatment_filter_type, filter_compliance, kw_perc_expected,
                 burn_level_3level, chimney_clean_3level, age_2level,
                 bmi_2level, income_2level, income_3level, stove_age_2level,
-                steps, steps_2level, steps_4level,
+                steps, steps_2level, steps_4level, moisture_ave,
                 hypertension, wood_collect_3level) %>% 
   ungroup() %>% 
   distinct(area, home, winter_id, sampling_visit, .keep_all = T) %>% 
@@ -81,7 +82,7 @@ pm_at_home_data <- analysis_data %>%
                 treatment_filter_type, filter_compliance, kw_perc_expected,
                 burn_level_3level, chimney_clean_3level, age_2level,
                 bmi_2level, income_2level, income_3level, stove_age_2level,
-                steps, steps_2level, steps_4level,
+                steps, steps_2level, steps_4level, moisture_ave,
                 hypertension, wood_collect_3level) %>% 
   ungroup() %>% 
   distinct(area, adult_id_char, winter_id, sampling_visit, .keep_all = T) %>% 
@@ -98,7 +99,7 @@ pm_at_home_data <- analysis_data %>%
 
 
 
-itt_pm_results_primary <- lmer(log(outcome) ~ treatment + 
+itt_pm_results_primary <- lmer(log(outcome) ~ treatment + moisture_ave +
                                 baseline_outcome + (1 | home:cohort:area), 
                                 data = pm_data_2row)
 
@@ -122,7 +123,7 @@ tidy_results_primary <- tidy(itt_pm_results_primary, conf.int = TRUE) %>%
   dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
   mutate(term = gsub("treatment", "", term),
          model = "Primary") 
-#kable(tidy_results_primary)
+kable(tidy_results_primary)
 
 
 itt_pm_results_athome <- lmer(log(outcome) ~ treatment + 
@@ -140,12 +141,14 @@ tidy_results_athome <- tidy(itt_pm_results_athome, conf.int = TRUE) %>%
          p.value = round((p.value), digits = 2)) %>% 
   dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
   mutate(term = gsub("treatment", "", term),
-         model = "At-home PM") 
+         model = "At-home PM2.5") 
 
 
 itt_pm_results_filter_type <- lmer(log(outcome) ~ treatment_filter_type + 
-                                baseline_outcome + (1 | adult_id_char:home:cohort), 
+                                baseline_outcome + (1 | home:cohort:area), 
                                 data = pm_data_2row)
+
+table(model.frame(itt_pm_results_filter_type)$treatment_filter_type)
 
 
 tidy_results_filter_type <- tidy(itt_pm_results_filter_type, conf.int = TRUE) %>% 
@@ -161,7 +164,7 @@ tidy_results_filter_type <- tidy(itt_pm_results_filter_type, conf.int = TRUE) %>
 
 
 itt_pm_results_filter_compliance <- lmer(log(outcome) ~ filter_compliance + 
-                                baseline_outcome + (1 | adult_id_char:home:cohort), 
+                                baseline_outcome + (1 | home:cohort:area), 
                                 data = pm_data_2row)
 
 
@@ -180,7 +183,7 @@ tidy_results_filter_compliance <- tidy(itt_pm_results_filter_compliance, conf.in
 itt_pm_results_confounders <- lmer(log(outcome) ~ treatment + 
                                 education + residents_smoke + home_sqm_2level +
                                 burn_level_3level + gender + chimney_clean_3level + 
-                                stove_grade + age + bmi + 
+                                stove_grade + age + moisture_ave +
                                 baseline_outcome + (1 | home:cohort:area), 
                                 data = pm_data_2row)
 
@@ -195,7 +198,7 @@ tidy_results_confounders <- tidy(itt_pm_results_confounders, conf.int = TRUE) %>
          p.value = round((p.value), digits = 2)) %>% 
   dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
   mutate(term = gsub("treatment", "", term),
-         model = "Confounders")
+         model = "Adjusted")
 
 
 # Calculate ICC
@@ -206,7 +209,7 @@ pm_icc <- icc(icc_model)
 
 
 tidy_results_combined <- rbind(tidy_results_primary, tidy_results_filter_type,
-                               tidy_results_filter_compliance, 
+                               #tidy_results_filter_compliance, 
                                tidy_results_athome, tidy_results_confounders)
 
 
@@ -214,9 +217,9 @@ kable(tidy_results_primary)
 
 itt_plot_estimates <- tidy_results_combined %>%
   mutate(model = factor(model,
-                        levels = c("Primary", "Filter Type", "At-home PM",
-                                   "Filter Compliance", 
-                                   "Confounders"))) %>% 
+                        levels = c("Primary", "Filter Type", "At-home PM2.5",
+                                   #"Filter Compliance", 
+                                   "Adjusted"))) %>% 
   ggplot(aes(group = term, shape = term)) +
     geom_point(aes(x=model, y=estimate), 
                position = position_dodge(width = 0.5), size = 4) +
@@ -224,10 +227,11 @@ itt_plot_estimates <- tidy_results_combined %>%
                   position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
     geom_hline(yintercept = 0) +
     theme_bw() +  
-    ggtitle(label = "PM Model - ITT framework",
-            subtitle = "ICC for Household = 0.42") +
-    labs(y = "% difference compared to Placebo") +
+    #ggtitle(label = "PM Model - ITT framework",
+     #       subtitle = "ICC for Household = 0.42") +
+    labs(y = "Percent difference \ncompared to Placebo") +
     labs(x = "", group = "", shape = "") +
+    scale_y_continuous(breaks = c(seq(-150, 150, 10)), labels = c(seq(-150, 150, 10))) +
     theme(title = element_text(size = 16), 
           axis.text.x = element_text(size = 16, colour = "black", angle = 45,
                                      hjust = 1, vjust = .8),
@@ -243,11 +247,17 @@ itt_plot_estimates <- tidy_results_combined %>%
           legend.text = element_text(size = 14, colour = "black")) 
 itt_plot_estimates
 
+#ggsave("itt_plot_estimates.jpg", width = 12, height = 6)
+
 
 plot(itt_pm_results_primary, main = "ITT Primary Model", 
      xlab = "fitted values", ylab = "residuals")
 qqnorm(residuals(itt_pm_results_primary), main = "ITT Primary Model")
 qqline(residuals(itt_pm_results_primary))
+
+
+#table(analysis_data$wood_collect_method, analysis_data$area, analysis_data$winter_id)
+#table(analysis_data$wood_collect_3level, analysis_data$area, analysis_data$winter_id)
 ```
 
 \pagebreak  
@@ -266,7 +276,7 @@ pm_data_2row <- analysis_data %>%
                 treatment_filter_type, filter_compliance, kw_perc_expected,
                 burn_level_3level, chimney_clean_3level, age_2level,
                 bmi_2level, income_2level, income_3level, stove_age_2level,
-                steps, steps_2level, steps_4level,
+                steps, steps_2level, steps_4level, moisture_ave,
                 hypertension, wood_collect_3level) %>% 
   ungroup() %>% 
   distinct(area, home, winter_id, sampling_visit, .keep_all = T) %>% 
@@ -542,6 +552,7 @@ plot_results
 }
 
 
+# int_function(pm_data_2row, "area", "Study area") # need to remove random effect in model
 int_function(pm_data_2row, "home_floors_2level", "Floors in home")
 int_function(pm_data_2row, "home_sqm_2level", "Home Square Meters")
 int_function(pm_data_2row, "education", "Education")
@@ -563,7 +574,7 @@ obs <- pm_data_2row %>%
   filter(!is.na(cohort)) %>% 
   filter(!is.na(treatment)) %>% 
   filter(!is.na(wood_collect_method)) %>%
-  group_by(wood_collect_method, treatment) %>% 
+  group_by(area, treatment) %>% 
   count()
 obs
 save_contrasts

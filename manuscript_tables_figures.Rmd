@@ -315,16 +315,16 @@ num_funct_treatment("home_bedrooms")
 # summary data for manuscript tables - averaged over multiple Winter 1 visits
 num_funct_total <- function(var, data = elders_cleaned_dataset_by_visit){
 demographics_summary <- data %>% 
-  #filter(area == "NPT") %>% 
+  filter(area == "NN") %>% 
   rename(new_var = var) %>% 
   mutate(new_var = as.numeric(new_var)) %>% 
-  group_by(adult_id_char, winter_id) %>% 
+  group_by(home, winter_id) %>% 
   mutate(mean_var = mean(new_var, na.rm = T)) %>% 
   ungroup() %>% 
   filter(winter_id == 1) %>% 
-  arrange(adult_id_char, winter_id, sampling_visit) %>% 
+  arrange(home, winter_id, sampling_visit) %>% 
   mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
-  distinct(adult_id_char, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
+  distinct(home, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
   filter(!is.na(mean_var)) %>% 
   dplyr::select(mean_var) %>% 
   summarize(mean_new_var = mean(mean_var), sd_var = sd(mean_var), n_var = n(), 
@@ -334,16 +334,16 @@ demographics_summary
 
 num_funct_treatment <- function(var, data = elders_cleaned_dataset_by_visit){
 demographics_summary <- data %>% 
-  #filter(area == "NPT") %>% 
+  filter(area == "NN") %>% 
   rename(new_var = var) %>%
   mutate(new_var = as.numeric(new_var)) %>% 
-  group_by(adult_id_char, winter_id) %>% 
+  group_by(home, winter_id) %>% 
   mutate(mean_var = mean(new_var, na.rm = T)) %>% 
   ungroup() %>% 
   filter(winter_id == 1) %>% 
-  arrange(adult_id_char, winter_id, sampling_visit) %>% 
+  arrange(home, winter_id, sampling_visit) %>% 
   mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
-  distinct(adult_id_char, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
+  distinct(home, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
   filter(!is.na(mean_var)) %>% 
   dplyr::select(treatment, mean_var) %>% 
   group_by(treatment) %>% 
@@ -384,6 +384,8 @@ num_funct_treatment("home_act_door")
 # distinct by home
 num_funct_total("pm_mean_winter")
 num_funct_treatment("pm_mean_winter")
+num_funct_total("moisture_ave")
+num_funct_treatment("moisture_ave")
 ```
 
 
