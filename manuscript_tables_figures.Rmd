@@ -1,7 +1,7 @@
 ---
 title: 'EldersAIR: manuscript tables/figures'
 author: "Ethan Walker"
-date: "Started 1 March 2021, Updated 19 April 2021"
+date: "Started 1 March 2021, Updated 24 May 2021"
 output:
   powerpoint_presentation: default
 ---
@@ -148,11 +148,12 @@ medvisit_check
 
 
 # Number of exposure samples in Figure 1
-```{r}
+```{r} 
 # Step 1: Winter 1 samples
-exposure_check <- elders_pm %>% 
+exposure_check <- elders_cleaned_dataset_by_visit %>% 
   arrange(area, home, winter_id, sampling_visit) %>% 
   distinct(area, home, winter_id, sampling_visit, .keep_all = T) %>% 
+  filter(!is.na(mp_mean_visit)) %>% # mp_mean_visit or pm_mean_visit
   filter(winter_id == 1) %>% 
   count(area)
 
@@ -160,10 +161,11 @@ exposure_check
 
 
 # Step 2: Winter 2 samples
-exposure_check <- elders_pm %>% 
+exposure_check <- elders_cleaned_dataset_by_visit %>% 
   filter(!is.na(treatment)) %>% 
   arrange(area, home, winter_id, sampling_visit) %>% 
   distinct(area, home, winter_id, sampling_visit, .keep_all = T) %>% 
+  filter(!is.na(mp_mean_visit)) %>% # mp_mean_visit or pm_mean_visit
   filter(winter_id == 2) %>% 
   count(treatment, area)
 
@@ -622,5 +624,17 @@ compliance_summary <- elders_cleaned_dataset_by_visit %>%
             "75Q KW % Exp" = quantile(kw_perc_expected, 0.75),
             "Max KW % Exp" = max(kw_perc_expected))
 compliance_summary
+```
+
+
+```{r}
+pm_cutoff_table <- elders_cleaned_dataset_by_visit %>% 
+  filter(!is.na(pm_mean_winter)) %>% 
+  distinct(area, home, winter_id, .keep_all = T) %>% 
+  mutate(epa_12 = if_else(pm_mean_winter > 12, "Above", "Below"),
+         epa_35 = if_else(pm_mean_winter > 35, "Above", "Below")) %>% 
+  group_by(winter_id, treatment, epa_35) %>% 
+  count()
+pm_cutoff_table
 ```
 

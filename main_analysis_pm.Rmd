@@ -43,6 +43,33 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
                "#0072B2", "#D55E00", "#CC79A7")
 ```
 
+
+```{r}
+table_data <- analysis_data %>% 
+  filter(!is.na(pm_mean_winter)) %>% 
+  distinct(area, home, winter_id, .keep_all = T)
+
+
+table(table_data$wood_collect_method, table_data$area, table_data$winter_id)
+
+table(table_data$wood_collect_3level, table_data$area, table_data$winter_id)
+
+table(table_data$stove_grade, table_data$area, table_data$winter_id)
+
+table(table_data$residents_smoke, table_data$area, table_data$winter_id)
+
+table(table_data$burn_level_3level, table_data$area, table_data$winter_id)
+
+table(table_data$stove_age_2level, table_data$area, table_data$winter_id)
+
+summary_data <- analysis_data %>% 
+  group_by(area, winter_id, wood_collect_3level) %>% 
+  summarize(mean(moisture_ave, na.rm = T),
+            median(moisture_ave, na.rm = T))
+summary_data
+```
+
+
 # Indoor/Area PM2.5
 ```{r}
 pm_data_2row <- analysis_data %>%
@@ -257,10 +284,6 @@ plot(itt_pm_results_primary, main = "ITT Primary Model",
      xlab = "fitted values", ylab = "residuals")
 qqnorm(residuals(itt_pm_results_primary), main = "ITT Primary Model")
 qqline(residuals(itt_pm_results_primary))
-
-
-#table(analysis_data$wood_collect_method, analysis_data$area, analysis_data$winter_id)
-#table(analysis_data$wood_collect_3level, analysis_data$area, analysis_data$winter_id)
 ```
 
 \pagebreak  
@@ -576,8 +599,8 @@ obs <- pm_data_2row %>%
   filter(!is.na(area)) %>% 
   filter(!is.na(cohort)) %>% 
   filter(!is.na(treatment)) %>% 
-  filter(!is.na(wood_collect_method)) %>%
-  group_by(area, treatment) %>% 
+  filter(!is.na(wood_collect_3level)) %>%
+  group_by(wood_collect_3level, treatment) %>% 
   count()
 obs
 save_contrasts
