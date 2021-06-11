@@ -1,7 +1,7 @@
 ---
 title: 'EldersAIR: Main analysis - PM/Exposure Outcomes'
 author: "Ethan Walker"
-date: "Started 6 May 2021; Updated 18 May 2021"
+date: "Started 6 May 2021; Updated 27 May 2021"
 output: pdf_document
 ---
 
@@ -64,8 +64,8 @@ table(table_data$stove_age_2level, table_data$area, table_data$winter_id)
 
 summary_data <- analysis_data %>% 
   group_by(area, winter_id, wood_collect_3level) %>% 
-  summarize(mean(moisture_ave, na.rm = T),
-            median(moisture_ave, na.rm = T))
+  summarize(`Mean Moisture` = mean(moisture_ave, na.rm = T),
+            `Median Moisture` = median(moisture_ave, na.rm = T))
 summary_data
 ```
 
