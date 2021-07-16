@@ -1,0 +1,228 @@
+---
+title: "EldersAIR initial SUMs data work"
+author: "Ethan Walker"
+date: "Started 16 July 2021, Updated 16 July 2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(naniar)
+library(lubridate)
+library(zoo)
+library(knitr)
+jv_palette <- c("#330099","#CC0066","#FF6633", 
+                 "#0099CC", "#FF9900","#CC6633",
+                  "#FF3366", "#33CC99", "#33999")
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+```
+
+
+# Add linked IDs to NPT SUMs data logs
+# Use these throughout the data cleaning process to check start times
+```{r}
+# Input file from Box: ibutton.xlsx
+npt_sums_data_log <- read_xlsx(paste0(file_path, "Input/NPT/ibutton.xlsx"), 
+                              na = c("NULL", "")) %>%
+  mutate(home_winter_id = as.character(HomeWinterID),
+         ibid = iButtonID,
+         date_log = InstallDate,
+         time_log = InstallTime,
+         logtag_location = Location) %>% 
+  separate(time_log, into = c("trash", "time_log"), sep = " ") %>% 
+  select(home_winter_id, ibid, date_log, time_log, logtag_location)
+
+elders_linked_ids <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) %>% 
+  filter(area == "NPT") %>% 
+  select(home_winter_id, winter_id, home, home_id_num)
+
+npt_sums_log <- npt_sums_data_log %>% 
+  right_join(elders_linked_ids, by = "home_winter_id") %>% 
+  select(home_winter_id, winter_id, home, home_id_num, date_log, time_log, 
+         ibid, logtag_location) %>% 
+  arrange(home, date_log) %>% 
+  mutate(date_log = ymd(date_log))
+  
+write_rds(npt_sums_log, paste0(file_path, "Output/npt_sums_data_log.rds"))
+
+# Input file from Box: ibuttonupd.xlsx
+npt_sums_data_log_updated <- read_xlsx(paste0(file_path, "Input/NPT/ibuttonupd.xlsx"), 
+                                      na = c("NULL", "")) %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         date = ChangeDate,
+         time = ChangeTime,
+         alarms = Alarms,
+         file_name = ibutFile,
+         sampling_visit = SamplingVisit) %>% 
+  separate(time, into = c("trash", "time"), sep = " ") %>% 
+  select(home_winter_id, date, time, alarms, file_name, 
+         sampling_visit, QAQC, QAQCComments)
+
+npt_sums_log <- npt_sums_data_log_updated %>% 
+  right_join(elders_linked_ids, by = "home_winter_id") %>% 
+  select(home_winter_id, home, home_id_num, date, time, alarms, file_name, 
+         sampling_visit, QAQC, QAQCComments) %>% 
+  arrange(home, date) %>% 
+  mutate(date = ymd(date))
+```
+
+# Add linked IDs to NN SUMs data logs
+# Use these throughout the data cleaning process to check start times
+```{r}
+# Input file from Box: ibutton.xlsx
+nn_sums_data_log <- read_xlsx(paste0(file_path, "Input/NN/ibutton.xlsx"), 
+                              na = c("NULL", "")) %>%
+  mutate(home_winter_id = as.character(HomeWinterID),
+         ibid = iButtonID,
+         date_log = InstallDate,
+         time_log = InstallTime,
+         logtag_location = Location) %>% 
+  separate(time_log, into = c("trash", "time_log"), sep = " ") %>% 
+  select(home_winter_id, ibid, date_log, time_log, logtag_location)
+
+elders_linked_ids <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) %>% 
+  filter(area == "NN") %>% 
+  select(home_winter_id, winter_id, home, home_id_num)
+
+nn_sums_log <- nn_sums_data_log %>% 
+  right_join(elders_linked_ids, by = "home_winter_id") %>% 
+  select(home_winter_id, winter_id, home, home_id_num, date_log, time_log, 
+         ibid, logtag_location) %>% 
+  arrange(home, date_log) %>% 
+  mutate(date_log = ymd(date_log))
+  
+write_rds(nn_sums_log, paste0(file_path, "Output/nn_sums_data_log.rds"))
+
+# Input file from Box: ibuttonupd.xlsx
+nn_sums_data_log_updated <- read_xlsx(paste0(file_path, "Input/NN/ibuttonupd.xlsx"), 
+                                      na = c("NULL", "")) %>% 
+  mutate(home_winter_id = as.character(HomeWinterID),
+         date = ChangeDate,
+         time = ChangeTime,
+         alarms = Alarms,
+         file_name = ibutFile,
+         sampling_visit = SamplingVisit) %>% 
+  separate(time, into = c("trash", "time"), sep = " ") %>% 
+  select(home_winter_id, date, time, alarms, file_name, 
+         sampling_visit, QAQC, QAQCComments)
+
+nn_sums_log <- nn_sums_data_log_updated %>% 
+  right_join(elders_linked_ids, by = "home_winter_id") %>% 
+  select(home_winter_id, home, home_id_num, date, time, alarms, file_name, 
+         sampling_visit, QAQC, QAQCComments) %>% 
+  arrange(home, date) %>% 
+  mutate(date = ymd(date))
+```
+
+# Pull in files with several different formats and combine
+```{r}
+file_path2 <- c("C:/Users/ethan.walker/Box/NoonanGroupData/EldersAIR/Ethan/Logtag Data/Clean data/")
+
+###### NPT Files #######
+
+#### File type: header_1col_date_m.d.y_time_ampm_c
+
+list_files <- list.files(paste0(file_path2, "Nez Perce Tribe/header_1col_date_m.d.y_time_ampm_c"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path2, "Nez Perce Tribe/header_1col_date_m.d.y_time_ampm_c"))
+initial_data <- tibble(file_name = list_files) %>%
+  mutate(save_data = lapply(file_name, read_excel, skip = 1,
+                            col_names = c("data"),
+                            col_types = c("text"))) %>%
+  unnest(save_data) %>% 
+  separate(data, into = c("datetime", "c_f", "temp_c"), sep = ",") %>% 
+  mutate(datetime = mdy_hms(datetime),
+         temp_c = as.numeric(temp_c))
+
+
+#### File type: header_1col_index_date_m.d.y_time_ampm_f
+
+list_files <- list.files(paste0(file_path2, "Nez Perce Tribe/header_1col_index_date_m.d.y_time_ampm_f"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path2, "Nez Perce Tribe/header_1col_index_date_m.d.y_time_ampm_f"))
+initial_data <- tibble(file_name = list_files) %>%
+  mutate(save_data = lapply(file_name, read_csv, skip = 1,
+                            col_names = c("data"),
+                            col_types = list(col_character()))) %>%
+  unnest(save_data) %>% 
+  mutate(data = gsub('"', "", data)) %>% 
+  separate(data, into = c("trash", "date", "time", "temp_f"), sep = ",") %>% 
+  unite(c("date", "time"), col = "datetime", sep = " ") %>% 
+  mutate(datetime = mdy_hms(datetime),
+         temp_f = as.numeric(temp_f),
+         temp_c = (temp_f - 32) * (5/9)) %>% 
+  select(-trash, -temp_f)
+
+
+#### File type: header_4col_date_d.m.y_time24h_c
+
+list_files <- list.files(paste0(file_path2, "Nez Perce Tribe/header_4col_date_d.m.y_time24h_c"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path2, "Nez Perce Tribe/header_4col_date_d.m.y_time24h_c"))
+initial_data <- tibble(file_name = list_files) %>%
+  mutate(save_data = lapply(file_name, read_excel)) %>%
+  unnest(save_data) %>% 
+  mutate(date = Date,
+         time = `Time (24hr UTC-07:00)`,
+         temp_c = `Temperature (°C)`) %>% 
+  separate(time, into = c("trash", "time"), sep = " ") %>% 
+  unite(c("date", "time"), col = "datetime", sep = " ") %>% 
+  mutate(datetime = ymd_hms(datetime),
+         temp_c = as.numeric(temp_c)) %>% 
+  select(file_name, datetime, temp_c)
+
+
+#### File type: header_5col_date_d.m.y_time_ampm_c_f
+
+list_files <- list.files(paste0(file_path2, "Nez Perce Tribe/header_5col_date_d.m.y_time_ampm_c_f"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path2, "Nez Perce Tribe/header_5col_date_d.m.y_time_ampm_c_f"))
+initial_data <- tibble(file_name = list_files) %>%
+  mutate(save_data = lapply(file_name, read_excel)) %>%
+  unnest(save_data) %>% 
+  mutate(date = ...1,
+         time = ...2,
+         ampm = ...3,
+         temp_c = C) %>% 
+  separate(time, into = c("trash", "time"), sep = " ") %>% 
+  unite(c("time", "ampm"), col = "time", sep = " ") %>% 
+  unite(c("date", "time"), col = "datetime", sep = " ") %>% 
+  mutate(datetime = ymd_hms(datetime),
+         temp_c = as.numeric(temp_c)) %>% 
+  select(file_name, datetime, temp_c)
+
+
+#### File type: header_5col_index_date_d.m.y_time_ampm_f
+
+list_files <- list.files(paste0(file_path2, "Nez Perce Tribe/header_5col_index_date_d.m.y_time_ampm_f"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path2, "Nez Perce Tribe/header_5col_index_date_d.m.y_time_ampm_f"))
+initial_data <- tibble(file_name = list_files) %>%
+  mutate(save_data = lapply(file_name, read_excel,
+                            col_names = c("index", "date", "time", "temp_f", "type"),
+                            col_types = c("date", "date", "text", "numeric", "text"))) %>%
+  unnest(save_data)  
+
+practice_data <- initial_data %>% 
+  mutate(date = ...1,
+         time = ...2,
+         ampm = ...3,
+         temp_c = C) %>% 
+  separate(time, into = c("trash", "time"), sep = " ") %>% 
+  unite(c("time", "ampm"), col = "time", sep = " ") %>% 
+  unite(c("date", "time"), col = "datetime", sep = " ") %>% 
+  mutate(datetime = ymd_hms(datetime),
+         temp_c = as.numeric(temp_c)) %>% 
+  select(file_name, datetime, temp_c)
+```
+

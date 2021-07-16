@@ -44,13 +44,27 @@ treatments_blind <- rbind(treatments_blind_nn, treatments_blind_npt) %>%
          area = as.factor(area)) %>% 
   select(area, home_id_num, treatment_blind)
 
-elders_cleaned_dataset_by_visit <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) %>% 
+elders_cleaned_dataset_by_visit <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds"))  
   left_join(treatments_blind, by = c("area", "home_id_num")) 
+
+elders_demographics <- read_rds(paste0(file_path, "Output/elders_demographics.rds"))
+```
+
+# Final report demographics
+```{r}
+report_data <- elders_cleaned_dataset_by_visit %>% 
+  filter(winter_id == 1) %>% 
+  distinct(area, adult_id_char, .keep_all = T)
+
+table(report_data$race, report_data$hispanic, report_data$gender, useNA = "ifany")
+
+data_check <- report_data %>% 
+  full_join(demographics_check, by = c("area", "adult_id_char"))
 ```
 
 
 # Number of homes in Figure 1
-```{r}
+```{r} 
 # Step 1: Winter 1 homes
 demographics_check <- elders_demographics %>% 
   filter(winter_id == 1) %>% 
@@ -88,7 +102,7 @@ demographics_check
 
 
 # Number of participants in Figure 1
-```{r}
+```{r} 
 # Step 1: Winter 1 participants
 demographics_check <- elders_demographics %>% 
   filter(winter_id == 1) %>% 
@@ -532,6 +546,7 @@ demographics_summary <- data %>%
   mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
   distinct(adult_id_char, .keep_all = TRUE) %>% 
   filter(!is.na(new_var)) %>% 
+  #group_by(treatment) %>% 
   dplyr::select(new_var) %>% 
   summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
             min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
