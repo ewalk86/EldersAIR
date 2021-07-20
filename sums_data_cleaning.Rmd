@@ -39,11 +39,11 @@ npt_sums_data_log <- read_xlsx(paste0(file_path, "Input/NPT/ibutton.xlsx"),
 
 elders_linked_ids <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) %>% 
   filter(area == "NPT") %>% 
-  select(home_winter_id, winter_id, home, home_id_num)
+  select(area, home_winter_id, winter_id, home, home_id_num)
 
 npt_sums_log <- npt_sums_data_log %>% 
   right_join(elders_linked_ids, by = "home_winter_id") %>% 
-  select(home_winter_id, winter_id, home, home_id_num, date_log, time_log, 
+  select(area, home_winter_id, winter_id, home, home_id_num, date_log, time_log, 
          ibid, logtag_location) %>% 
   arrange(home, date_log) %>% 
   mutate(date_log = ymd(date_log))
@@ -63,9 +63,9 @@ npt_sums_data_log_updated <- read_xlsx(paste0(file_path, "Input/NPT/ibuttonupd.x
   select(home_winter_id, date, time, alarms, file_name, 
          sampling_visit, QAQC, QAQCComments)
 
-npt_sums_log <- npt_sums_data_log_updated %>% 
+npt_sums_log2 <- npt_sums_data_log_updated %>% 
   right_join(elders_linked_ids, by = "home_winter_id") %>% 
-  select(home_winter_id, home, home_id_num, date, time, alarms, file_name, 
+  select(area, home_winter_id, home, home_id_num, date, time, alarms, file_name, 
          sampling_visit, QAQC, QAQCComments) %>% 
   arrange(home, date) %>% 
   mutate(date = ymd(date))
@@ -87,11 +87,11 @@ nn_sums_data_log <- read_xlsx(paste0(file_path, "Input/NN/ibutton.xlsx"),
 
 elders_linked_ids <- read_rds(paste0(file_path, "Output/elders_ids_linked.rds")) %>% 
   filter(area == "NN") %>% 
-  select(home_winter_id, winter_id, home, home_id_num)
+  select(area, home_winter_id, winter_id, home, home_id_num)
 
 nn_sums_log <- nn_sums_data_log %>% 
   right_join(elders_linked_ids, by = "home_winter_id") %>% 
-  select(home_winter_id, winter_id, home, home_id_num, date_log, time_log, 
+  select(area, home_winter_id, winter_id, home, home_id_num, date_log, time_log, 
          ibid, logtag_location) %>% 
   arrange(home, date_log) %>% 
   mutate(date_log = ymd(date_log))
@@ -111,43 +111,84 @@ nn_sums_data_log_updated <- read_xlsx(paste0(file_path, "Input/NN/ibuttonupd.xls
   select(home_winter_id, date, time, alarms, file_name, 
          sampling_visit, QAQC, QAQCComments)
 
-nn_sums_log <- nn_sums_data_log_updated %>% 
+nn_sums_log2 <- nn_sums_data_log_updated %>% 
   right_join(elders_linked_ids, by = "home_winter_id") %>% 
-  select(home_winter_id, home, home_id_num, date, time, alarms, file_name, 
+  select(area, home_winter_id, home, home_id_num, date, time, alarms, file_name, 
          sampling_visit, QAQC, QAQCComments) %>% 
   arrange(home, date) %>% 
   mutate(date = ymd(date))
 ```
 
+
+
+# Open SSH server connection to work with files below
+```{r}
+library(ssh)
+
+# Connect to VPN or work from campus
+
+session <- ssh_connect("cphrstor1.health.umt.edu")
+# Passward in email from Allen
+# Need phone for Duo Authentication
+
+print(session)
+
+ssh_tunnel(session, port = 9090, target = "cphrstor1.health.umt.edu:22")
+
+ssh_disconnect(session = session)
+
+
+# ask for current working directory
+ssh_exec_wait(session, command = 'pwd')
+
+# make new directory, then use command line to transfer files
+ssh_exec_wait(session, command = 'mkdir /home/ethan.walker/eldersair')
+ssh_exec_wait(session, command = 'mkdir /home/ethan.walker/eldersair/logtag')
+
+###### Command line code for sftp file transfer ######
+
+# sftp ethan.walker@cphrstor1.health.umt.edu # open sftp connection
+# pwd # print working directory
+# cd /home/ethan.walker/eldersair/logtag # change directory - specify filepath
+# put C:/R/EldersAIR/logtag_cleaning.r # transfer specific file
+# put -r C:/R/EldersAIR/Logtag # use this to transfer a directory
+# ls # list files in a directory
+```
+
+
 # Pull in files with several different formats and combine
 ```{r}
-file_path2 <- c("C:/Users/ethan.walker/Box/NoonanGroupData/EldersAIR/Ethan/Logtag Data/Clean data/")
+# Save SSH working directory from above
+file_path2 <- c("C:/R/EldersAIR/Logtag/")
 
 ###### NPT Files #######
 
 #### File type: header_1col_date_m.d.y_time_ampm_c
 
-list_files <- list.files(paste0(file_path2, "Nez Perce Tribe/header_1col_date_m.d.y_time_ampm_c"))
+list_files <- list.files(paste0(file_path2, "NPT/header_1col_date_m.d.y_time_ampm_c"))
 # Set working directory and load files in list; extract file name and add as column
 ## run next lines together
-setwd(paste0(file_path2, "Nez Perce Tribe/header_1col_date_m.d.y_time_ampm_c"))
-initial_data <- tibble(file_name = list_files) %>%
+setwd(paste0(file_path2, "NPT/header_1col_date_m.d.y_time_ampm_c"))
+initial_data1 <- tibble(file_name = list_files) %>%
   mutate(save_data = lapply(file_name, read_excel, skip = 1,
                             col_names = c("data"),
                             col_types = c("text"))) %>%
   unnest(save_data) %>% 
   separate(data, into = c("datetime", "c_f", "temp_c"), sep = ",") %>% 
   mutate(datetime = mdy_hms(datetime),
-         temp_c = as.numeric(temp_c))
+         temp_c = as.numeric(temp_c),
+         area = "NPT") %>% 
+  select(area, file_name, datetime, temp_c) %>% 
+  filter(!is.na(temp_c))
 
 
 #### File type: header_1col_index_date_m.d.y_time_ampm_f
 
-list_files <- list.files(paste0(file_path2, "Nez Perce Tribe/header_1col_index_date_m.d.y_time_ampm_f"))
+list_files <- list.files(paste0(file_path2, "NPT/header_1col_index_date_m.d.y_time_ampm_f"))
 # Set working directory and load files in list; extract file name and add as column
 ## run next lines together
-setwd(paste0(file_path2, "Nez Perce Tribe/header_1col_index_date_m.d.y_time_ampm_f"))
-initial_data <- tibble(file_name = list_files) %>%
+setwd(paste0(file_path2, "NPT/header_1col_index_date_m.d.y_time_ampm_f"))
+initial_data2 <- tibble(file_name = list_files) %>%
   mutate(save_data = lapply(file_name, read_csv, skip = 1,
                             col_names = c("data"),
                             col_types = list(col_character()))) %>%
@@ -157,36 +198,42 @@ initial_data <- tibble(file_name = list_files) %>%
   unite(c("date", "time"), col = "datetime", sep = " ") %>% 
   mutate(datetime = mdy_hms(datetime),
          temp_f = as.numeric(temp_f),
-         temp_c = (temp_f - 32) * (5/9)) %>% 
-  select(-trash, -temp_f)
+         temp_c = (temp_f - 32) * (5/9),
+         area = "NPT") %>% 
+  select(area, file_name, datetime, temp_c) %>% 
+  filter(!is.na(temp_c))
 
 
 #### File type: header_4col_date_d.m.y_time24h_c
 
-list_files <- list.files(paste0(file_path2, "Nez Perce Tribe/header_4col_date_d.m.y_time24h_c"))
+list_files <- list.files(paste0(file_path2, "NPT/header_4col_date_d.m.y_time24h_c"))
 # Set working directory and load files in list; extract file name and add as column
 ## run next lines together
-setwd(paste0(file_path2, "Nez Perce Tribe/header_4col_date_d.m.y_time24h_c"))
-initial_data <- tibble(file_name = list_files) %>%
+setwd(paste0(file_path2, "NPT/header_4col_date_d.m.y_time24h_c"))
+initial_data3 <- tibble(file_name = list_files) %>%
   mutate(save_data = lapply(file_name, read_excel)) %>%
   unnest(save_data) %>% 
   mutate(date = Date,
          time = `Time (24hr UTC-07:00)`,
+         time2 = `Time (24hr UTC-08:00)`,
+         time = if_else(is.na(time), time2, time),
          temp_c = `Temperature (°C)`) %>% 
   separate(time, into = c("trash", "time"), sep = " ") %>% 
   unite(c("date", "time"), col = "datetime", sep = " ") %>% 
   mutate(datetime = ymd_hms(datetime),
-         temp_c = as.numeric(temp_c)) %>% 
-  select(file_name, datetime, temp_c)
+         temp_c = as.numeric(temp_c),
+         area = "NPT") %>% 
+  select(area, file_name, datetime, temp_c) %>% 
+  filter(!is.na(temp_c))
 
 
 #### File type: header_5col_date_d.m.y_time_ampm_c_f
 
-list_files <- list.files(paste0(file_path2, "Nez Perce Tribe/header_5col_date_d.m.y_time_ampm_c_f"))
+list_files <- list.files(paste0(file_path2, "NPT/header_5col_date_d.m.y_time_ampm_c_f"))
 # Set working directory and load files in list; extract file name and add as column
 ## run next lines together
-setwd(paste0(file_path2, "Nez Perce Tribe/header_5col_date_d.m.y_time_ampm_c_f"))
-initial_data <- tibble(file_name = list_files) %>%
+setwd(paste0(file_path2, "NPT/header_5col_date_d.m.y_time_ampm_c_f"))
+initial_data4 <- tibble(file_name = list_files) %>%
   mutate(save_data = lapply(file_name, read_excel)) %>%
   unnest(save_data) %>% 
   mutate(date = ...1,
@@ -197,32 +244,323 @@ initial_data <- tibble(file_name = list_files) %>%
   unite(c("time", "ampm"), col = "time", sep = " ") %>% 
   unite(c("date", "time"), col = "datetime", sep = " ") %>% 
   mutate(datetime = ymd_hms(datetime),
-         temp_c = as.numeric(temp_c)) %>% 
-  select(file_name, datetime, temp_c)
+         temp_c = as.numeric(temp_c),
+         area = "NPT") %>% 
+  select(area, file_name, datetime, temp_c) %>% 
+  filter(!is.na(temp_c))
 
 
 #### File type: header_5col_index_date_d.m.y_time_ampm_f
 
-list_files <- list.files(paste0(file_path2, "Nez Perce Tribe/header_5col_index_date_d.m.y_time_ampm_f"))
+list_files <- list.files(paste0(file_path2, "NPT/header_5col_index_date_d.m.y_time_ampm_f"))
 # Set working directory and load files in list; extract file name and add as column
 ## run next lines together
-setwd(paste0(file_path2, "Nez Perce Tribe/header_5col_index_date_d.m.y_time_ampm_f"))
-initial_data <- tibble(file_name = list_files) %>%
-  mutate(save_data = lapply(file_name, read_excel,
-                            col_names = c("index", "date", "time", "temp_f", "type"),
-                            col_types = c("date", "date", "text", "numeric", "text"))) %>%
-  unnest(save_data)  
-
-practice_data <- initial_data %>% 
-  mutate(date = ...1,
-         time = ...2,
-         ampm = ...3,
-         temp_c = C) %>% 
+setwd(paste0(file_path2, "NPT/header_5col_index_date_d.m.y_time_ampm_f"))
+initial_data5 <- tibble(file_name = list_files) %>%
+  mutate(save_data = lapply(file_name, read_excel, skip = 1, range = "B2:D14000",
+                            col_names = c("date", "time", "temp_f"),
+                            col_types = c("date", "date", "numeric"))) %>%
+  unnest(save_data) %>% 
   separate(time, into = c("trash", "time"), sep = " ") %>% 
-  unite(c("time", "ampm"), col = "time", sep = " ") %>% 
   unite(c("date", "time"), col = "datetime", sep = " ") %>% 
   mutate(datetime = ymd_hms(datetime),
-         temp_c = as.numeric(temp_c)) %>% 
-  select(file_name, datetime, temp_c)
+         temp_c = (temp_f - 32) * (5/9),
+         area = "NPT") %>% 
+  select(area, file_name, datetime, temp_c) %>% 
+  filter(!is.na(temp_c))
+
+
+#### File type: header22_2col_date_d.m.ytime_c
+
+list_files <- list.files(paste0(file_path2, "NPT/header22_2col_date_d.m.ytime_c"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path2, "NPT/header22_2col_date_d.m.ytime_c"))
+initial_data6 <- tibble(file_name = list_files) %>%
+  mutate(save_data = lapply(file_name, read_excel, skip = 22,
+                            col_names = c("datetime", "temp_c"),
+                            col_types = c("date", "numeric"))) %>%
+  unnest(save_data) %>% 
+  mutate(datetime = ymd_hms(datetime),
+         area = "NPT") %>% 
+  select(area, file_name, datetime, temp_c) %>% 
+  filter(!is.na(temp_c))
+
+
+#### File type: noheader_1col_am_pm_f
+
+list_files <- list.files(paste0(file_path2, "NPT/noheader_1col_am_pm_f"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path2, "NPT/noheader_1col_am_pm_f"))
+initial_data7 <- tibble(file_name = list_files) %>%
+  mutate(save_data = lapply(file_name, read_excel, 
+                            col_names = c("data"),
+                            col_types = c("text"))) %>%
+  unnest(save_data) %>% 
+  separate(data, into = c("datetime", "c_f", "temp_f"), sep = ",") %>% 
+  mutate(datetime = mdy_hms(datetime),
+         temp_f = as.numeric(temp_f),
+         temp_c = (temp_f - 32) * (5/9),
+         area = "NPT") %>% 
+  select(area, file_name, datetime, temp_c) %>% 
+  filter(!is.na(temp_c))
+
+
+#### File type: noheader_2col_date_d.m.y_t
+
+list_files <- list.files(paste0(file_path2, "NPT/noheader_2col_date_d.m.y_t"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path2, "NPT/noheader_2col_date_d.m.y_t"))
+initial_data8 <- tibble(file_name = list_files) %>%
+  mutate(save_data = lapply(file_name, read_excel, 
+                            col_names = c("datetime", "temp_c"),
+                            col_types = c("date", "numeric"))) %>%
+  unnest(save_data) %>% 
+  mutate(datetime = ymd_hms(datetime),
+         temp_c = as.numeric(temp_c),
+         area = "NPT") %>% 
+  select(area, file_name, datetime, temp_c) %>% 
+  filter(!is.na(temp_c))
+
+
+#### File type: noheader_3col_date_d.m.y_time_f
+
+list_files <- list.files(paste0(file_path2, "NPT/noheader_3col_date_d.m.y_time_f"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path2, "NPT/noheader_3col_date_d.m.y_time_f"))
+initial_data9 <- tibble(file_name = list_files) %>%
+  mutate(save_data = lapply(file_name, read_excel, 
+                            col_names = c("datetime", "c_f", "temp_f"),
+                            col_types = c("date", "text", "numeric"))) %>%
+  unnest(save_data) %>% 
+  mutate(datetime = ymd_hms(datetime),
+         temp_f = as.numeric(temp_f),
+         temp_c = (temp_f - 32) * (5/9),
+         area = "NPT") %>% 
+  select(area, file_name, datetime, temp_c) %>% 
+  filter(!is.na(temp_c))
+
+
+#### File type: noheader_4col_date_d.m.y_time_ampm_f
+
+list_files <- list.files(paste0(file_path2, "NPT/noheader_4col_date_d.m.y_time_ampm_f"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path2, "NPT/noheader_4col_date_d.m.y_time_ampm_f"))
+initial_data10 <- tibble(file_name = list_files) %>%
+  mutate(save_data = lapply(file_name, read_excel, 
+                            col_names = c("date", "time", "c_f", "temp_f"),
+                            col_types = c("date", "date", "text", "numeric"))) %>%
+  unnest(save_data) %>% 
+  separate(time, into = c("trash", "time"), sep = " ") %>% 
+  unite(c("date", "time"), col = "datetime", sep = " ") %>% 
+  mutate(datetime = ymd_hms(datetime),
+         temp_f = as.numeric(temp_f),
+         temp_c = (temp_f - 32) * (5/9),
+         area = "NPT") %>% 
+  select(area, file_name, datetime, temp_c) %>% 
+  filter(!is.na(temp_c))
+
+
+#### File type: noheader_4col_date_d.m.y_time_f
+
+list_files <- list.files(paste0(file_path2, "NPT/noheader_4col_date_d.m.y_time_f"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path2, "NPT/noheader_4col_date_d.m.y_time_f"))
+initial_data11 <- tibble(file_name = list_files) %>%
+  mutate(save_data = lapply(file_name, read_excel, 
+                            col_names = c("date", "time", "c_f", "temp_f"),
+                            col_types = c("date", "date", "text", "numeric"))) %>%
+  unnest(save_data) %>% 
+  separate(time, into = c("trash", "time"), sep = " ") %>% 
+  unite(c("date", "time"), col = "datetime", sep = " ") %>% 
+  mutate(datetime = ymd_hms(datetime),
+         temp_f = as.numeric(temp_f),
+         temp_c = (temp_f - 32) * (5/9),
+         area = "NPT") %>% 
+  select(area, file_name, datetime, temp_c) %>% 
+  filter(!is.na(temp_c))
+
+
+#### File type: noheader_5col_date_d.m.y_time_ampm_f
+
+list_files <- list.files(paste0(file_path2, "NPT/noheader_5col_date_d.m.y_time_ampm_f"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path2, "NPT/noheader_5col_date_d.m.y_time_ampm_f"))
+initial_data12 <- tibble(file_name = list_files) %>%
+  mutate(save_data = lapply(file_name, read_excel, 
+                            col_names = c("date", "time", "ampm", "c_f", "temp_f"),
+                            col_types = c("date", "date", "text", "text", "numeric"))) %>%
+  unnest(save_data) %>% 
+  separate(time, into = c("trash", "time"), sep = " ") %>% 
+  unite(c("date", "time", "ampm"), col = "datetime", sep = " ") %>% 
+  mutate(datetime = ymd_hms(datetime),
+         temp_f = as.numeric(temp_f),
+         temp_c = (temp_f - 32) * (5/9),
+         area = "NPT") %>% 
+  select(area, file_name, datetime, temp_c) %>% 
+  filter(!is.na(temp_c))
+
+
+#### File type: noheader_5col_date_d.m.y_time_ampm_t_t
+
+list_files <- list.files(paste0(file_path2, "NPT/noheader_5col_date_d.m.y_time_ampm_t_t"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path2, "NPT/noheader_5col_date_d.m.y_time_ampm_t_t"))
+initial_data13 <- tibble(file_name = list_files) %>%
+  mutate(save_data = lapply(file_name, read_excel, 
+                            col_names = c("date", "time", "ampm", "temp_c", "temp_f"),
+                            col_types = c("date", "date", "text", "numeric", "numeric"))) %>%
+  unnest(save_data) %>% 
+  separate(time, into = c("trash", "time"), sep = " ") %>% 
+  unite(c("date", "time", "ampm"), col = "datetime", sep = " ") %>% 
+  mutate(datetime = ymd_hms(datetime),
+         temp_f = as.numeric(temp_f),
+         temp_c = (temp_f - 32) * (5/9),
+         area = "NPT") %>% 
+  select(area, file_name, datetime, temp_c) %>% 
+  filter(!is.na(temp_c))
+
+
+
+
+###### NN Files #######
+
+#### File type: noheader_1col_date_m.d.y_time_ampm_f
+
+list_files <- list.files(paste0(file_path2, "NN/noheader_1col_date_m.d.y_time_ampm_f"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path2, "NN/noheader_1col_date_m.d.y_time_ampm_f"))
+initial_data14 <- tibble(file_name = list_files) %>%
+  mutate(save_data = lapply(file_name, read_excel, 
+                            col_names = c("data"),
+                            col_types = c("text"))) %>%
+  unnest(save_data) %>% 
+  separate(data, into = c("datetime", "c_f", "temp_f"), sep = ",") %>% 
+  mutate(datetime = mdy_hms(datetime),
+         temp_f = as.numeric(temp_f),
+         temp_c = (temp_f - 32) * (5/9),
+         area = "NN") %>% 
+  select(area, file_name, datetime, temp_c) %>% 
+  filter(!is.na(temp_c))
+
+
+#### File type: noheader_1col_date_m.d.y_time_ampm_c
+
+list_files <- list.files(paste0(file_path2, "NN/noheader_1col_date_m.d.y_time_ampm_c"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path2, "NN/noheader_1col_date_m.d.y_time_ampm_c"))
+initial_data15 <- tibble(file_name = list_files) %>%
+  mutate(save_data = lapply(file_name, read_excel, 
+                            col_names = c("data"),
+                            col_types = c("text"))) %>%
+  unnest(save_data) %>% 
+  separate(data, into = c("datetime", "c_f", "temp_c"), sep = ",") %>% 
+  mutate(datetime = mdy_hms(datetime),
+         temp_c = as.numeric(temp_c),
+         area = "NN") %>% 
+  select(area, file_name, datetime, temp_c) %>% 
+  filter(!is.na(temp_c))
+
+
+#### File type: noheader_4col_index_date_y.m.d_time24h_t
+
+list_files <- list.files(paste0(file_path2, "NN/noheader_4col_index_date_y.m.d_time24h_t"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path2, "NN/noheader_4col_index_date_y.m.d_time24h_t"))
+initial_data16 <- tibble(file_name = list_files) %>%
+  mutate(save_data = lapply(file_name, read_csv,
+                            col_names = c("index", "date", "time", "temp_c"),
+                            col_types = list(col_character(),
+                                             col_character(),
+                                             col_character(),
+                                             col_double()))) %>%
+  unnest(save_data) %>% 
+  unite(c("date", "time"), col = "datetime", sep = " ") %>% 
+  mutate(datetime = ymd_hms(datetime),
+         temp_c = as.numeric(temp_c),
+         area = "NN") %>% 
+  select(area, file_name, datetime, temp_c) %>% 
+  filter(!is.na(temp_c))
+
+
+#### File type: noheader_5col_date_d.m.y_time_ampm_f
+
+list_files <- list.files(paste0(file_path2, "NN/noheader_5col_date_d.m.y_time_ampm_f"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path2, "NN/noheader_5col_date_d.m.y_time_ampm_f"))
+initial_data17 <- tibble(file_name = list_files) %>%
+  mutate(save_data = lapply(file_name, read_excel, 
+                            col_names = c("date", "time", "ampm", "c_f", "temp_f"),
+                            col_types = c("date", "date", "text", "text", "numeric"))) %>%
+  unnest(save_data) %>% 
+  separate(time, into = c("trash", "time"), sep = " ") %>% 
+  unite(c("date", "time", "ampm"), col = "datetime", sep = " ") %>% 
+  mutate(datetime = ymd_hms(datetime),
+         temp_f = as.numeric(temp_f),
+         temp_c = (temp_f - 32) * (5/9),
+         area = "NN") %>% 
+  select(area, file_name, datetime, temp_c) %>% 
+  filter(!is.na(temp_c))
+
+
+#### File type: noheader_5col_date_d.m.y_time_ampm_c
+
+list_files <- list.files(paste0(file_path2, "NN/noheader_5col_date_d.m.y_time_ampm_c"))
+# Set working directory and load files in list; extract file name and add as column
+## run next lines together
+setwd(paste0(file_path2, "NN/noheader_5col_date_d.m.y_time_ampm_c"))
+initial_data18 <- tibble(file_name = list_files) %>%
+  mutate(save_data = lapply(file_name, read_excel, 
+                            col_names = c("date", "time", "ampm", "c_f", "temp_c"),
+                            col_types = c("date", "date", "text", "text", "numeric"))) %>%
+  unnest(save_data) %>% 
+  separate(time, into = c("trash", "time"), sep = " ") %>% 
+  unite(c("date", "time", "ampm"), col = "datetime", sep = " ") %>% 
+  mutate(datetime = ymd_hms(datetime),
+         temp_c = as.numeric(temp_c),
+         area = "NN") %>% 
+  select(area, file_name, datetime, temp_c) %>% 
+  filter(!is.na(temp_c))
+```
+
+
+```{r}
+# Bind all data files together
+all_sums_raw <- rbind(initial_data1, initial_data2, initial_data3, initial_data4,
+                      initial_data5, initial_data6, initial_data7, initial_data8,
+                      initial_data9, initial_data10, initial_data11, initial_data12,
+                      initial_data13, initial_data14, initial_data15, initial_data16,
+                      initial_data17, initial_data18) %>% 
+  mutate(area = as.factor(area),
+         file_name = as.factor(file_name)) %>% 
+  rename(datetime_sums = datetime,
+         temp_c_sums = temp_c) %>% 
+  filter(!is.na(datetime_sums))
+
+summary(all_sums_raw)
+
+write_rds(all_sums_raw, paste0(file_path, "Output/all_sums_raw.rds"))
+```
+
+
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+all_sums_raw <- read_rds(paste0(file_path, "Output/all_sums_raw.rds")) %>% 
+  ungroup() %>% 
+  arrange(area, file_name, datetime_sums)
+
+# Next steps: identify start/stop times for logtag data, filter, then clean up and create variables
 ```
 
