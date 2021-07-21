@@ -1,7 +1,7 @@
 ---
 title: "EldersAIR initial SUMs data work"
 author: "Ethan Walker"
-date: "Started 16 July 2021, Updated 16 July 2021"
+date: "Started 16 July 2021, Updated 21 July 2021"
 output: pdf_document
 ---
 
@@ -16,9 +16,11 @@ library(naniar)
 library(lubridate)
 library(zoo)
 library(knitr)
+
 jv_palette <- c("#330099","#CC0066","#FF6633", 
                  "#0099CC", "#FF9900","#CC6633",
                   "#FF3366", "#33CC99", "#33999")
+
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 ```
 
@@ -117,6 +119,14 @@ nn_sums_log2 <- nn_sums_data_log_updated %>%
          sampling_visit, QAQC, QAQCComments) %>% 
   arrange(home, date) %>% 
   mutate(date = ymd(date))
+```
+
+
+# Combine SUMs logs
+```{r}
+elders_sums_log <- rbind(npt_sums_log2, nn_sums_log2)
+
+write_rds(elders_sums_log, paste0(file_path, "Output/elders_sums_log.rds"))
 ```
 
 
@@ -559,8 +569,156 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
 all_sums_raw <- read_rds(paste0(file_path, "Output/all_sums_raw.rds")) %>% 
   ungroup() %>% 
-  arrange(area, file_name, datetime_sums)
+  arrange(area, file_name, datetime_sums) %>% 
+  mutate(file_name = gsub(".csv", "", file_name)) %>% 
+  mutate(file_name = gsub(".xlsx", "", file_name))
 
-# Next steps: identify start/stop times for logtag data, filter, then clean up and create variables
+
+elders_sums_log <- read_rds(paste0(file_path, "Output/elders_sums_log.rds"))  %>% 
+  separate(file_name, c("trash", "file_name"), sep = "uploads/") %>% 
+  mutate(file_name = gsub(".csv", "", file_name)) %>% 
+  mutate(file_name = gsub(".ltd", "", file_name)) %>% 
+  mutate(file_name = gsub(".xlsx", "", file_name))
+
+
+elders_demographics <- read_rds(paste0(file_path, "Output/elders_demographics_full.rds")) %>% 
+  unite(c("sampling_date", "sampling_time"), col = "start_datetime", sep = " ") %>% 
+  unite(c("sampling_date2", "sampling_time2"), col = "start_datetime2", sep = " ") %>% 
+  unite(c("pickup_date", "pickup_time"), col = "stop_datetime1", sep = " ") %>% 
+  unite(c("pickup_date2", "pickup_time2"), col = "stop_datetime", sep = " ") %>% 
+  mutate(start_datetime = ymd_hms(start_datetime),
+         stop_datetime = ymd_hms(stop_datetime),
+         start_datetime2 = ymd_hms(start_datetime2),
+         stop_datetime1 = ymd_hms(stop_datetime1),
+         stop_datetime = if_else(is.na(stop_datetime), stop_datetime1, stop_datetime)) %>% 
+  select(area, winter_id, home_winter_id, start_datetime, stop_datetime) %>% 
+  filter(!is.na(home_winter_id)) 
+
+
+all_sums_clean <- all_sums_raw %>% 
+  left_join(elders_sums_log, by = c("area", "file_name")) %>% 
+  filter(!is.na(home_winter_id)) %>% 
+  left_join(elders_demographics, by = c("area", "home_winter_id")) %>% 
+  mutate(datetime_filter = if_else((datetime_sums >= start_datetime) &
+                                   (datetime_sums <= stop_datetime), 1, 0)) %>% 
+  filter(datetime_filter == 1) %>% 
+  distinct(area, home_winter_id, datetime_sums, .keep_all = T) %>% 
+  select(area, home_id_num, home, home_winter_id, winter_id, sampling_visit, 
+         file_name, datetime_sums, temp_c_sums, QAQC:stop_datetime) %>% 
+  arrange(area, home_winter_id, datetime_sums) %>% 
+  group_by(area, home, winter_id) %>% 
+  mutate(lag_filter = if_else(lag(file_name) != file_name, 1, 0),
+         sum_filter = sum(lag_filter, na.rm = T)) %>% 
+  filter(lag_filter != 1) %>% 
+  select(-lag_filter, -sum_filter) %>% 
+  group_by(area, home, winter_id) %>% 
+  mutate(lag_time_diff = (datetime_sums - lag(datetime_sums)),
+         temp_c_sums = if_else(temp_c_sums < -11, 9999, temp_c_sums),
+         temp_c_sums = na_if(temp_c_sums, 9999),
+         sums_winter_n = n(),
+         sums_winter_mean = mean(temp_c_sums, na.rm = T)) %>% 
+  group_by(area, home) %>% 
+  mutate(sums_total_n = n(),
+         sums_total_mean = mean(temp_c_sums, na.rm = T),
+         lag_temp_diff = if_else(lag_time_diff < 26, lag(temp_c_sums), 9999),
+         lag_temp_diff = na_if(lag_temp_diff, 9999)) %>% 
+  ungroup() %>% 
+  arrange(area, home_winter_id, datetime_sums) %>% 
+  mutate(area = as.factor(area),
+         home = as.factor(home),
+         home_winter_id = as.factor(home_winter_id),
+         sampling_visit = as.factor(sampling_visit),
+         day_of_week = weekdays(datetime_sums),
+         month_sums = as.factor(month(datetime_sums, label = TRUE, abbr = TRUE)))
+  
+summary(all_sums_clean)
+
+write_rds(all_sums_clean, paste0(file_path, "Output/all_sums_clean.rds"))
+
+write_csv(all_sums_clean, paste0(file_path, "Output/elders_logtag.csv"))
 ```
+
+
+# Plot temp over time for individual home to check for trends visually
+```{r}
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+sums_clean <- read_rds(paste0(file_path, "Output/all_sums_clean.rds"))
+
+sums_time_trends_plot <- sums_clean %>% 
+  filter(area == "NN" & home_winter_id == "10") %>% 
+  ggplot() + 
+    geom_point(aes(datetime_sums, temp_c_sums, color = month_sums), size = 1.5) +
+    theme_classic() +
+    labs(y = "Temperature (degrees C)",
+         x = "Datetime",
+         color = "Logtag ID") +
+    theme(axis.title.y = element_text(size = 12,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.title.x = element_text(size = 12),
+          axis.text.x = element_blank(),
+          axis.text.y = element_text(size = 12, color = "black"),
+          axis.line.x = element_line(colour = "black", size = 1), 
+          axis.line.y = element_line(colour = "black", size = 1), 
+          axis.ticks = element_blank()) +
+    scale_color_manual(values = jv_palette)
+sums_time_trends_plot
+```
+
+
+# Thresholds for heating events
+```{r}
+# Load SUMs data
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+sums_clean <- read_rds(paste0(file_path, "Output/all_sums_clean.rds"))
+
+sums_events_25 <- sums_clean %>% 
+  group_by(area, home, winter_id) %>%
+  mutate(threshold_temp = if_else(temp_c_sums >= 25, 1, 0),
+         threshold_temp_event = if_else(threshold_temp == 1 & lag(threshold_temp) == 0, 
+                                        "start", "Temp < threshold"),
+         threshold_temp_event = if_else(is.na(threshold_temp_event), "start", threshold_temp_event),
+         threshold_temp_event = if_else(threshold_temp == 1 & threshold_temp_event == "Temp < threshold",
+                                      "Temp >= threshold", threshold_temp_event),
+         threshold_temp_event = if_else(threshold_temp_event == "Temp >= threshold" &
+                                      lead(threshold_temp_event) == "Temp < threshold", 
+                                      "event_end", threshold_temp_event)) %>% 
+  filter(threshold_temp_event == "event_end" | threshold_temp_event == "start") %>% 
+  separate(datetime_sums, c("date_sums", "time_sums"), sep = " ", remove = F) %>% 
+  mutate(time_sums = as.character(time_sums),
+         date_sums = as.character(date_sums)) %>%  
+  spread(threshold_temp_event, datetime_sums) %>% 
+  mutate(event_end = lead(event_end)) %>% 
+  filter(!is.na(start)) %>% 
+  mutate(hrs_till_next_event = (lead(start)-event_end),
+         hrs_till_next_event = as.numeric(hrs_till_next_event)/3600,
+         event_end2 = if_else(hrs_till_next_event <= 1.5, lead(event_end), event_end),
+         event_end3 = if_else(hrs_till_next_event <= 1.5 & lead(hrs_till_next_event) <= 1.5, 
+                              lead(event_end, 2), event_end2),
+         event_end4 = if_else(hrs_till_next_event <= 1.5 & lead(hrs_till_next_event) <= 1.5
+                              & lead(hrs_till_next_event, 2) <= 1.5, 
+                              lead(event_end, 3), event_end3),
+         event_end5 = if_else(hrs_till_next_event <= 1.5 & lead(hrs_till_next_event) <= 1.5
+                              & lead(hrs_till_next_event, 2) <= 1.5 & lead(hrs_till_next_event, 3) <= 1.5, 
+                              lead(event_end, 4), event_end4),
+         event_end6 = if_else(hrs_till_next_event <= 1.5 & lead(hrs_till_next_event) <= 1.5
+                              & lead(hrs_till_next_event, 2) <= 1.5 & lead(hrs_till_next_event, 3) <= 1.5
+                              & lead(hrs_till_next_event, 4) <= 1.5, 
+                              lead(event_end, 5), event_end5)) %>% 
+  distinct(event_end6, .keep_all = TRUE) %>% 
+  mutate(event_length_min = (event_end6 - start),
+         event_length_min = as.numeric(event_length_min/60),
+         hrs_till_next_event = (lead(start)-event_end6),
+         hrs_till_next_event = as.numeric(hrs_till_next_event)/3600) %>% 
+  filter(!is.na(event_length_min)) %>% 
+  group_by(area, home, winter_id, date_sums) %>% 
+  mutate(event_start_datetime = start,
+         event_end_datetime = event_end6,
+         sums_event = as.numeric(1)) %>% 
+  select(area, home, home_winter_id, winter_id, date_sums, 
+         event_start_datetime, event_end_datetime, sums_event,
+         event_length_min, hrs_till_next_event)
+```
+
 
