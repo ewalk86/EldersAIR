@@ -1,7 +1,7 @@
 ---
 title: 'EldersAIR: manuscript tables/figures'
 author: "Ethan Walker"
-date: "Started 1 March 2021, Updated 24 May 2021"
+date: "Started 1 March 2021, Updated 7 September 2021"
 output:
   powerpoint_presentation: default
 ---
@@ -35,7 +35,7 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 treatments_blind_nn <- read_xlsx(paste0(file_path, "Input/NN/treatments_blind.xlsx")) %>% 
   mutate(area = "NN")
 
-treatments_blind_npt <- read_xlsx(paste0(file_path, "Input/NP/treatments_blind.xlsx")) %>% 
+treatments_blind_npt <- read_xlsx(paste0(file_path, "Input/NPT/treatments_blind.xlsx")) %>% 
   mutate(area = "NPT")
 
 treatments_blind <- rbind(treatments_blind_nn, treatments_blind_npt) %>% 
@@ -44,7 +44,8 @@ treatments_blind <- rbind(treatments_blind_nn, treatments_blind_npt) %>%
          area = as.factor(area)) %>% 
   select(area, home_id_num, treatment_blind)
 
-elders_cleaned_dataset_by_visit <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds"))  
+elders_cleaned_dataset_by_visit <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds"))  %>% 
+  mutate(cohort = factor(cohort, levels = c("2015", "2016", "2017", "2018", "2019")))
   left_join(treatments_blind, by = c("area", "home_id_num")) 
 
 elders_demographics <- read_rds(paste0(file_path, "Output/elders_demographics.rds"))
@@ -187,6 +188,7 @@ exposure_check
 ```
 
 
+# Summary stats for character/factor data
 ```{r}
 # summary data for manuscript tables
 char_funct_total <- function(var, data = elders_cleaned_dataset_by_visit){
@@ -194,9 +196,9 @@ demographics_summary <- data %>%
   rename(new_var = var) %>% 
   #filter(treatment_assigned == "Placebo") %>%
   #filter(area == "NPT") %>% 
-  arrange(home, winter_id, sampling_visit) %>% 
+  arrange(adult_id_char, winter_id, sampling_visit) %>% 
   mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
-  distinct(home, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
+  distinct(adult_id_char, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
   mutate(total_n = n()) %>% 
   group_by(area) %>% 
   mutate(area_n = n()) %>% 
@@ -214,9 +216,9 @@ demographics_summary <- data %>%
   rename(new_var = var) %>% 
   #filter(treatment_assigned == "Placebo") %>% 
   #filter(area == "NPT") %>% 
-  arrange(home, winter_id, sampling_visit) %>% 
+  arrange(adult_id_char, winter_id, sampling_visit) %>% 
   mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
-  distinct(home, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
+  distinct(adult_id_char, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
   mutate(total_n = n()) %>% 
   group_by(treatment) %>% 
   mutate(treatment_n = n()) %>% 
@@ -238,6 +240,8 @@ char_funct_total("race")
 char_funct_treatment("race")
 char_funct_total("education")
 char_funct_treatment("education")
+char_funct_total("cohort")
+char_funct_treatment("cohort")
 
 #distinct by home
 char_funct_total("residents_over55")
@@ -272,6 +276,7 @@ char_funct_treatment("burn_level")
 ```
 
 
+# Summary stats for numeric data
 ```{r}
 # summary data for manuscript tables - 1 response from Winter 1
 num_funct_total <- function(var, data = elders_cleaned_dataset_by_visit){
@@ -326,6 +331,8 @@ num_funct_treatment("sum_act_door")
 # distinct by home
 num_funct_total("home_bedrooms")
 num_funct_treatment("home_bedrooms")
+num_funct_total("sums_winter_mean")
+num_funct_treatment("sums_winter_mean")
 
 
 # summary data for manuscript tables - averaged over multiple Winter 1 visits
@@ -405,7 +412,7 @@ num_funct_treatment("moisture_ave")
 ```
 
 
-# Check sociodemographic, health, exposure values
+# Check sociodemographic, health, exposure values - character/factor
 # Among those who missed a session/dropped and those who completed all sessions
 ```{r}
 char_funct_4visits <- function(var, data = elders_cleaned_dataset_by_visit){
@@ -510,7 +517,7 @@ char_funct_miss_winter2("burn_level")
 char_funct_miss_visit("burn_level")
 ```
 
-# Check sociodemographic, health, exposure values
+# Check sociodemographic, health, exposure values - numeric
 # Among those who missed a session/dropped and those who completed all sessions
 ```{r}
 num_funct_4visits <- function(var, data = elders_cleaned_dataset_by_visit){
@@ -607,6 +614,7 @@ num_funct_miss_visit("pm_mean_winter")
 ```
 
 
+# Filter unit compliance/kilowatt data summary
 ```{r}
 kw_filtertype_data <- elders_cleaned_dataset_by_visit %>% 
   select(area, home, adult_id_char, winter_id, sampling_visit, treatment,
@@ -639,6 +647,16 @@ compliance_summary <- elders_cleaned_dataset_by_visit %>%
             "75Q KW % Exp" = quantile(kw_perc_expected, 0.75),
             "Max KW % Exp" = max(kw_perc_expected))
 compliance_summary
+
+compliance_sums <- elders_cleaned_dataset_by_visit %>% 
+  filter(winter_id == 2) %>% 
+  distinct(area, home, .keep_all = T) %>% 
+  group_by(filter_compliance) %>% 
+  summarize(n(),
+            mean(sums_winter_mean, na.rm = T),
+            sd(sums_winter_mean, na.rm = T),
+            median(sums_winter_mean, na.rm = T))
+compliance_sums
 ```
 
 

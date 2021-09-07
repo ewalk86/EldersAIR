@@ -1,7 +1,7 @@
 ---
 title: 'EldersAIR: Main analysis - PM/Exposure Outcomes'
 author: "Ethan Walker"
-date: "Started 6 May 2021; Updated 27 May 2021"
+date: "Started 6 May 2021; Updated 7 September 2021"
 output: pdf_document
 ---
 
@@ -37,13 +37,15 @@ library(sjstats)
 
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
-analysis_data <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) 
+analysis_data <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) %>% 
+  mutate(cohort = factor(cohort, levels = c("2015", "2016", "2017", "2018", "2019")))
 
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", 
                "#0072B2", "#D55E00", "#CC79A7")
 ```
 
 
+# Stratify some covariates by study area and winter
 ```{r}
 table_data <- analysis_data %>% 
   filter(!is.na(pm_mean_winter)) %>% 
@@ -72,6 +74,7 @@ summary_data
 
 # Indoor/Area PM2.5
 ```{r}
+# Prep data for primary analysis - 1 row per winter
 pm_data_2row <- analysis_data %>%
   #filter(area == "NN") %>% 
   mutate(outcome = pm_mean_visit) %>%  # select outcome here
@@ -85,7 +88,7 @@ pm_data_2row <- analysis_data %>%
                 treatment_filter_type, filter_compliance, kw_perc_expected,
                 burn_level_3level, chimney_clean_3level, age_2level,
                 bmi_2level, income_2level, income_3level, stove_age_2level,
-                steps, steps_2level, steps_4level, moisture_ave,
+                steps, steps_2level, steps_4level, moisture_ave, sums_winter_mean,
                 hypertension, wood_collect_3level) %>% 
   ungroup() %>% 
   distinct(area, home, winter_id, sampling_visit, .keep_all = T) %>% 
@@ -100,6 +103,8 @@ pm_data_2row <- analysis_data %>%
   filter(visit_intervention_diff != 9999) %>% 
   ungroup()
 
+
+# Prep data for sensitivity analysis - at-home PM data
 pm_at_home_data <- analysis_data %>% 
   mutate(outcome = pm_mean_at_home_visit) %>%  # select outcome here
   arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
@@ -128,16 +133,18 @@ pm_at_home_data <- analysis_data %>%
   ungroup()
 
 
-
+# Run primary model
 itt_pm_results_primary <- lmer(log(outcome) ~ treatment + 
                                 baseline_outcome + (1 | home:cohort:area), 
                                 data = pm_data_2row)
 
-
+# Number of observations in analysis by treatment
 table(model.frame(itt_pm_results_primary)$treatment)
 
+# Number of total observations in analysis
 nobs(itt_pm_results_primary)
 
+# Check if model is overfit
 #isSingular(itt_pm_results_primary)
 
 #summary(itt_pm_results_primary)
@@ -156,9 +163,12 @@ tidy_results_primary <- tidy(itt_pm_results_primary, conf.int = TRUE) %>%
 kable(tidy_results_primary)
 
 
+# Run model with at-home PM data
 itt_pm_results_athome <- lmer(log(outcome) ~ treatment + 
                                 baseline_outcome + (1 | adult_id_char:home:cohort:area), 
                                 data = pm_at_home_data)
+
+nobs(itt_pm_results_athome)
 
 
 tidy_results_athome <- tidy(itt_pm_results_athome, conf.int = TRUE) %>% 
@@ -174,11 +184,14 @@ tidy_results_athome <- tidy(itt_pm_results_athome, conf.int = TRUE) %>%
          model = "At-home PM2.5") 
 
 
+# Run model using filter type instead of filter as primary treatment variable
 itt_pm_results_filter_type <- lmer(log(outcome) ~ treatment_filter_type + 
                                 baseline_outcome + (1 | home:cohort:area), 
                                 data = pm_data_2row)
 
 table(model.frame(itt_pm_results_filter_type)$treatment_filter_type)
+
+nobs(itt_pm_results_filter_type)
 
 
 tidy_results_filter_type <- tidy(itt_pm_results_filter_type, conf.int = TRUE) %>% 
@@ -193,9 +206,18 @@ tidy_results_filter_type <- tidy(itt_pm_results_filter_type, conf.int = TRUE) %>
   mutate(model = "Filter Type") 
 
 
+# Run model with filter compliance instead of filter as primary treatment variable
 itt_pm_results_filter_compliance <- lmer(log(outcome) ~ filter_compliance + 
                                 baseline_outcome + (1 | home:cohort:area), 
                                 data = pm_data_2row)
+
+test <- pm_data_2row %>% 
+  select(area, home, filter_compliance, outcome) %>% 
+  group_by(area, filter_compliance) %>% 
+  summarise(median(outcome, na.rm = T))
+
+test2 <- analysis_data %>% 
+  filter(treatment == "Filter")
 
 
 tidy_results_filter_compliance <- tidy(itt_pm_results_filter_compliance, conf.int = TRUE) %>% 
@@ -210,12 +232,15 @@ tidy_results_filter_compliance <- tidy(itt_pm_results_filter_compliance, conf.in
   mutate(model = "Filter Compliance") 
 
 
+# Run sensitivity analysis - primary model with inclusion of potential confounders
 itt_pm_results_confounders <- lmer(log(outcome) ~ treatment + 
                                 education + residents_smoke + home_sqm_2level +
                                 burn_level_3level + gender + chimney_clean_3level + 
-                                stove_grade + age + moisture_ave +
+                                stove_grade + age + moisture_ave + 
                                 baseline_outcome + (1 | home:cohort:area), 
                                 data = pm_data_2row)
+
+nobs(itt_pm_results_confounders)
 
 
 tidy_results_confounders <- tidy(itt_pm_results_confounders, conf.int = TRUE) %>% 
@@ -238,13 +263,14 @@ icc_model <- lmer(outcome ~ (1 | home), pm_data_2row)
 pm_icc <- icc(icc_model)
 
 
+# Combine tidy results from various analyses above
 tidy_results_combined <- rbind(tidy_results_primary, tidy_results_filter_type,
                                #tidy_results_filter_compliance, 
                                tidy_results_athome, tidy_results_confounders)
-
-
 kable(tidy_results_primary)
 
+
+# Plot analysis results
 itt_plot_estimates <- tidy_results_combined %>%
   mutate(model = factor(model,
                         levels = c("Primary", "Filter Type", "At-home PM2.5",
@@ -280,6 +306,7 @@ itt_plot_estimates
 #ggsave("itt_plot_estimates.jpg", width = 12, height = 6)
 
 
+# Plot primary model diagnostic plots
 plot(itt_pm_results_primary, main = "ITT Primary Model", 
      xlab = "fitted values", ylab = "residuals")
 qqnorm(residuals(itt_pm_results_primary), main = "ITT Primary Model")
@@ -290,7 +317,9 @@ qqline(residuals(itt_pm_results_primary))
 
 # Personal PM2.5
 ```{r}
+# Repeat analysis above, but with Personal PM from NPT area only
 pm_data_2row <- analysis_data %>% 
+  filter(area == "NPT") %>% 
   mutate(outcome = mp_mean_visit) %>%  # select outcome here
   arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
   group_by(area, home, adult_id_char, winter_id) %>% 
@@ -377,6 +406,7 @@ tidy_results_filter_compliance <- tidy(itt_pm_results_filter_compliance, conf.in
   mutate(model = "Filter Compliance") 
 
 
+# Use fitbit steps (quartiles) as a measure of compliance to wearing personal PM monitors
 itt_pm_results_fitbit_steps <- lmer(log(outcome) ~ treatment + steps_4level + 
                                 baseline_outcome + (1 | adult_id_char:home:cohort), 
                                 data = pm_data_2row)
@@ -426,9 +456,8 @@ tidy_results_combined <- rbind(tidy_results_primary, tidy_results_filter_type,
                                #tidy_results_filter_compliance, 
                                tidy_results_fitbit_steps,
                                tidy_results_confounders)
-
-
 kable(tidy_results_primary)
+
 
 itt_plot_estimates <- tidy_results_combined %>%
   mutate(model = factor(model,
@@ -482,7 +511,7 @@ pm_data_2row <- analysis_data %>%
   dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
                 cohort, treatment, outcome, income, education, residents_smoke, 
                 home_sqm_2level, burn_level, gender, chimney_clean, stove_age, 
-                stove_grade, age, bmi, visit_intervention_diff, 
+                stove_grade, age, age_2level, bmi, visit_intervention_diff, 
                 treatment_filter_type, filter_compliance, kw_perc_expected,
                 burn_level_3level, chimney_clean_3level, age_2level,
                 bmi_2level, income_2level, income_3level, stove_age_2level,
@@ -503,7 +532,7 @@ pm_data_2row <- analysis_data %>%
   ungroup() 
 
 
-
+# Function for area PM interaction analysis
 int_function <- function(data, interaction_var, interaction_label) {
   
   new_model_data <- data %>% 
@@ -578,7 +607,8 @@ plot_results
 }
 
 
-# int_function(pm_data_2row, "area", "Study area") # need to remove random effect in model
+# Run interaction function for the following variables:
+#int_function(pm_data_2row, "area", "Study area") # need to remove random effect in model
 int_function(pm_data_2row, "home_floors_2level", "Floors in home")
 int_function(pm_data_2row, "home_sqm_2level", "Home Square Meters")
 int_function(pm_data_2row, "education", "Education")
@@ -591,16 +621,20 @@ int_function(pm_data_2row, "wood_collect_3level", "When was wood collected")
 int_function(pm_data_2row, "wood_collect_method", "Wood collect method")
 int_function(pm_data_2row, "burn_level_3level", "Burn level")
 int_function(pm_data_2row, "residents_smoke", "Residents Smoke")
+# Use adult_id_char as distinct filter and random effect in model
+int_function(pm_data_2row, "age_2level", "Resident Age")
+int_function(pm_data_2row, "gender", "Resident Gender")
 
 
+# Use the following lines to help fill in information for publication tables:
 obs <- pm_data_2row %>% 
   filter(!is.na(outcome)) %>% 
   filter(!is.na(baseline_outcome)) %>%
   filter(!is.na(area)) %>% 
   filter(!is.na(cohort)) %>% 
   filter(!is.na(treatment)) %>% 
-  filter(!is.na(wood_collect_3level)) %>%
-  group_by(wood_collect_3level, treatment) %>% 
+  filter(!is.na(gender)) %>%
+  group_by(gender, treatment) %>% 
   count()
 obs
 save_contrasts
@@ -621,6 +655,7 @@ save_contrasts_full
 ```{r}
 # Prep Data
 pm_data_2row <- analysis_data %>% 
+  filter(area == "NPT") %>% 
   mutate(outcome = mp_mean_visit) %>%  # select outcome here
   arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
   group_by(area, home, adult_id_char, winter_id) %>% 
@@ -636,10 +671,10 @@ pm_data_2row <- analysis_data %>%
                 steps, steps_2level, steps_4level,
                 home_floors_2level, wood_collect_method) %>% 
   ungroup() %>% 
-  distinct(area, home, winter_id, sampling_visit, .keep_all = T) %>% 
-  group_by(area, home) %>% 
+  distinct(area, adult_id_char, home, winter_id, sampling_visit, .keep_all = T) %>% 
+  group_by(area, adult_id_char) %>% 
   pivot_wider(names_from = "winter_id", values_from = "outcome") %>% 
-  arrange(area, home, sampling_visit) %>% 
+  arrange(area, adult_id_char, home, sampling_visit) %>% 
   mutate(outcome = `2`,
          baseline_outcome = `1`,
          baseline_outcome = if_else(is.na(baseline_outcome), first(baseline_outcome),
@@ -658,7 +693,7 @@ int_function <- function(data, interaction_var, interaction_label) {
   
 # Run primary model and print results
 itt_results_int <<- lmer(log(outcome) ~ treatment*int_var + 
-                                baseline_outcome + (1 | home:cohort:area), 
+                                baseline_outcome + (1 | adult_id_char:home:cohort), 
                                 data = new_model_data)
 
 #write_rds(itt_results_int, paste0(file_path, "Output/itt_pm_results_int_age.rds"))
@@ -738,6 +773,8 @@ int_function(pm_data_2row, "burn_level_3level", "Burn level")
 int_function(pm_data_2row, "residents_smoke", "Residents Smoke")
 int_function(pm_data_2row, "steps_2level", "Fitbit Steps - 2 Level")
 int_function(pm_data_2row, "steps_4level", "Fitbit Steps - 4 Level")
+int_function(pm_data_2row, "age_2level", "Resident Age")
+int_function(pm_data_2row, "gender", "Resident Gender")
 
 
 obs <- pm_data_2row %>% 
@@ -746,8 +783,8 @@ obs <- pm_data_2row %>%
   filter(!is.na(area)) %>% 
   filter(!is.na(cohort)) %>% 
   filter(!is.na(treatment)) %>% 
-  filter(!is.na(wood_collect_method)) %>%
-  group_by(wood_collect_method, treatment) %>% 
+  filter(!is.na(age_2level)) %>%
+  group_by(age_2level, treatment) %>% 
   count()
 obs
 save_contrasts
@@ -764,9 +801,17 @@ save_contrasts_full
 ```
 
 
+# Boxplot figure for publication
 ```{r}
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", 
                "#0072B2", "#D55E00", "#CC79A7")
+
+indoor_pm_n <- analysis_data %>% 
+  filter(!is.na(pm_mean_visit)) %>% 
+  filter(!is.na(treatment)) %>% 
+  group_by(winter_id, treatment) %>% 
+  count()
+indoor_pm_n
 
 
 indoor_pm_boxplot <- analysis_data %>% 

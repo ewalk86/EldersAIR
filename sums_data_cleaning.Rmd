@@ -629,13 +629,20 @@ all_sums_clean <- all_sums_raw %>%
          home_winter_id = as.factor(home_winter_id),
          sampling_visit = as.factor(sampling_visit),
          day_of_week = weekdays(datetime_sums),
-         month_sums = as.factor(month(datetime_sums, label = TRUE, abbr = TRUE)))
+         month_sums = as.factor(month(datetime_sums, label = TRUE, abbr = TRUE))) 
+
+sums_clean_distinct_winter <- all_sums_clean %>% 
+  distinct(area, home_winter_id, .keep_all = T) %>% 
+  select(area, home_winter_id, start_datetime, stop_datetime, sums_winter_n:sums_total_mean)
   
 summary(all_sums_clean)
+summary(sums_clean_distinct_winter)
 
 write_rds(all_sums_clean, paste0(file_path, "Output/all_sums_clean.rds"))
+write_rds(sums_clean_distinct_winter, paste0(file_path, "Output/sums_clean_distinct_winter.rds"))
 
 write_csv(all_sums_clean, paste0(file_path, "Output/elders_logtag.csv"))
+write_csv(sums_clean_distinct_winter, paste0(file_path, "Output/elders_logtag_distinct_winter.csv"))
 ```
 
 
@@ -644,15 +651,18 @@ write_csv(all_sums_clean, paste0(file_path, "Output/elders_logtag.csv"))
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
 sums_clean <- read_rds(paste0(file_path, "Output/all_sums_clean.rds"))
+sums_n_check <- sums_clean %>% 
+  filter(temp_c_sums < 0) %>% 
+  count(area, home_winter_id)
 
 sums_time_trends_plot <- sums_clean %>% 
-  filter(area == "NN" & home_winter_id == "10") %>% 
+  filter(area == "NN" & home_winter_id == "106") %>% 
   ggplot() + 
-    geom_point(aes(datetime_sums, temp_c_sums, color = month_sums), size = 1.5) +
+    geom_point(aes(datetime_sums, temp_c_sums, color = sampling_visit), size = 1.5) +
     theme_classic() +
     labs(y = "Temperature (degrees C)",
          x = "Datetime",
-         color = "Logtag ID") +
+         color = "Sampling Visit") +
     theme(axis.title.y = element_text(size = 12,
                                       margin = margin(t = 0, r = 20, b = 0, l = 0)),
           axis.title.x = element_text(size = 12),
@@ -663,6 +673,8 @@ sums_time_trends_plot <- sums_clean %>%
           axis.ticks = element_blank()) +
     scale_color_manual(values = jv_palette)
 sums_time_trends_plot
+
+summary(sums_clean)
 ```
 
 
@@ -673,9 +685,9 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
 sums_clean <- read_rds(paste0(file_path, "Output/all_sums_clean.rds"))
 
-sums_events_25 <- sums_clean %>% 
+sums_events_30 <- sums_clean %>% 
   group_by(area, home, winter_id) %>%
-  mutate(threshold_temp = if_else(temp_c_sums >= 25, 1, 0),
+  mutate(threshold_temp = if_else(temp_c_sums >= 30, 1, 0),
          threshold_temp_event = if_else(threshold_temp == 1 & lag(threshold_temp) == 0, 
                                         "start", "Temp < threshold"),
          threshold_temp_event = if_else(is.na(threshold_temp_event), "start", threshold_temp_event),
@@ -716,9 +728,21 @@ sums_events_25 <- sums_clean %>%
   mutate(event_start_datetime = start,
          event_end_datetime = event_end6,
          sums_event = as.numeric(1)) %>% 
+  ungroup() %>% 
   select(area, home, home_winter_id, winter_id, date_sums, 
          event_start_datetime, event_end_datetime, sums_event,
          event_length_min, hrs_till_next_event)
+
+summary(sums_events_30)
+
+count_sums_events_30 <- sums_events_30 %>% 
+  count(area, home_winter_id)
+count_sums_events_30
+
+mean_events_30 <- count_sums_events_30 %>% 
+  group_by(area) %>% 
+  summarize(mean(n))
+mean_events_30
 ```
 
 

@@ -1,7 +1,7 @@
 ---
 title: 'EldersAIR: data merging for analysis dataset'
 author: "Ethan Walker"
-date: "Started 11 March 2021, Updated 7 May 2021"
+date: "Started 11 March 2021, Updated 28 July 2021"
 output:
   powerpoint_presentation: default
 ---
@@ -26,6 +26,8 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
                "#0072B2", "#D55E00", "#CC79A7")
 ```
 
+This file loads all cleaned EldersAIR datasets individually and merges them 
+based on the correct joining characteristics (area, home, winter, visit, etc.). 
 
 ```{r}
 # Load individual datasets
@@ -53,6 +55,8 @@ npt_micropem_clean <- read_rds(paste0(file_path, "Output/npt_micropem_clean.rds"
 elders_stove_grades_clean <- read_rds(paste0(file_path, "Output/elders_stove_grades_clean.rds")) 
 
 elders_stove_usage_clean <- read_rds(paste0(file_path, "Output/elders_stove_usage_clean.rds")) 
+
+elders_sums_clean <- read_rds(paste0(file_path, "Output/sums_clean_distinct_winter.rds")) 
 
 elders_kw_report_clean <- read_rds(paste0(file_path, "Output/elders_kw_report_clean.rds")) 
 
@@ -119,6 +123,8 @@ health_pm_visit <- elders_medvisit_clean %>%
   left_join(elders_kw_report_clean,
             by = c("area", "home_winter_id")) %>% 
   left_join(elders_filter_type,
+            by = c("area", "home_winter_id")) %>% 
+  left_join(elders_sums_clean,
             by = c("area", "home_winter_id")) %>% 
   left_join(elders_temp_rh_clean,
             by = c("area", "home_winter_id", "sampling_visit")) %>% 
@@ -189,7 +195,7 @@ elders_cleaned_dataset_by_visit <- health_pm_visit %>%
          kw_perc_expected = if_else(treatment == "Education", 100, kw_perc_expected)) %>% 
   mutate(treatment = as.character(treatment),
          perc_exp_quart = cut(kw_perc_expected,
-                                  breaks = c(0, 25, 46, 71, 1000),
+                                  breaks = c(0, 25, 49, 70, 1000),
                                   labels = c("0-25 compliance", "25-50 compliance",
                                              "50-75 compliance", "75-100 compliance")),
          perc_exp_quart = as.character(perc_exp_quart),
