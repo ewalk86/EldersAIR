@@ -34,10 +34,42 @@ analysis_data <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_vi
   filter(area == "NPT") %>% 
   filter(pm_mean_winter < 200)
 
-home_data2 <- home_data %>% 
-  #filter(home == "NPE5101") %>% 
-  distinct(home, winter_id, .keep_all = T) %>% 
-  select(treatment, pm_mean_winter, winter_id) %>% 
+data_pm <- adult_data %>% 
+  distinct(winter_id, .keep_all = T) %>% 
+  select(home, treatment, pm_mean_winter, winter_id) %>% 
+  mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
+                                  labels = c("Baseline", "Post-Intervention")))
+
+data_mp <- adult_data %>% 
+  distinct(winter_id, .keep_all = T) %>% 
+  select(home, treatment, mp_mean_winter, winter_id) %>% 
+  mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
+                                  labels = c("Baseline", "Post-Intervention")))
+
+data_sbp <- adult_data %>% 
+  select(treatment, bp_sys, winter_id) %>% 
+  group_by(winter_id) %>% 
+  mutate(bp_sys_mean = mean(bp_sys, na.rm = T)) %>% 
+  ungroup() %>% 
+  distinct(winter_id, .keep_all = T) %>% 
+  mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
+                                  labels = c("Baseline", "Post-Intervention")))
+
+data_dbp <- adult_data %>% 
+  select(treatment, bp_dia, winter_id) %>% 
+  group_by(winter_id) %>% 
+  mutate(bp_dia_mean = mean(bp_dia, na.rm = T)) %>% 
+  ungroup() %>% 
+  distinct(winter_id, .keep_all = T) %>% 
+  mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
+                                  labels = c("Baseline", "Post-Intervention")))
+
+data_fvc <- adult_data %>% 
+  select(treatment, fvc, winter_id) %>% 
+  group_by(winter_id) %>% 
+  mutate(fvc_mean = mean(fvc, na.rm = T)) %>% 
+  ungroup() %>% 
+  distinct(winter_id, .keep_all = T) %>% 
   mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
                                   labels = c("Baseline", "Post-Intervention")))
 
@@ -49,21 +81,23 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
 
 Dear [blank]:  
 
-We wanted to extend a heartfelt thank you for your participation during two winters of our EldersAIR Study that lasted from 2014 – 2020. We could not have done this without you! The information we are gaining from the 68 Nimiipuu homes and 82 Navajo homes in the study will be extremely helpful for informing others about strategies to improve indoor air quality and protect elder health. In addition to thanking you and your family for your contributions to this study, the purpose of this letter is to invite you to a virtual community meeting about the project results. Also included in this letter are some of the findings from your home and overall findings from the rest of the community.
+We wanted to extend a heartfelt thank you for your participation in our EldersAIR Study that lasted from 2014 – 2020. We could not have done this without you! The information we are gaining from the 68 Nimiipuu homes and 82 Navajo homes in the study will be extremely helpful for informing others about strategies to improve indoor air quality and protect elder health. In addition to thanking you and your family for your contributions to this study, the purpose of this letter is to invite you to a virtual community meeting about the project results. Also included in this letter are some of the findings from your home and overall findings from the rest of the community.
 
 **Community Meeting**  
-We are planning a virtual meeting on Zoom for November XX at  am/pm. Feel free to extend this invitation to family and friends. The meeting will be recorded and here is the link to join live:   If you need assistance with Zoom, please reach out to Johna Boulafentis - ERWM Air Quality at 208-621-3821 or Crissy Garcia - Nimiipuu Health at 208-621-4951. 
+We are planning a virtual meeting on Zoom for January XX at XX:XX am/pm. Feel free to extend this invitation to family and friends. The meeting will be recorded and here is the link to join live:   If you need assistance with Zoom, please reach out to Johna Boulafentis - ERWM Air Quality at 208-621-3821 or Crissy Garcia - Nimiipuu Health at 208-621-4951. 
 
-**Data Summary from your home**  
-Please find a summary of the air sampling conducted in your home below. These numbers provide an estimate of how much particulate matter (PM2.5), on average, was in your home during the sampling period. 
+**Your study results**  
+Your results are indicated by the triangles in the figures. The smaller circles in the figure 
+are results from the rest of the participants from the community. Please see the 
+fact sheet handout for frequently asked questions related to your results.  
 
-# Indoor PM2.5 from EldersAIR households
-Your home's results are indicated by the triangles in the figure  
-The smaller circles in the figures are the rest of the homes from the community  
+_**Indoor PM2.5**_  
+Indoor PM2.5 was measured using the stationary monitor in your home near the wood stove  
 ```{r}
-indoor_pm_boxplot <- analysis_data %>% 
-  filter(!is.na(pm_mean_visit)) %>% 
+indoor_pm_plot <- analysis_data %>% 
+  filter(!is.na(pm_mean_winter)) %>% 
   filter(!is.na(treatment)) %>% 
+  distinct(home, winter_id, .keep_all = T) %>% 
   mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
                                   labels = c("Baseline", "Post-Intervention"))) %>% 
   ggplot() + 
@@ -73,11 +107,11 @@ indoor_pm_boxplot <- analysis_data %>%
     geom_point(aes(treatment, pm_mean_winter, fill = `Winter Sampling Period:`), 
                shape = 21, size = 3, position=position_jitterdodge(seed = 1)) +
     geom_point(aes(treatment, pm_mean_winter, fill = `Winter Sampling Period:`), 
-               data = home_data2, shape = 24, size = 4, stroke = 3, 
+               data = data_pm, shape = 24, size = 4, stroke = 3, 
                position=position_jitterdodge(seed = 1)) +
     #geom_text(aes(treatment, pm_mean_winter), label = "Your home", 
      #         data = home_data, position = "jitter") +
-    labs(y = "Average PM2.5") +
+    labs(y = "Average Indoor PM2.5") +
     theme_minimal() +
     theme(plot.title = element_text(size = 18, colour = "black"),
           strip.text = element_text(size = 16, colour = "black"),
@@ -94,9 +128,178 @@ indoor_pm_boxplot <- analysis_data %>%
           panel.grid.major.x = element_blank(),
           axis.ticks = element_blank()) +
     scale_fill_manual(values = c("#E69F00", "#56B4E9")) 
-indoor_pm_boxplot
+indoor_pm_plot
 
 
-#ggsave("elders_pm_boxplots.jpg", width = 8, height = 5)
+#ggsave("indoor_pm_plot.jpg", width = 8, height = 5)
 ```
+
+
+_**Personal PM2.5**_  
+Personal PM2.5 was measured using the monitor in a small bag that you wore  
+```{r}
+personal_pm_plot <- analysis_data %>% 
+  filter(!is.na(mp_mean_winter)) %>% 
+  filter(!is.na(treatment)) %>% 
+  distinct(home, winter_id, .keep_all = T) %>% 
+  mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
+                                  labels = c("Baseline", "Post-Intervention"))) %>% 
+  ggplot() + 
+    geom_point(aes(treatment, mp_mean_winter, fill = `Winter Sampling Period:`), 
+               shape = 21, size = 3, position=position_jitterdodge(seed = 1)) +
+    geom_point(aes(treatment, mp_mean_winter, fill = `Winter Sampling Period:`), 
+               data = data_mp, shape = 24, size = 4, stroke = 3, 
+               position=position_jitterdodge(seed = 1)) +
+    labs(y = "Average Personal PM2.5") +
+    theme_minimal() +
+    theme(plot.title = element_text(size = 18, colour = "black"),
+          strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black", 
+                                     vjust = 0.5),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          legend.title = element_text(size = 16, colour = "black"),
+          legend.text = element_text(size = 16, colour = "black"),
+          legend.position = "top",
+          panel.grid.major.x = element_blank(),
+          axis.ticks = element_blank()) +
+    scale_fill_manual(values = c("#E69F00", "#56B4E9")) 
+personal_pm_plot
+
+
+#ggsave("personal_pm_plot.jpg", width = 8, height = 5)
+```
+
+
+_**Systolic Blood Pressure**_  
+Systolic blood pressure is the top number in your blood pressure. Example: **120**/75  
+```{r}
+sbp_plot <- analysis_data %>% 
+  filter(!is.na(bp_sys)) %>% 
+  filter(!is.na(treatment)) %>% 
+  select(adult_id_char, treatment, bp_sys, winter_id) %>% 
+  group_by(adult_id_char, winter_id) %>% 
+  mutate(bp_sys_mean = mean(bp_sys, na.rm = T)) %>% 
+  ungroup() %>% 
+  distinct(adult_id_char, winter_id, .keep_all = T) %>% 
+  mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
+                                  labels = c("Baseline", "Post-Intervention"))) %>% 
+  ggplot() + 
+    geom_point(aes(treatment, bp_sys_mean, fill = `Winter Sampling Period:`), 
+               shape = 21, size = 3, position=position_jitterdodge(seed = 1)) +
+    geom_point(aes(treatment, bp_sys_mean, fill = `Winter Sampling Period:`), 
+               data = data_sbp, shape = 24, size = 4, stroke = 3, 
+               position=position_jitterdodge(seed = 1)) +
+    labs(y = "Average systolic blood pressure") +
+    theme_minimal() +
+    theme(plot.title = element_text(size = 18, colour = "black"),
+          strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black", 
+                                     vjust = 0.5),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          legend.title = element_text(size = 16, colour = "black"),
+          legend.text = element_text(size = 16, colour = "black"),
+          legend.position = "top",
+          panel.grid.major.x = element_blank(),
+          axis.ticks = element_blank()) +
+    scale_fill_manual(values = c("#E69F00", "#56B4E9")) 
+sbp_plot
+
+
+#ggsave("sbp_plot.jpg", width = 8, height = 5)
+```
+
+
+_**Diastolic Blood Pressure**_  
+Diastolic blood pressure is the bottom number in your blood pressure. Example: 120/**75**  
+```{r}
+dbp_plot <- analysis_data %>% 
+  filter(!is.na(bp_dia)) %>% 
+  filter(!is.na(treatment)) %>% 
+  select(adult_id_char, treatment, bp_dia, winter_id) %>% 
+  group_by(adult_id_char, winter_id) %>% 
+  mutate(bp_dia_mean = mean(bp_dia, na.rm = T)) %>% 
+  ungroup() %>% 
+  distinct(adult_id_char, winter_id, .keep_all = T) %>% 
+  mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
+                                  labels = c("Baseline", "Post-Intervention"))) %>% 
+  ggplot() + 
+    geom_point(aes(treatment, bp_dia_mean, fill = `Winter Sampling Period:`), 
+               shape = 21, size = 3, position=position_jitterdodge(seed = 1)) +
+    geom_point(aes(treatment, bp_dia_mean, fill = `Winter Sampling Period:`), 
+               data = data_dbp, shape = 24, size = 4, stroke = 3, 
+               position=position_jitterdodge(seed = 1)) +
+    labs(y = "Average diastolic blood pressure") +
+    theme_minimal() +
+    theme(plot.title = element_text(size = 18, colour = "black"),
+          strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black", 
+                                     vjust = 0.5),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          legend.title = element_text(size = 16, colour = "black"),
+          legend.text = element_text(size = 16, colour = "black"),
+          legend.position = "top",
+          panel.grid.major.x = element_blank(),
+          axis.ticks = element_blank()) +
+    scale_fill_manual(values = c("#E69F00", "#56B4E9")) 
+dbp_plot
+
+
+#ggsave("dbp_plot.jpg", width = 8, height = 5)
+```
+
+
+_**Forced Vital Capacity**_    
+Forced vital capacity is the total lung volume that you exhaled  
+```{r}
+fvc_plot <- analysis_data %>% 
+  filter(!is.na(fvc)) %>% 
+  filter(!is.na(treatment)) %>% 
+  select(adult_id_char, treatment, fvc, winter_id) %>% 
+  group_by(adult_id_char, winter_id) %>% 
+  mutate(fvc_mean = mean(fvc, na.rm = T)) %>% 
+  ungroup() %>% 
+  distinct(adult_id_char, winter_id, .keep_all = T) %>% 
+  mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
+                                  labels = c("Baseline", "Post-Intervention"))) %>% 
+  ggplot() + 
+    geom_point(aes(treatment, fvc_mean, fill = `Winter Sampling Period:`), 
+               shape = 21, size = 3, position=position_jitterdodge(seed = 1)) +
+    geom_point(aes(treatment, fvc_mean, fill = `Winter Sampling Period:`), 
+               data = data_fvc, shape = 24, size = 4, stroke = 3, 
+               position=position_jitterdodge(seed = 1)) +
+    labs(y = "Average forced vital capacity") +
+    theme_minimal() +
+    theme(plot.title = element_text(size = 18, colour = "black"),
+          strip.text = element_text(size = 16, colour = "black"),
+          axis.text.x = element_text(size = 16, colour = "black", 
+                                     vjust = 0.5),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16, colour = "black"),
+          axis.title.x = element_blank(),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          legend.title = element_text(size = 16, colour = "black"),
+          legend.text = element_text(size = 16, colour = "black"),
+          legend.position = "top",
+          panel.grid.major.x = element_blank(),
+          axis.ticks = element_blank()) +
+    scale_fill_manual(values = c("#E69F00", "#56B4E9")) 
+fvc_plot
+
+
+#ggsave("fvc_plot.jpg", width = 8, height = 5)
+```
+
 
