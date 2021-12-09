@@ -1,12 +1,13 @@
 ---
-title: 'EldersAIR Results Letter'
-output: word_document
+output: 
+  word_document:
+    reference_docx: results_report_template.docx
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, eval = TRUE, 
                       include = TRUE, warning = FALSE,
-                      fig.height = 4, fig.width = 8)
+                      fig.height = 2.75, fig.width = 8)
 ```
 
 ```{r, message=FALSE}
@@ -32,86 +33,78 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 analysis_data <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) %>% 
   mutate(cohort = factor(cohort, levels = c("2015", "2016", "2017", "2018", "2019"))) %>% 
   filter(area == "NPT") %>% 
-  filter(pm_mean_winter < 200)
+  filter(pm_mean_winter < 200) %>% 
+  mutate("Winter:" = factor(winter_id, levels = c(1, 2),
+                                  labels = c("Pre-Intervention", "Post-Intervention")),
+         treatment = factor(treatment, 
+                            levels = c("Placebo", "Education", "Filter"),
+                            labels = c("Placebo Group", "Education Group", "Filter Group")),
+         pm_mean_winter = round(pm_mean_winter, digits = 0),
+         mp_mean_winter = round(mp_mean_winter, digits = 0))
 
 data_pm <- adult_data %>% 
-  distinct(winter_id, .keep_all = T) %>% 
-  select(home, treatment, pm_mean_winter, winter_id) %>% 
-  mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
-                                  labels = c("Baseline", "Post-Intervention")))
+  distinct(winter_id, .keep_all = T) 
 
 data_mp <- adult_data %>% 
-  distinct(winter_id, .keep_all = T) %>% 
-  select(home, treatment, mp_mean_winter, winter_id) %>% 
-  mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
-                                  labels = c("Baseline", "Post-Intervention")))
+  distinct(winter_id, .keep_all = T) 
 
 data_sbp <- adult_data %>% 
-  select(treatment, bp_sys, winter_id) %>% 
   group_by(winter_id) %>% 
-  mutate(bp_sys_mean = mean(bp_sys, na.rm = T)) %>% 
+  mutate(bp_sys_mean = round(mean(bp_sys, na.rm = T), digits = 0)) %>% 
   ungroup() %>% 
-  distinct(winter_id, .keep_all = T) %>% 
-  mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
-                                  labels = c("Baseline", "Post-Intervention")))
+  distinct(winter_id, .keep_all = T) 
 
 data_dbp <- adult_data %>% 
-  select(treatment, bp_dia, winter_id) %>% 
   group_by(winter_id) %>% 
-  mutate(bp_dia_mean = mean(bp_dia, na.rm = T)) %>% 
+  mutate(bp_dia_mean = round(mean(bp_dia, na.rm = T), digits = 0)) %>% 
   ungroup() %>% 
-  distinct(winter_id, .keep_all = T) %>% 
-  mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
-                                  labels = c("Baseline", "Post-Intervention")))
+  distinct(winter_id, .keep_all = T) 
 
 data_fvc <- adult_data %>% 
-  select(treatment, fvc, winter_id) %>% 
   group_by(winter_id) %>% 
-  mutate(fvc_mean = mean(fvc, na.rm = T)) %>% 
+  mutate(fvc_mean = round(mean(fvc, na.rm = T), digits = 1)) %>% 
   ungroup() %>% 
-  distinct(winter_id, .keep_all = T) %>% 
-  mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
-                                  labels = c("Baseline", "Post-Intervention")))
-
+  distinct(winter_id, .keep_all = T) 
 
 
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", 
                "#0072B2", "#D55E00", "#CC79A7")
 ```
 
-Dear [blank]:  
+![](npt_logo.png)
 
-We wanted to extend a heartfelt thank you for your participation in our EldersAIR Study that lasted from 2014 – 2020. We could not have done this without you! The information we are gaining from the 68 Nimiipuu homes and 82 Navajo homes in the study will be extremely helpful for informing others about strategies to improve indoor air quality and protect elder health. In addition to thanking you and your family for your contributions to this study, the purpose of this letter is to invite you to a virtual community meeting about the project results. Also included in this letter are some of the findings from your home and overall findings from the rest of the community.
+## Your Study Results
 
-**Community Meeting**  
-We are planning a virtual meeting on Zoom for January XX at XX:XX am/pm. Feel free to extend this invitation to family and friends. The meeting will be recorded and here is the link to join live:   If you need assistance with Zoom, please reach out to Johna Boulafentis - ERWM Air Quality at 208-621-3821 or Crissy Garcia - Nimiipuu Health at 208-621-4951. 
-
-**Your study results**  
-Your results are indicated by the triangles in the figures. The smaller circles in the figure 
+Your results are indicated by the triangles in the figures. The label next to each 
+triangle is your result from the study. The smaller circles in the figure 
 are results from the rest of the participants from the community. Please see the 
 fact sheet handout for frequently asked questions related to your results.  
 
-_**Indoor PM2.5**_  
-Indoor PM2.5 was measured using the stationary monitor in your home near the wood stove  
+### Air Pollution Results
+
+#### Indoor PM2.5  
+The smoke from wood burning is made up of a complex mixture of gases and particles. 
+The biggest health threat from smoke is from fine particles, also called fine particulate matter or PM2.5. 
+PM2.5 is measured in micrograms per cubic meter (ug/m3) of air. In the study, we 
+measured Indoor PM2.5 using the stationary monitor in your home near the wood stove.  
 ```{r}
 indoor_pm_plot <- analysis_data %>% 
   filter(!is.na(pm_mean_winter)) %>% 
   filter(!is.na(treatment)) %>% 
   distinct(home, winter_id, .keep_all = T) %>% 
-  mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
-                                  labels = c("Baseline", "Post-Intervention"))) %>% 
   ggplot() + 
-    #geom_boxplot(aes(treatment, pm_mean_winter, fill = `Winter Sampling Period:`, size = 1), 
+    #geom_boxplot(aes(treatment, pm_mean_winter, fill = `Winter:`, size = 1), 
      #            lwd = 1.2, colour = "black", 
       #           fatten = 1, outlier.size = 1.5, width = 0.35) +
-    geom_point(aes(treatment, pm_mean_winter, fill = `Winter Sampling Period:`), 
+    geom_point(aes(treatment, pm_mean_winter, fill = `Winter:`), 
                shape = 21, size = 3, position=position_jitterdodge(seed = 1)) +
-    geom_point(aes(treatment, pm_mean_winter, fill = `Winter Sampling Period:`), 
+    geom_label(aes(treatment, pm_mean_winter, label = pm_mean_winter, 
+                   color = `Winter:`), 
+               data = data_pm, size = 5, position=position_dodge(1.6)) +
+    geom_point(aes(treatment, pm_mean_winter, fill = `Winter:`), 
                data = data_pm, shape = 24, size = 4, stroke = 3, 
-               position=position_jitterdodge(seed = 1)) +
-    #geom_text(aes(treatment, pm_mean_winter), label = "Your home", 
-     #         data = home_data, position = "jitter") +
-    labs(y = "Average Indoor PM2.5") +
+               position=position_dodge(0.9)) +
+    labs(y = "Indoor PM2.5") +
     theme_minimal() +
     theme(plot.title = element_text(size = 18, colour = "black"),
           strip.text = element_text(size = 16, colour = "black"),
@@ -127,30 +120,29 @@ indoor_pm_plot <- analysis_data %>%
           legend.position = "top",
           panel.grid.major.x = element_blank(),
           axis.ticks = element_blank()) +
-    scale_fill_manual(values = c("#E69F00", "#56B4E9")) 
+    scale_fill_manual(values = c("#E69F00", "#56B4E9")) +
+    scale_color_manual(values = c("#E69F00", "#56B4E9")) 
 indoor_pm_plot
-
-
-#ggsave("indoor_pm_plot.jpg", width = 8, height = 5)
 ```
 
 
-_**Personal PM2.5**_  
-Personal PM2.5 was measured using the monitor in a small bag that you wore  
+#### Personal PM2.5  
+Personal PM2.5 was measured using the monitor in a small bag that you wore during the study.  
 ```{r}
 personal_pm_plot <- analysis_data %>% 
   filter(!is.na(mp_mean_winter)) %>% 
   filter(!is.na(treatment)) %>% 
   distinct(home, winter_id, .keep_all = T) %>% 
-  mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
-                                  labels = c("Baseline", "Post-Intervention"))) %>% 
   ggplot() + 
-    geom_point(aes(treatment, mp_mean_winter, fill = `Winter Sampling Period:`), 
+    geom_point(aes(treatment, mp_mean_winter, fill = `Winter:`), 
                shape = 21, size = 3, position=position_jitterdodge(seed = 1)) +
-    geom_point(aes(treatment, mp_mean_winter, fill = `Winter Sampling Period:`), 
+    geom_label(aes(treatment, mp_mean_winter, label = mp_mean_winter, 
+                   color = `Winter:`), 
+               data = data_mp, size = 5, position=position_dodge(1.6)) +
+    geom_point(aes(treatment, mp_mean_winter, fill = `Winter:`), 
                data = data_mp, shape = 24, size = 4, stroke = 3, 
-               position=position_jitterdodge(seed = 1)) +
-    labs(y = "Average Personal PM2.5") +
+               position=position_dodge(0.9)) +
+    labs(y = "Personal PM2.5") +
     theme_minimal() +
     theme(plot.title = element_text(size = 18, colour = "black"),
           strip.text = element_text(size = 16, colour = "black"),
@@ -168,32 +160,35 @@ personal_pm_plot <- analysis_data %>%
           axis.ticks = element_blank()) +
     scale_fill_manual(values = c("#E69F00", "#56B4E9")) 
 personal_pm_plot
-
-
-#ggsave("personal_pm_plot.jpg", width = 8, height = 5)
 ```
 
 
-_**Systolic Blood Pressure**_  
-Systolic blood pressure is the top number in your blood pressure. Example: **120**/75  
+\pagebreak  
+
+### Health Results
+
+#### Systolic Blood Pressure  
+Blood pressure is an important indicator of heart health and is measured in 
+millimeters of mercury (mmHg). Systolic blood pressure is the top number in your blood pressure, 
+and a value of 130 or above is considered high.  
 ```{r}
 sbp_plot <- analysis_data %>% 
   filter(!is.na(bp_sys)) %>% 
   filter(!is.na(treatment)) %>% 
-  select(adult_id_char, treatment, bp_sys, winter_id) %>% 
   group_by(adult_id_char, winter_id) %>% 
   mutate(bp_sys_mean = mean(bp_sys, na.rm = T)) %>% 
   ungroup() %>% 
   distinct(adult_id_char, winter_id, .keep_all = T) %>% 
-  mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
-                                  labels = c("Baseline", "Post-Intervention"))) %>% 
   ggplot() + 
-    geom_point(aes(treatment, bp_sys_mean, fill = `Winter Sampling Period:`), 
+    geom_point(aes(treatment, bp_sys_mean, fill = `Winter:`), 
                shape = 21, size = 3, position=position_jitterdodge(seed = 1)) +
-    geom_point(aes(treatment, bp_sys_mean, fill = `Winter Sampling Period:`), 
+    geom_label(aes(treatment, bp_sys_mean, label = bp_sys_mean, 
+                   color = `Winter:`), 
+               data = data_sbp, size = 5, position=position_dodge(1.7)) +
+    geom_point(aes(treatment, bp_sys_mean, fill = `Winter:`), 
                data = data_sbp, shape = 24, size = 4, stroke = 3, 
-               position=position_jitterdodge(seed = 1)) +
-    labs(y = "Average systolic blood pressure") +
+               position=position_dodge(0.9)) +
+    labs(y = "Systolic blood pressure") +
     theme_minimal() +
     theme(plot.title = element_text(size = 18, colour = "black"),
           strip.text = element_text(size = 16, colour = "black"),
@@ -211,32 +206,30 @@ sbp_plot <- analysis_data %>%
           axis.ticks = element_blank()) +
     scale_fill_manual(values = c("#E69F00", "#56B4E9")) 
 sbp_plot
-
-
-#ggsave("sbp_plot.jpg", width = 8, height = 5)
 ```
 
 
-_**Diastolic Blood Pressure**_  
-Diastolic blood pressure is the bottom number in your blood pressure. Example: 120/**75**  
+#### Diastolic Blood Pressure  
+Diastolic blood pressure is the bottom number in your blood pressure, and a value 
+of 80 or above is considered high.  
 ```{r}
 dbp_plot <- analysis_data %>% 
   filter(!is.na(bp_dia)) %>% 
   filter(!is.na(treatment)) %>% 
-  select(adult_id_char, treatment, bp_dia, winter_id) %>% 
   group_by(adult_id_char, winter_id) %>% 
   mutate(bp_dia_mean = mean(bp_dia, na.rm = T)) %>% 
   ungroup() %>% 
   distinct(adult_id_char, winter_id, .keep_all = T) %>% 
-  mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
-                                  labels = c("Baseline", "Post-Intervention"))) %>% 
   ggplot() + 
-    geom_point(aes(treatment, bp_dia_mean, fill = `Winter Sampling Period:`), 
+    geom_point(aes(treatment, bp_dia_mean, fill = `Winter:`), 
                shape = 21, size = 3, position=position_jitterdodge(seed = 1)) +
-    geom_point(aes(treatment, bp_dia_mean, fill = `Winter Sampling Period:`), 
+    geom_label(aes(treatment, bp_dia_mean, label = bp_dia_mean, 
+                   color = `Winter:`), 
+               data = data_dbp, size = 5, position=position_dodge(1.6)) +
+    geom_point(aes(treatment, bp_dia_mean, fill = `Winter:`), 
                data = data_dbp, shape = 24, size = 4, stroke = 3, 
-               position=position_jitterdodge(seed = 1)) +
-    labs(y = "Average diastolic blood pressure") +
+               position=position_dodge(0.9)) +
+    labs(y = "Diastolic blood pressure") +
     theme_minimal() +
     theme(plot.title = element_text(size = 18, colour = "black"),
           strip.text = element_text(size = 16, colour = "black"),
@@ -254,32 +247,30 @@ dbp_plot <- analysis_data %>%
           axis.ticks = element_blank()) +
     scale_fill_manual(values = c("#E69F00", "#56B4E9")) 
 dbp_plot
-
-
-#ggsave("dbp_plot.jpg", width = 8, height = 5)
 ```
 
 
-_**Forced Vital Capacity**_    
-Forced vital capacity is the total lung volume that you exhaled  
+#### Forced Vital Capacity    
+Forced vital capacity is the total lung volume that you exhaled when your lung 
+function was tested. Forced vital capacity is measures in Liters (L) of air.  
 ```{r}
 fvc_plot <- analysis_data %>% 
   filter(!is.na(fvc)) %>% 
   filter(!is.na(treatment)) %>% 
-  select(adult_id_char, treatment, fvc, winter_id) %>% 
   group_by(adult_id_char, winter_id) %>% 
   mutate(fvc_mean = mean(fvc, na.rm = T)) %>% 
   ungroup() %>% 
   distinct(adult_id_char, winter_id, .keep_all = T) %>% 
-  mutate("Winter Sampling Period:" = factor(winter_id, levels = c(1, 2),
-                                  labels = c("Baseline", "Post-Intervention"))) %>% 
   ggplot() + 
-    geom_point(aes(treatment, fvc_mean, fill = `Winter Sampling Period:`), 
+    geom_point(aes(treatment, fvc_mean, fill = `Winter:`), 
                shape = 21, size = 3, position=position_jitterdodge(seed = 1)) +
-    geom_point(aes(treatment, fvc_mean, fill = `Winter Sampling Period:`), 
+    geom_label(aes(treatment, fvc_mean, label = fvc_mean, 
+                   color = `Winter:`), 
+               data = data_fvc, size = 5, position=position_dodge(1.6)) +
+    geom_point(aes(treatment, fvc_mean, fill = `Winter:`), 
                data = data_fvc, shape = 24, size = 4, stroke = 3, 
-               position=position_jitterdodge(seed = 1)) +
-    labs(y = "Average forced vital capacity") +
+               position=position_dodge(0.9)) +
+    labs(y = "Forced vital capacity") +
     theme_minimal() +
     theme(plot.title = element_text(size = 18, colour = "black"),
           strip.text = element_text(size = 16, colour = "black"),
@@ -297,9 +288,6 @@ fvc_plot <- analysis_data %>%
           axis.ticks = element_blank()) +
     scale_fill_manual(values = c("#E69F00", "#56B4E9")) 
 fvc_plot
-
-
-#ggsave("fvc_plot.jpg", width = 8, height = 5)
 ```
 
 
