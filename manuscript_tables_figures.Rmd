@@ -196,9 +196,9 @@ demographics_summary <- data %>%
   rename(new_var = var) %>% 
   #filter(treatment_assigned == "Placebo") %>%
   #filter(area == "NPT") %>% 
-  arrange(adult_id_char, winter_id, sampling_visit) %>% 
+  arrange(home, winter_id, sampling_visit) %>% 
   mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
-  distinct(adult_id_char, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
+  distinct(home, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
   mutate(total_n = n()) %>% 
   group_by(area) %>% 
   mutate(area_n = n()) %>% 
@@ -216,9 +216,9 @@ demographics_summary <- data %>%
   rename(new_var = var) %>% 
   #filter(treatment_assigned == "Placebo") %>% 
   #filter(area == "NPT") %>% 
-  arrange(adult_id_char, winter_id, sampling_visit) %>% 
+  arrange(home, winter_id, sampling_visit) %>% 
   mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
-  distinct(adult_id_char, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
+  distinct(home, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
   mutate(total_n = n()) %>% 
   group_by(treatment) %>% 
   mutate(treatment_n = n()) %>% 
@@ -263,6 +263,8 @@ char_funct_treatment("residents_smoke_inside")
 
 char_funct_total("stove_age")
 char_funct_treatment("stove_age")
+char_funct_total("stove_cert")
+char_funct_treatment("stove_cert")
 char_funct_total("chimney_clean")
 char_funct_treatment("chimney_clean")
 char_funct_total("wood_collect_method")
@@ -285,12 +287,13 @@ demographics_summary <- data %>%
   mutate(new_var = as.numeric(new_var)) %>% 
   #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>% 
   #filter(area == "NPT") %>% 
-  filter(winter_id == 1) %>% 
+  #filter(winter_id == 1) %>% 
   arrange(home, winter_id, sampling_visit) %>% 
   mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
-  distinct(home, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
+  distinct(home, winter_id, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
   filter(!is.na(new_var)) %>% 
-  dplyr::select(new_var) %>% 
+  dplyr::select(new_var, winter_id) %>% 
+  group_by(winter_id) %>% 
   summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
             min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
 demographics_summary
@@ -302,13 +305,13 @@ demographics_summary <- data %>%
   mutate(new_var = as.numeric(new_var)) %>% 
   #mutate(new_var = (as.numeric(new_var)-32)*5/9) %>%
   #filter(area == "NPT") %>% 
-  filter(winter_id == 1) %>% 
+  #filter(winter_id == 1) %>% 
   arrange(home, winter_id, sampling_visit) %>% 
   mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
-  distinct(home, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
+  distinct(home, winter_id, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
   filter(!is.na(new_var)) %>% 
-  dplyr::select(treatment, new_var) %>% 
-  group_by(treatment) %>% 
+  dplyr::select(treatment, new_var, winter_id) %>% 
+  group_by(winter_id, treatment) %>% 
   summarize(mean_var = mean(new_var), sd_var = sd(new_var), n_var = n(), 
             min_var = min(new_var), med_var = median(new_var), max_var = max(new_var))
 demographics_summary
@@ -338,18 +341,19 @@ num_funct_treatment("sums_winter_mean")
 # summary data for manuscript tables - averaged over multiple Winter 1 visits
 num_funct_total <- function(var, data = elders_cleaned_dataset_by_visit){
 demographics_summary <- data %>% 
-  filter(area == "NN") %>% 
+  #filter(area == "NN") %>% 
   rename(new_var = var) %>% 
   mutate(new_var = as.numeric(new_var)) %>% 
   group_by(home, winter_id) %>% 
   mutate(mean_var = mean(new_var, na.rm = T)) %>% 
   ungroup() %>% 
-  filter(winter_id == 1) %>% 
+  #filter(winter_id == 1) %>% 
   arrange(home, winter_id, sampling_visit) %>% 
   mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
-  distinct(home, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
+  distinct(home, winter_id, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
   filter(!is.na(mean_var)) %>% 
-  dplyr::select(mean_var) %>% 
+  dplyr::select(winter_id, mean_var) %>% 
+  group_by(winter_id) %>% 
   summarize(mean_new_var = mean(mean_var), sd_var = sd(mean_var), n_var = n(), 
             min_var = min(mean_var), med_var = median(mean_var), max_var = max(mean_var))
 demographics_summary
@@ -357,19 +361,19 @@ demographics_summary
 
 num_funct_treatment <- function(var, data = elders_cleaned_dataset_by_visit){
 demographics_summary <- data %>% 
-  filter(area == "NN") %>% 
+  #filter(area == "NN") %>% 
   rename(new_var = var) %>%
   mutate(new_var = as.numeric(new_var)) %>% 
   group_by(home, winter_id) %>% 
   mutate(mean_var = mean(new_var, na.rm = T)) %>% 
   ungroup() %>% 
-  filter(winter_id == 1) %>% 
+  #filter(winter_id == 1) %>% 
   arrange(home, winter_id, sampling_visit) %>% 
   mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
-  distinct(home, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
+  distinct(home, winter_id, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
   filter(!is.na(mean_var)) %>% 
-  dplyr::select(treatment, mean_var) %>% 
-  group_by(treatment) %>% 
+  dplyr::select(winter_id, treatment, mean_var) %>% 
+  group_by(winter_id, treatment) %>% 
   summarize(mean_new_var = mean(mean_var), sd_var = sd(mean_var), n_var = n(), 
             min_var = min(mean_var), med_var = median(mean_var), max_var = max(mean_var))
 demographics_summary
@@ -663,7 +667,7 @@ compliance_sums
 ```{r}
 pm_cutoff_table <- elders_cleaned_dataset_by_visit %>% 
   filter(!is.na(pm_mean_winter)) %>% 
-  distinct(area, home, winter_id, .keep_all = T) %>% 
+  distinct(treatment, home, winter_id, .keep_all = T) %>% 
   mutate(epa_12 = if_else(pm_mean_winter > 12, "Above", "Below"),
          epa_35 = if_else(pm_mean_winter > 35, "Above", "Below")) %>% 
   group_by(winter_id, treatment, epa_35) %>% 
