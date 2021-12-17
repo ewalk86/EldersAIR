@@ -33,9 +33,9 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 analysis_data <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) %>% 
   mutate(cohort = factor(cohort, levels = c("2015", "2016", "2017", "2018", "2019"))) %>% 
   filter(area == "NPT") %>% 
-  filter(pm_mean_winter < 200) %>% 
+  #filter(pm_mean_winter < 200) %>% 
   mutate("Winter:" = factor(winter_id, levels = c(1, 2),
-                                  labels = c("Pre-Intervention", "Post-Intervention")),
+                                  labels = c("1st Winter/Pre-Intervention", "2nd Winter/Post-Intervention")),
          treatment = factor(treatment, 
                             levels = c("Placebo", "Education", "Filter"),
                             labels = c("Placebo Group", "Education Group", "Filter Group")),
@@ -73,21 +73,23 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
 
 ![](npt_logo.png)
 
-## Your Study Results
+## Your Nimiipuu EldersAIR Study Results  
+Your results may be different from other participants' results depending on 1) how often and/or how efficiently you used your stove and 2) your study group and how consistently you used the education or air filter interventions. See the **Overview** for a detailed description of the three study groups and other frequently asked questions.  
 
-Your results are indicated by the triangles in the figures. The label next to each 
-triangle is your result from the study. The smaller circles in the figure 
-are results from the rest of the participants from the community. Please see the 
-fact sheet handout for frequently asked questions related to your results.  
+## Reading Your Results  
+**Graph:** The triangles in the graph show 1) your study results and 2) which study group you were in. Next to each triangle is the numerical value for each measurement. The small circles represent the other Nimiipuu participant results.  
+
+**Terms:** Pre-intervention (or baseline) - your first winter in the study with air sampling and health tests, but no intervention. Post-intervention – your second winter in the study that occurred AFTER your randomized assignment to an intervention group.  
 
 ### Air Pollution Results
+Wood smoke is made up of a complex mixture of gases and particles. The biggest health threat from smoke is from fine particles or PM2.5. PM2.5 is measured in micrograms per cubic meter (ug/m3) of air. For this project, the PM2.5 number is an average of four days (two, 48-hour samples) each winter.  
+There are no health-based guidelines for indoor PM2.5. However, for outdoor air the U.S. Environmental Protection Agency recommends that communities not exceed an average concentration of 35 µg/m3 during a 24-hour period (this is the dotted RED line on the Air Pollution graphs).  
+
+\pagebreak  
 
 #### Indoor PM2.5  
-The smoke from wood burning is made up of a complex mixture of gases and particles. 
-The biggest health threat from smoke is from fine particles, also called fine particulate matter or PM2.5. 
-PM2.5 is measured in micrograms per cubic meter (ug/m3) of air. In the study, we 
-measured Indoor PM2.5 using the stationary monitor in your home near the wood stove.  
-```{r}
+We measured indoor PM2.5 using the stationary, DustTrak monitor near your wood stove.  
+```{r, fig.height = 3.5, fig.width = 8}
 indoor_pm_plot <- analysis_data %>% 
   filter(!is.na(pm_mean_winter)) %>% 
   filter(!is.na(treatment)) %>% 
@@ -96,6 +98,7 @@ indoor_pm_plot <- analysis_data %>%
     #geom_boxplot(aes(treatment, pm_mean_winter, fill = `Winter:`, size = 1), 
      #            lwd = 1.2, colour = "black", 
       #           fatten = 1, outlier.size = 1.5, width = 0.35) +
+    geom_hline(yintercept = 35, color = "red", linetype = 2) + 
     geom_point(aes(treatment, pm_mean_winter, fill = `Winter:`), 
                shape = 21, size = 3, position=position_jitterdodge(seed = 1)) +
     geom_label(aes(treatment, pm_mean_winter, label = pm_mean_winter, 
@@ -104,7 +107,7 @@ indoor_pm_plot <- analysis_data %>%
     geom_point(aes(treatment, pm_mean_winter, fill = `Winter:`), 
                data = data_pm, shape = 24, size = 4, stroke = 3, 
                position=position_dodge(0.9)) +
-    labs(y = "Indoor PM2.5") +
+    labs(y = "Indoor PM2.5", fill = "", color = "") +
     theme_minimal() +
     theme(plot.title = element_text(size = 18, colour = "black"),
           strip.text = element_text(size = 16, colour = "black"),
@@ -127,13 +130,14 @@ indoor_pm_plot
 
 
 #### Personal PM2.5  
-Personal PM2.5 was measured using the monitor in a small bag that you wore during the study.  
+We measured personal PM2.5 using the portable, MicroPem monitor in the small pouch.  
 ```{r}
 personal_pm_plot <- analysis_data %>% 
   filter(!is.na(mp_mean_winter)) %>% 
   filter(!is.na(treatment)) %>% 
   distinct(home, winter_id, .keep_all = T) %>% 
   ggplot() + 
+    geom_hline(yintercept = 35, color = "red", linetype = 2) + 
     geom_point(aes(treatment, mp_mean_winter, fill = `Winter:`), 
                shape = 21, size = 3, position=position_jitterdodge(seed = 1)) +
     geom_label(aes(treatment, mp_mean_winter, label = mp_mean_winter, 
@@ -142,7 +146,7 @@ personal_pm_plot <- analysis_data %>%
     geom_point(aes(treatment, mp_mean_winter, fill = `Winter:`), 
                data = data_mp, shape = 24, size = 4, stroke = 3, 
                position=position_dodge(0.9)) +
-    labs(y = "Personal PM2.5") +
+    labs(y = "Personal PM2.5", fill = "", color = "") +
     theme_minimal() +
     theme(plot.title = element_text(size = 18, colour = "black"),
           strip.text = element_text(size = 16, colour = "black"),
@@ -162,15 +166,12 @@ personal_pm_plot <- analysis_data %>%
 personal_pm_plot
 ```
 
-
 \pagebreak  
 
 ### Health Results
 
 #### Systolic Blood Pressure  
-Blood pressure is an important indicator of heart health and is measured in 
-millimeters of mercury (mmHg). Systolic blood pressure is the top number in your blood pressure, 
-and a value of 130 or above is considered high.  
+Blood pressure is an important indicator of heart health and is measured in millimeters of mercury (mmHg). Systolic blood pressure is the top number in your blood pressure; a value of 130 or above is considered high and is indicated by the dotted RED line in the graph.  
 ```{r}
 sbp_plot <- analysis_data %>% 
   filter(!is.na(bp_sys)) %>% 
@@ -180,6 +181,7 @@ sbp_plot <- analysis_data %>%
   ungroup() %>% 
   distinct(adult_id_char, winter_id, .keep_all = T) %>% 
   ggplot() + 
+    geom_hline(yintercept = 130, color = "red", linetype = 2) + 
     geom_point(aes(treatment, bp_sys_mean, fill = `Winter:`), 
                shape = 21, size = 3, position=position_jitterdodge(seed = 1)) +
     geom_label(aes(treatment, bp_sys_mean, label = bp_sys_mean, 
@@ -188,7 +190,7 @@ sbp_plot <- analysis_data %>%
     geom_point(aes(treatment, bp_sys_mean, fill = `Winter:`), 
                data = data_sbp, shape = 24, size = 4, stroke = 3, 
                position=position_dodge(0.9)) +
-    labs(y = "Systolic blood pressure") +
+    labs(y = "Systolic blood pressure", fill = "", color = "") +
     theme_minimal() +
     theme(plot.title = element_text(size = 18, colour = "black"),
           strip.text = element_text(size = 16, colour = "black"),
@@ -210,8 +212,7 @@ sbp_plot
 
 
 #### Diastolic Blood Pressure  
-Diastolic blood pressure is the bottom number in your blood pressure, and a value 
-of 80 or above is considered high.  
+The bottom number in your blood pressure; a value of 80 or above is considered high and is indicated by the dotted RED line in the graph.  
 ```{r}
 dbp_plot <- analysis_data %>% 
   filter(!is.na(bp_dia)) %>% 
@@ -221,6 +222,7 @@ dbp_plot <- analysis_data %>%
   ungroup() %>% 
   distinct(adult_id_char, winter_id, .keep_all = T) %>% 
   ggplot() + 
+    geom_hline(yintercept = 80, color = "red", linetype = 2) + 
     geom_point(aes(treatment, bp_dia_mean, fill = `Winter:`), 
                shape = 21, size = 3, position=position_jitterdodge(seed = 1)) +
     geom_label(aes(treatment, bp_dia_mean, label = bp_dia_mean, 
@@ -229,7 +231,7 @@ dbp_plot <- analysis_data %>%
     geom_point(aes(treatment, bp_dia_mean, fill = `Winter:`), 
                data = data_dbp, shape = 24, size = 4, stroke = 3, 
                position=position_dodge(0.9)) +
-    labs(y = "Diastolic blood pressure") +
+    labs(y = "Diastolic blood pressure", fill = "", color = "") +
     theme_minimal() +
     theme(plot.title = element_text(size = 18, colour = "black"),
           strip.text = element_text(size = 16, colour = "black"),
@@ -251,8 +253,7 @@ dbp_plot
 
 
 #### Forced Vital Capacity    
-Forced vital capacity is the total lung volume that you exhaled when your lung 
-function was tested. Forced vital capacity is measures in Liters (L) of air.  
+The total lung volume that you exhaled when your lung function was tested with the EasyOne Air Spirometer. Forced vital capacity is measures in Liters (L) of air.   
 ```{r}
 fvc_plot <- analysis_data %>% 
   filter(!is.na(fvc)) %>% 
@@ -270,7 +271,7 @@ fvc_plot <- analysis_data %>%
     geom_point(aes(treatment, fvc_mean, fill = `Winter:`), 
                data = data_fvc, shape = 24, size = 4, stroke = 3, 
                position=position_dodge(0.9)) +
-    labs(y = "Forced vital capacity") +
+    labs(y = "Forced vital capacity", fill = "", color = "") +
     theme_minimal() +
     theme(plot.title = element_text(size = 18, colour = "black"),
           strip.text = element_text(size = 16, colour = "black"),
