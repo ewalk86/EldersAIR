@@ -1,7 +1,7 @@
 ---
 title: 'EldersAIR: Main analysis final frameworks'
 author: "Ethan Walker"
-date: "Started 16 April 2021; Updated 5 May 2021"
+date: "Started 16 April 2021; Updated 21 Dec 2021"
 output: pdf_document
 ---
 
@@ -969,13 +969,14 @@ qqline(residuals(itt_pm_results_primary))
 ### bp_sys, bp_dia, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp, pm_mean_visit
 er_data_4row <- analysis_data %>% 
   #filter(spiro_status == "Acceptable") %>%  # only use this filter for spiro outcomes
-  mutate(outcome = bp_sys) %>%  # select outcome here
+  mutate(outcome = bp_dia) %>%  # select outcome here
   arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
   group_by(area, home, adult_id_char, winter_id, sampling_visit) %>% 
   dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, pm_mean_visit,
                 cohort, treatment, outcome, income, education, residents_smoke, 
                 home_sqm_2level, burn_level, gender, chimney_clean, stove_age, 
-                stove_grade, age, bmi, visit_intervention_diff, pm_mean_at_home_visit,
+                stove_grade, age, bmi, visit_intervention_diff, 
+                pm_mean_at_home_visit, mp_mean_visit,
                 treatment_filter_type, filter_compliance, kw_perc_expected) %>% 
   mutate(pm_iqr = pm_mean_visit/32,
          pm_at_home_iqr = pm_mean_at_home_visit/32) %>% 
@@ -983,7 +984,7 @@ er_data_4row <- analysis_data %>%
   distinct(area, adult_id_char, winter_id, sampling_visit, .keep_all = T) 
 
 
-er_results_primary <- lmer(outcome ~ pm_iqr + winter_id + 
+er_results_primary <- lmer(outcome ~ log(pm_mean_visit) + winter_id + 
                            age + gender + income + education + residents_smoke +
                            (1 | adult_id_char:home:cohort:area), 
                            data = er_data_4row)
@@ -1006,8 +1007,7 @@ kable(tidy_results_primary)
 
 
 
-tidy_results_combined <- rbind(tidy_results_primary, , 
-                               )
+tidy_results_combined <- rbind(tidy_results_primary)
 
 
 itt_plot_estimates <- tidy_results_combined %>%
@@ -1023,7 +1023,7 @@ itt_plot_estimates <- tidy_results_combined %>%
     theme_bw() +  
     ggtitle(label = "PM Model - ITT framework",
             subtitle = "ICC for subject = 0.44") +
-    labs(y = "% difference compared to Placebo") +
+    labs(y = "Change in outcome per ln increase in PM") +
     labs(x = "", group = "", shape = "") +
     theme(title = element_text(size = 16), 
           axis.text.x = element_text(size = 16, colour = "black", angle = 45,
