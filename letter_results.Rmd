@@ -34,6 +34,7 @@ analysis_data <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_vi
   mutate(cohort = factor(cohort, levels = c("2015", "2016", "2017", "2018", "2019"))) %>% 
   filter(area == "NPT") %>% 
   #filter(pm_mean_winter < 200) %>% 
+  #filter(home == "NPE5301") %>% 
   mutate("Winter:" = factor(winter_id, levels = c(1, 2),
                                   labels = c("1st Winter/Pre-Intervention", "2nd Winter/Post-Intervention")),
          treatment = factor(treatment, 
@@ -71,25 +72,18 @@ cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442",
                "#0072B2", "#D55E00", "#CC79A7")
 ```
 
-![](npt_logo.png)
+![](npt_logo2.png)
 
-## Your Nimiipuu EldersAIR Study Results  
-Your results may be different from other participants' results depending on 1) how often and/or how efficiently you used your stove and 2) your study group and how consistently you used the education or air filter interventions. See the **Overview** for a detailed description of the three study groups and other frequently asked questions.  
+### Your Nimiipuu EldersAIR Study Results  
+Your results may be different from other participants' results depending on 1) how often and/or how efficiently you used your stove and 2) your study group and how consistently you used the education or air filter interventions. See the **Overview** for a detailed description of the three study groups and other frequently asked questions related to your results.  
 
-## Reading Your Results  
 **Graph:** The triangles in the graph show 1) your study results and 2) which study group you were in. Next to each triangle is the numerical value for each measurement. The small circles represent the other Nimiipuu participant results.  
 
 **Terms:** Pre-intervention (or baseline) - your first winter in the study with air sampling and health tests, but no intervention. Post-intervention – your second winter in the study that occurred AFTER your randomized assignment to an intervention group.  
 
-### Air Pollution Results
-Wood smoke is made up of a complex mixture of gases and particles. The biggest health threat from smoke is from fine particles or PM2.5. PM2.5 is measured in micrograms per cubic meter (ug/m3) of air. For this project, the PM2.5 number is an average of four days (two, 48-hour samples) each winter.  
-There are no health-based guidelines for indoor PM2.5. However, for outdoor air the U.S. Environmental Protection Agency recommends that communities not exceed an average concentration of 35 µg/m3 during a 24-hour period (this is the dotted RED line on the Air Pollution graphs).  
-
-\pagebreak  
-
-#### Indoor PM2.5  
-We measured indoor PM2.5 using the stationary, DustTrak monitor near your wood stove.  
-```{r, fig.height = 3.5, fig.width = 8}
+#### Indoor PM2.5 Air Pollution  
+We measured indoor PM2.5 using the stationary DustTrak monitor near your wood stove.  
+```{r, fig.height = 2.5, fig.width = 8}
 indoor_pm_plot <- analysis_data %>% 
   filter(!is.na(pm_mean_winter)) %>% 
   filter(!is.na(treatment)) %>% 
@@ -98,7 +92,7 @@ indoor_pm_plot <- analysis_data %>%
     #geom_boxplot(aes(treatment, pm_mean_winter, fill = `Winter:`, size = 1), 
      #            lwd = 1.2, colour = "black", 
       #           fatten = 1, outlier.size = 1.5, width = 0.35) +
-    geom_hline(yintercept = 35, color = "red", linetype = 2) + 
+    #geom_hline(yintercept = 35, color = "red", linetype = 2) + 
     geom_point(aes(treatment, pm_mean_winter, fill = `Winter:`), 
                shape = 21, size = 3, position=position_jitterdodge(seed = 1)) +
     geom_label(aes(treatment, pm_mean_winter, label = pm_mean_winter, 
@@ -129,15 +123,15 @@ indoor_pm_plot
 ```
 
 
-#### Personal PM2.5  
-We measured personal PM2.5 using the portable, MicroPem monitor in the small pouch.  
-```{r}
+#### Personal PM2.5 Air Pollution  
+We measured personal PM2.5 using the portable MicroPem monitor in the small pouch.  
+```{r, fig.height = 2.5, fig.width = 8}
 personal_pm_plot <- analysis_data %>% 
   filter(!is.na(mp_mean_winter)) %>% 
   filter(!is.na(treatment)) %>% 
   distinct(home, winter_id, .keep_all = T) %>% 
   ggplot() + 
-    geom_hline(yintercept = 35, color = "red", linetype = 2) + 
+    #geom_hline(yintercept = 35, color = "red", linetype = 2) + 
     geom_point(aes(treatment, mp_mean_winter, fill = `Winter:`), 
                shape = 21, size = 3, position=position_jitterdodge(seed = 1)) +
     geom_label(aes(treatment, mp_mean_winter, label = mp_mean_winter, 
@@ -167,8 +161,6 @@ personal_pm_plot
 ```
 
 \pagebreak  
-
-### Health Results
 
 #### Systolic Blood Pressure  
 Blood pressure is an important indicator of heart health and is measured in millimeters of mercury (mmHg). Systolic blood pressure is the top number in your blood pressure; a value of 130 or above is considered high and is indicated by the dotted RED line in the graph.  

@@ -39,6 +39,9 @@ file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
 analysis_data <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) %>% 
   mutate(cohort = factor(cohort, levels = c("2015", "2016", "2017", "2018", "2019"))) 
+#  select(home, mp_mean_winter, pm_mean_winter) %>% 
+#  arrange(desc(mp_mean_winter))
+#head(analysis_data)
 
 cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", 
                "#0072B2", "#D55E00", "#CC79A7")
@@ -101,6 +104,7 @@ pm_data_2row <- analysis_data %>%
                                     baseline_outcome)) %>% 
   replace_with_na(replace = list(baseline_outcome = NaN, outcome = NaN)) %>% 
   filter(visit_intervention_diff != 9999) %>% 
+  #filter(home != "NPE5301") %>% 
   ungroup()
 
 
@@ -130,6 +134,7 @@ pm_at_home_data <- analysis_data %>%
                                     baseline_outcome)) %>% 
   replace_with_na(replace = list(baseline_outcome = NaN, outcome = NaN)) %>% 
   filter(visit_intervention_diff != 9999) %>% 
+  #filter(home != "NPE5301") %>% 
   ungroup()
 
 
@@ -860,15 +865,15 @@ indoor_pm_boxplot <- analysis_data %>%
                             levels = c("Placebo", "Education", "Filter"),
                             labels = c("Placebo Group", "Education Group", "Filter Group"))) %>% 
   filter(!is.na(pm_mean_visit)) %>% 
-  #filter(pm_mean_visit < 200) %>% 
+  filter(pm_mean_visit < 200) %>% 
   filter(!is.na(treatment)) %>% 
   ggplot(aes(treatment, pm_mean_visit, fill = `Winter:`)) + 
     geom_boxplot(aes(treatment, pm_mean_visit, fill = `Winter:`, size = 1), 
                  lwd = 1.2, colour = "black", 
                  fatten = 1, outlier.size = 1.5, width = 0.35,
                  outlier.shape = NA) +
-    stat_summary(fun.y=mean, geom="point", shape = 3, size = 3, stroke = 2, 
-               position=position_dodge(0.35)) +
+    #stat_summary(fun.y=mean, geom="point", shape = 3, size = 3, stroke = 2, 
+     #          position=position_dodge(0.35)) +
     labs(y = expression(paste("Indoor PM"[2.5], " (", mu, g/m^3, ")")),
          fill = "") +
     theme_minimal() +
@@ -929,6 +934,6 @@ indoor_pm_plot <- analysis_data %>%
 indoor_pm_plot
 
 
-#ggsave("elders_pm_boxplots.jpg", width = 8, height = 3.5)
+#ggsave("elders_pm_dotplots.jpg", width = 8, height = 5)
 ```
 

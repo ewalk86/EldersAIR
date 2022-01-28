@@ -7,6 +7,7 @@ analysis_data <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_vi
   mutate(cohort = factor(cohort, levels = c("2015", "2016", "2017", "2018", "2019"))) %>% 
   filter(area == "NPT") %>% 
   #filter(pm_mean_winter < 200) %>% 
+  #filter(home == "NPE5301") %>% 
   mutate("Winter:" = factor(winter_id, levels = c(1, 2),
                             labels = c("1st Winter/Pre-Intervention", "2nd Winter/Post-Intervention")),
          treatment = factor(treatment, 

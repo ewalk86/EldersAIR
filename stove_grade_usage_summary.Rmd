@@ -93,7 +93,7 @@ table(stove_use_clean$wood_type_other, stove_use_clean$area, useNA = "ifany")
 stove_use_plot_function <- function(data, variable, title_label, y_label) {
 
 stove_use_plot <- data %>% 
-  filter(winter_id == 1) %>% 
+  #filter(winter_id == 1) %>% 
   select(area, variable) %>% 
   rename(plot_var = variable) %>% 
   filter(!is.na(plot_var)) %>% 

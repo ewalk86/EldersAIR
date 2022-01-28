@@ -969,7 +969,7 @@ qqline(residuals(itt_pm_results_primary))
 ### bp_sys, bp_dia, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp, pm_mean_visit
 er_data_4row <- analysis_data %>% 
   #filter(spiro_status == "Acceptable") %>%  # only use this filter for spiro outcomes
-  mutate(outcome = bp_dia) %>%  # select outcome here
+  mutate(outcome = bp_sys) %>%  # select outcome here
   arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
   group_by(area, home, adult_id_char, winter_id, sampling_visit) %>% 
   dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, pm_mean_visit,
@@ -992,7 +992,7 @@ er_results_primary <- lmer(outcome ~ log(pm_mean_visit) + winter_id +
 
 #isSingular(er_results_primary)
 
-summary(er_results_primary)
+#summary(er_results_primary)
 
 tidy_results_primary <- tidy(er_results_primary, conf.int = TRUE) %>% 
   mutate(group_filter = if_else(grepl("pm", term), 1, 0)) %>% 
