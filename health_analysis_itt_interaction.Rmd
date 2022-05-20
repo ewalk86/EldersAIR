@@ -1,0 +1,190 @@
+---
+title: 'EldersAIR: ITT Interaction Analysis for Health Outcomes'
+author: "Ethan Walker"
+date: "Started 20 May 2022; Updated 20 May 2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, eval = TRUE, include = TRUE,
+                      message = FALSE, warning = FALSE)
+```
+
+```{r}
+library(readxl)
+library(naniar)
+library(lubridate)
+library(emmeans)
+library(broom)
+library(broom.mixed)
+library(zoo)
+library(car)
+library(lme4)
+library(lmerTest)
+library(mctest)
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+#library(MASS)
+library(faraway)
+library(splines)
+library(influence.ME)
+library(sjstats)
+```
+
+```{r}
+# Load data
+
+file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
+
+analysis_data <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) 
+```
+
+# Indoor/Area PM2.5 Interaction Analysis
+```{r}
+## select outcome variable
+### bp_sys, bp_dia, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp, pm_mean_visit
+bp_sys_data_2row <- analysis_data %>% 
+  #filter(spiro_status == "Acceptable") %>%  # only use this filter for spiro outcomes
+  mutate(outcome = bp_sys) %>%  # select outcome here
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  group_by(area, home, adult_id_char, winter_id) %>% 
+  mutate(outcome = if_else(winter_id == 1, mean(outcome, na.rm = T), outcome)) %>% 
+  dplyr::select(area, home, adult_id_char, winter_id, sampling_visit, 
+                cohort, treatment, outcome, income, education, residents_smoke, 
+                home_sqm_2level, burn_level, gender, chimney_clean, stove_age, 
+                stove_grade, age, bmi, visit_intervention_diff, 
+                treatment_filter_type, filter_compliance, kw_perc_expected,
+                burn_level_3level, chimney_clean_3level, age_2level,
+                bmi_2level, income_2level, income_3level, stove_age_2level,
+                hypertension, wood_collect_3level, home_year_built_2level,
+                steps, steps_2level, steps_4level,
+                home_floors_2level, wood_collect_method) %>% 
+  ungroup() %>% 
+  distinct(area, adult_id_char, winter_id, sampling_visit, .keep_all = T) %>% 
+  group_by(area, adult_id_char) %>% 
+  pivot_wider(names_from = "winter_id", values_from = "outcome") %>% 
+  arrange(area, home, adult_id_char, sampling_visit) %>% 
+  mutate(outcome = `2`,
+         baseline_outcome = `1`,
+         baseline_outcome = if_else(is.na(baseline_outcome), first(baseline_outcome),
+                                    baseline_outcome)) %>% 
+  replace_with_na(replace = list(baseline_outcome = NaN, outcome = NaN)) %>% 
+  filter(visit_intervention_diff != 9999) %>% 
+  ungroup()
+
+
+
+# Function for area PM interaction analysis
+int_function <- function(data, interaction_var, interaction_label) {
+  
+  new_model_data <- data %>% 
+    rename(int_var = interaction_var)
+  
+  
+# Run primary model and print results
+itt_results_int <<- lmer(outcome ~ treatment*int_var + 
+                                baseline_outcome + (1 | adult_id_char:home:cohort:area), 
+                                data = new_model_data)
+
+#write_rds(itt_results_int, paste0(file_path, "Output/itt_pm_results_int_age.rds"))
+
+
+save_summary <<- summary(itt_results_int)
+
+int_emmeans <<- emmeans(itt_results_int, revpairwise ~ treatment | int_var)
+
+#summary(int_emmeans, conf.int = TRUE)
+
+save_contrasts_full <<- summary(int_emmeans)
+
+save_contrasts <<- confint(int_emmeans$contrasts) %>% 
+  mutate(estimate = round((estimate), digits = 2),
+         conf.low = round((lower.CL), digits = 2),
+         conf.high = round((upper.CL), digits = 2)) %>% 
+  dplyr::select(contrast, int_var, estimate, conf.low, conf.high)
+
+obs <<- table(model.frame(itt_results_int)$treatment)
+
+n_table <<- table(new_model_data$int_var, new_model_data$treatment)
+
+plot_results <- save_contrasts %>% 
+  ggplot(aes(group = contrast, shape = contrast)) +
+  geom_point(aes(x=int_var, y=estimate), 
+             position = position_dodge(width = 0.5), size = 4) +
+  geom_errorbar(aes(x=int_var, ymin=conf.low, ymax=conf.high), 
+             position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+  geom_hline(yintercept = 1) +
+  theme_bw() +  
+  ggtitle(label = "Interaction contrasts, ITT framework, SBP",
+          subtitle = paste0("Interaction term = ", interaction_label)) +
+  labs(y = "Difference") +
+  labs(x = "", group = "", shape = "") +
+  theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) 
+
+pm_summary_table <<- new_model_data %>% 
+  filter(!is.na(int_var)) %>% 
+  group_by(int_var, treatment) %>% 
+  summarize("Mean PM" = mean(outcome, na.rm = TRUE),
+            "n" = n(),
+            "SD PM" = sd(outcome, na.rm = TRUE),
+            "Min PM" = min(outcome, na.rm = TRUE),
+            "Median PM" = median(outcome, na.rm = TRUE),
+            "Max PM" = max(outcome, na.rm = TRUE))
+
+
+plot_results 
+
+}
+
+
+# Run interaction function for the following variables:
+#int_function(pm_data_2row, "area", "Study area") # need to remove random effect in model
+int_function(bp_sys_data_2row, "home_floors_2level", "Floors in home")
+int_function(bp_sys_data_2row, "home_sqm_2level", "Home Square Meters")
+int_function(bp_sys_data_2row, "education", "Education")
+int_function(bp_sys_data_2row, "income_2level", "Income")
+int_function(bp_sys_data_2row, "home_year_built_2level", "Year home was built")
+int_function(bp_sys_data_2row, "stove_age_2level", "Stove age")
+int_function(bp_sys_data_2row, "stove_grade", "Stove grade")
+int_function(bp_sys_data_2row, "chimney_clean_3level", "When was chimney cleaned")
+int_function(bp_sys_data_2row, "wood_collect_3level", "When was wood collected")
+int_function(bp_sys_data_2row, "wood_collect_method", "Wood collect method")
+int_function(bp_sys_data_2row, "burn_level_3level", "Burn level")
+int_function(bp_sys_data_2row, "residents_smoke", "Residents Smoke")
+int_function(bp_sys_data_2row, "age_2level", "Resident Age")
+int_function(bp_sys_data_2row, "gender", "Resident Gender")
+
+
+# Use the following lines to help fill in information for publication tables:
+obs <- bp_sys_data_2row %>% 
+  filter(!is.na(outcome)) %>% 
+  filter(!is.na(baseline_outcome)) %>%
+  filter(!is.na(area)) %>% 
+  filter(!is.na(cohort)) %>% 
+  filter(!is.na(treatment)) %>% 
+  filter(!is.na(gender)) %>%
+  group_by(gender, treatment) %>% 
+  count()
+obs
+save_contrasts
+Anova(itt_results_int)
+
+
+n_table
+pm_summary_table
+save_summary
+save_contrasts_full
+```

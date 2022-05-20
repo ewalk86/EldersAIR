@@ -640,15 +640,16 @@ summary(kw_filtertype_data)
 compliance_summary <- elders_cleaned_dataset_by_visit %>% 
   filter(winter_id == 2) %>% 
   distinct(area, home, .keep_all = T) %>% 
-  filter(treatment == "Filter") %>% 
+  filter(treatment != "Education") %>% 
   filter(!is.na(kw_perc_expected)) %>% 
+  group_by(area) %>% 
   summarize("Mean KW % Exp" = mean(kw_perc_expected),
             "SD KW % Exp" = sd(kw_perc_expected),
             "N KW % Exp" = n(),
             "Min KW % Exp" = min(kw_perc_expected),
-            "25Q KW % Exp" = quantile(kw_perc_expected, 0.25),
+            #"25Q KW % Exp" = quantile(kw_perc_expected, 0.25),
             "Med KW % Exp" = median(kw_perc_expected),
-            "75Q KW % Exp" = quantile(kw_perc_expected, 0.75),
+            #"75Q KW % Exp" = quantile(kw_perc_expected, 0.75),
             "Max KW % Exp" = max(kw_perc_expected))
 compliance_summary
 
