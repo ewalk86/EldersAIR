@@ -37,7 +37,99 @@ library(sjstats)
 
 file_path <- c("C:/Users/ethan.walker/Box/Ethan Walker UM/R/EldersAIR/")
 
-analysis_data <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) 
+elders_cleaned_dataset_by_visit <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds")) 
+
+
+health_hx_data1 <- elders_cleaned_dataset_by_visit %>% 
+  select(area, home, adult_id_char, winter_id, treatment, sampling_visit, age,
+         rheum_arth:cigarspipes, residents_smoke, residents_smoke_inside) %>% 
+  mutate_all(as.factor) %>% 
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  distinct(area, adult_id_char, .keep_all = T) %>% 
+  mutate(cpd = as.character(aveperday),
+         cpd = as.numeric(cpd),
+         ppd = cpd/20,
+         age = as.character(age),
+         age = as.numeric(age),
+         agequit = as.character(agequit),
+         agequit = as.numeric(agequit),
+         agefirst = as.character(agefirst),
+         agefirst = as.numeric(agefirst),
+         agequit2 = ifelse(agequit < agefirst | is.na(agequit), age, agequit),
+         smoke_years = agequit2 - agefirst,
+         pack_years = smoke_years*ppd)
+
+#summary(health_hx_data)
+
+health_hx_data_any <- health_hx_data1 %>% 
+  select(area, home, adult_id_char, winter_id, sampling_visit,
+         asthma, emphysema, chronicbronchitis, copd, hayfever, 
+         pleuraleffusion, pleurisy, pneumonia, pneumothorax, coronaryarterydisease,
+         angina, heartattack, chf, abnormalhr, pacemaker, icd, valvedisease,
+         hypertension, stroke, diabetes, thyroiddisease, anemia, cancer) %>% 
+  mutate(across(asthma:cancer, ~replace_na(.x, "No")))
+
+#summary(health_hx_data_any)
+
+health_hx_data_cvd <- health_hx_data_any %>% 
+  select(area, home, adult_id_char, winter_id, sampling_visit,
+         coronaryarterydisease, angina, heartattack, chf, abnormalhr, pacemaker, 
+         icd, valvedisease, hypertension, stroke, anemia) 
+
+#summary(health_hx_data_cvd)
+
+health_hx_data_ascvd <- health_hx_data_any %>% 
+  select(area, home, adult_id_char, winter_id, sampling_visit,
+         coronaryarterydisease, angina, heartattack, stroke) 
+
+#summary(health_hx_data_ascvd)
+
+health_hx_data_resp <- health_hx_data_any %>% 
+  select(area, home, adult_id_char, winter_id, sampling_visit,
+         asthma, emphysema, chronicbronchitis, copd, hayfever, 
+         pleuraleffusion, pleurisy, pneumonia, pneumothorax)
+
+#summary(health_hx_data_resp)
+
+health_hx_data <- elders_cleaned_dataset_by_visit %>% 
+  select(area, home, adult_id_char, winter_id, treatment, sampling_visit,
+         rheum_arth:cigarspipes, residents_smoke, residents_smoke_inside) %>% 
+  mutate_all(as.factor) %>% 
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  distinct(area, adult_id_char, .keep_all = T) %>% 
+  select(area, home, adult_id_char, treatment, asthma, emphysema, chronicbronchitis, copd, hayfever, 
+         pleuraleffusion, pleurisy, pneumonia, pneumothorax, coronaryarterydisease,
+         angina, heartattack, chf, abnormalhr, pacemaker, icd, valvedisease,
+         hypertension, stroke, diabetes, thyroiddisease, anemia, cancer) %>% 
+  mutate(cvd_condition = as.factor(if_else(rowSums(health_hx_data_cvd == "Yes") > 0, "Yes", "No"))) %>% 
+  mutate(ascvd_condition = as.factor(if_else(rowSums(health_hx_data_ascvd == "Yes") > 0, "Yes", "No"))) %>% 
+  mutate(resp_condition = as.factor(if_else(rowSums(health_hx_data_resp == "Yes") > 0, "Yes", "No"))) %>% 
+  mutate(any_condition = as.factor(if_else(rowSums(health_hx_data_any == "Yes") > 0, "Yes", "No"))) %>% 
+  select(area, home, adult_id_char,
+         cvd_condition, ascvd_condition, resp_condition, any_condition)
+
+
+analysis_data <- elders_cleaned_dataset_by_visit %>% 
+  mutate(cohort = factor(cohort, levels = c("2015", "2016", "2017", "2018", "2019"))) %>% 
+  mutate(bp_dia = if_else(bp_dia < 40, 9999, bp_dia),
+         sp02 = if_else(sp02 < 86, 9999, sp02),
+         bp_sys = if_else(bp_dia == 9999 | is.na(bp_dia), 9999, bp_sys)) %>% 
+  replace_with_na(replace = list(sp02 = 9999, bp_sys = 9999, bp_dia = 9999)) %>% 
+  mutate(cpd = as.character(aveperday),
+         cpd = as.numeric(cpd),
+         ppd = cpd/20,
+         age = as.character(age),
+         age = as.numeric(age),
+         agequit = as.character(agequit),
+         agequit = as.numeric(agequit),
+         agefirst = as.character(agefirst),
+         agefirst = as.numeric(agefirst),
+         agequit2 = ifelse(agequit < agefirst | is.na(agequit), age, agequit),
+         smoke_years = agequit2 - agefirst,
+         pack_years = smoke_years*ppd) %>% 
+  left_join(health_hx_data, by = c("area", "home", "adult_id_char"))
+
+#summary(health_hx_data)
 ```
 
 
@@ -79,6 +171,9 @@ itt_health_results_primary <- lmer(outcome ~ treatment +
                                 baseline_outcome + (1 | adult_id_char:home:cohort:area), 
                                 data = bp_sys_data_2row)
 
+table(model.frame(itt_health_results_primary)$treatment)
+
+nobs(itt_health_results_primary)
 
 #isSingular(itt_health_results_primary)
 
@@ -243,6 +338,10 @@ bp_dia_data_2row <- analysis_data %>%
 itt_health_results_primary <- lmer(outcome ~ treatment + 
                                 baseline_outcome + (1 | adult_id_char:home:cohort:area), 
                                 data = bp_dia_data_2row)
+
+table(model.frame(itt_health_results_primary)$treatment)
+
+nobs(itt_health_results_primary)
 
 
 #isSingular(itt_health_results_primary)
@@ -432,6 +531,10 @@ itt_health_results_primary <- lmer(outcome ~ treatment +
                                 baseline_outcome + (1 | adult_id_char:home:cohort:area), 
                                 data = fvc_data_2row)
 
+table(model.frame(itt_health_results_primary)$treatment)
+
+nobs(itt_health_results_primary)
+
 
 #isSingular(itt_health_results_primary)
 
@@ -455,6 +558,10 @@ itt_health_results_acceptable <- lmer(outcome ~ treatment +
                                 baseline_outcome + (1 | adult_id_char:home:cohort:area), 
                                 data = fvc_data_acceptable)
 
+table(model.frame(itt_health_results_acceptable)$treatment)
+
+nobs(itt_health_results_primary)
+
 
 tidy_results_acceptable <- tidy(itt_health_results_acceptable, conf.int = TRUE) %>% 
   mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
@@ -467,6 +574,7 @@ tidy_results_acceptable <- tidy(itt_health_results_acceptable, conf.int = TRUE) 
   mutate(term = gsub("treatment", "", term),
          model = "Acceptable Sessions") %>% 
   dplyr::select(-p.value)
+kable(tidy_results_acceptable)
 
 
 itt_health_results_confounders <- lmer(outcome ~ treatment + 
@@ -848,6 +956,10 @@ itt_health_results_primary <- lmer(outcome ~ treatment +
                                 baseline_outcome + (1 | adult_id_char:home:cohort:area), 
                                 data = fev1_data_2row)
 
+table(model.frame(itt_health_results_primary)$treatment)
+
+nobs(itt_health_results_primary)
+
 
 #isSingular(itt_health_results_primary)
 
@@ -871,6 +983,10 @@ itt_health_results_acceptable <- lmer(outcome ~ treatment +
                                 baseline_outcome + (1 | adult_id_char:home:cohort:area), 
                                 data = fev1_data_acceptable)
 
+table(model.frame(itt_health_results_acceptable)$treatment)
+
+nobs(itt_health_results_acceptable)
+
 
 tidy_results_acceptable <- tidy(itt_health_results_acceptable, conf.int = TRUE) %>% 
   mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
@@ -883,6 +999,7 @@ tidy_results_acceptable <- tidy(itt_health_results_acceptable, conf.int = TRUE) 
   mutate(term = gsub("treatment", "", term),
          model = "Acceptable Sessions") %>% 
   dplyr::select(-p.value)
+kable(tidy_results_acceptable)
 
 
 itt_health_results_confounders <- lmer(outcome ~ treatment + 
@@ -998,7 +1115,7 @@ qqline(residuals(itt_health_results_primary))
 
 \pagebreak  
 
-# FEV1
+# FEV1 PERC PRED
 ```{r}
 ## select outcome variable
 ### bp_sys, bp_dia, fvc, fev1, fev1_fvc_ratio, fvc_pp, fev1_pp, pm_mean_visit
@@ -1264,6 +1381,10 @@ itt_health_results_primary <- lmer(outcome ~ treatment +
                                 baseline_outcome + (1 | adult_id_char:home:cohort:area), 
                                 data = fev1_data_2row)
 
+table(model.frame(itt_health_results_primary)$treatment)
+
+nobs(itt_health_results_primary)
+
 
 #isSingular(itt_health_results_primary)
 
@@ -1287,6 +1408,10 @@ itt_health_results_acceptable <- lmer(outcome ~ treatment +
                                 baseline_outcome + (1 | adult_id_char:home:cohort:area), 
                                 data = fev1_data_acceptable)
 
+table(model.frame(itt_health_results_acceptable)$treatment)
+
+nobs(itt_health_results_acceptable)
+
 
 tidy_results_acceptable <- tidy(itt_health_results_acceptable, conf.int = TRUE) %>% 
   mutate(group_filter = if_else(grepl("treatment", term), 1, 0)) %>% 
@@ -1299,6 +1424,7 @@ tidy_results_acceptable <- tidy(itt_health_results_acceptable, conf.int = TRUE) 
   mutate(term = gsub("treatment", "", term),
          model = "Acceptable Sessions") %>% 
   dplyr::select(-p.value)
+kable(tidy_results_acceptable)
 
 
 itt_health_results_confounders <- lmer(outcome ~ treatment + 

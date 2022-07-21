@@ -45,7 +45,23 @@ treatments_blind <- rbind(treatments_blind_nn, treatments_blind_npt) %>%
   select(area, home_id_num, treatment_blind)
 
 elders_cleaned_dataset_by_visit <- read_rds(paste0(file_path, "Output/elders_cleaned_dataset_by_visit.rds"))  %>% 
-  mutate(cohort = factor(cohort, levels = c("2015", "2016", "2017", "2018", "2019")))
+  mutate(cohort = factor(cohort, levels = c("2015", "2016", "2017", "2018", "2019"))) %>% 
+  mutate(bp_dia = if_else(bp_dia < 40, 9999, bp_dia),
+         sp02 = if_else(sp02 < 86, 9999, sp02),
+         bp_sys = if_else(bp_dia == 9999 | is.na(bp_dia), 9999, bp_sys)) %>% 
+  replace_with_na(replace = list(sp02 = 9999, bp_sys = 9999, bp_dia = 9999)) %>% 
+  mutate(cpd = as.character(aveperday),
+         cpd = as.numeric(cpd),
+         ppd = cpd/20,
+         age = as.character(age),
+         age = as.numeric(age),
+         agequit = as.character(agequit),
+         agequit = as.numeric(agequit),
+         agefirst = as.character(agefirst),
+         agefirst = as.numeric(agefirst),
+         agequit2 = ifelse(agequit < agefirst | is.na(agequit), age, agequit),
+         smoke_years = agequit2 - agefirst,
+         pack_years = smoke_years*ppd)
   left_join(treatments_blind, by = c("area", "home_id_num")) 
 
 elders_demographics <- read_rds(paste0(file_path, "Output/elders_demographics.rds"))
@@ -196,9 +212,9 @@ demographics_summary <- data %>%
   rename(new_var = var) %>% 
   #filter(treatment_assigned == "Placebo") %>%
   #filter(area == "NPT") %>% 
-  arrange(home, winter_id, sampling_visit) %>% 
+  arrange(adult_id_char, winter_id, sampling_visit) %>% 
   mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
-  distinct(home, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
+  distinct(adult_id_char, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
   mutate(total_n = n()) %>% 
   group_by(area) %>% 
   mutate(area_n = n()) %>% 
@@ -216,9 +232,9 @@ demographics_summary <- data %>%
   rename(new_var = var) %>% 
   #filter(treatment_assigned == "Placebo") %>% 
   #filter(area == "NPT") %>% 
-  arrange(home, winter_id, sampling_visit) %>% 
+  arrange(adult_id_char, winter_id, sampling_visit) %>% 
   mutate(new_var = if_else(is.na(new_var), lead(new_var), new_var)) %>% 
-  distinct(home, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
+  distinct(adult_id_char, .keep_all = TRUE) %>% # change this to adult_id_char or home as necessary
   mutate(total_n = n()) %>% 
   group_by(treatment) %>% 
   mutate(treatment_n = n()) %>% 
@@ -242,6 +258,12 @@ char_funct_total("education")
 char_funct_treatment("education")
 char_funct_total("cohort")
 char_funct_treatment("cohort")
+char_funct_total("tobusenow")
+char_funct_treatment("tobusenow")
+char_funct_total("tobuseever")
+char_funct_treatment("tobuseever")
+char_funct_total("cigarspipes")
+char_funct_treatment("cigarspipes")
 
 #distinct by home
 char_funct_total("residents_over55")
@@ -321,6 +343,8 @@ demographics_summary
 # distinct by participant
 num_funct_total("age")
 num_funct_treatment("age")
+num_funct_total("pack_years")
+num_funct_treatment("pack_years")
 
 num_funct_total("sum_act_smoking")
 num_funct_treatment("sum_act_smoking")
@@ -384,6 +408,10 @@ num_funct_total("bp_sys")
 num_funct_treatment("bp_sys")
 num_funct_total("bp_dia")
 num_funct_treatment("bp_dia")
+num_funct_total("hr")
+num_funct_treatment("hr")
+num_funct_total("sp02")
+num_funct_treatment("sp02")
 num_funct_total("bmi")
 num_funct_treatment("bmi")
 num_funct_total("fvc")
@@ -744,5 +772,149 @@ stove_age_plot <- elders_cleaned_dataset_by_visit %>%
 stove_age_plot
 
 #ggsave("elders_stove_age_plot.jpg", width = 8, height = 6)
+```
+
+
+Health History Summary
+```{r}
+health_hx_data1 <- elders_cleaned_dataset_by_visit %>% 
+  select(area, home, adult_id_char, winter_id, treatment, sampling_visit, age,
+         rheum_arth:cigarspipes, residents_smoke, residents_smoke_inside) %>% 
+  mutate_all(as.factor) %>% 
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  distinct(area, adult_id_char, .keep_all = T) %>% 
+  mutate(cpd = as.character(aveperday),
+         cpd = as.numeric(cpd),
+         ppd = cpd/20,
+         age = as.character(age),
+         age = as.numeric(age),
+         agequit = as.character(agequit),
+         agequit = as.numeric(agequit),
+         agefirst = as.character(agefirst),
+         agefirst = as.numeric(agefirst),
+         agequit2 = ifelse(agequit < agefirst | is.na(agequit), age, agequit),
+         smoke_years = agequit2 - agefirst,
+         pack_years = smoke_years*ppd)
+
+summary(health_hx_data)
+
+health_hx_data_any <- health_hx_data1 %>% 
+  select(area, home, adult_id_char, winter_id, sampling_visit,
+         asthma, emphysema, chronicbronchitis, copd, hayfever, 
+         pleuraleffusion, pleurisy, pneumonia, pneumothorax, coronaryarterydisease,
+         angina, heartattack, chf, abnormalhr, pacemaker, icd, valvedisease,
+         hypertension, stroke, diabetes, thyroiddisease, anemia, cancer) %>% 
+  mutate(across(asthma:cancer, ~replace_na(.x, "No")))
+
+summary(health_hx_data_any)
+
+health_hx_data_cvd <- health_hx_data_any %>% 
+  select(area, home, adult_id_char, winter_id, sampling_visit,
+         coronaryarterydisease, angina, heartattack, chf, abnormalhr, pacemaker, 
+         icd, valvedisease, hypertension, stroke, anemia) 
+
+summary(health_hx_data_cvd)
+
+health_hx_data_ascvd <- health_hx_data_any %>% 
+  select(area, home, adult_id_char, winter_id, sampling_visit,
+         coronaryarterydisease, angina, heartattack, stroke) 
+
+summary(health_hx_data_ascvd)
+
+health_hx_data_resp <- health_hx_data_any %>% 
+  select(area, home, adult_id_char, winter_id, sampling_visit,
+         asthma, emphysema, chronicbronchitis, copd, hayfever, 
+         pleuraleffusion, pleurisy, pneumonia, pneumothorax)
+
+summary(health_hx_data_resp)
+
+health_hx_data <- elders_cleaned_dataset_by_visit %>% 
+  select(area, home, adult_id_char, winter_id, treatment, sampling_visit,
+         rheum_arth:cigarspipes, residents_smoke, residents_smoke_inside) %>% 
+  mutate_all(as.factor) %>% 
+  arrange(area, home, adult_id_char, winter_id, sampling_visit) %>% 
+  distinct(area, adult_id_char, .keep_all = T) %>% 
+  select(area, treatment, asthma, emphysema, chronicbronchitis, copd, hayfever, 
+         pleuraleffusion, pleurisy, pneumonia, pneumothorax, coronaryarterydisease,
+         angina, heartattack, chf, abnormalhr, pacemaker, icd, valvedisease,
+         hypertension, stroke, diabetes, thyroiddisease, anemia, cancer) %>% 
+  mutate(cvd_condition = as.factor(if_else(rowSums(health_hx_data_cvd == "Yes") > 0, "Yes", "No"))) %>% 
+  mutate(ascvd_condition = as.factor(if_else(rowSums(health_hx_data_ascvd == "Yes") > 0, "Yes", "No"))) %>% 
+  mutate(resp_condition = as.factor(if_else(rowSums(health_hx_data_resp == "Yes") > 0, "Yes", "No"))) %>% 
+  mutate(any_condition = as.factor(if_else(rowSums(health_hx_data_any == "Yes") > 0, "Yes", "No")))
+
+summary(health_hx_data)
+```
+
+
+```{r}
+# summary data for manuscript tables
+char_funct_total <- function(var, data = health_hx_data){
+demographics_summary <- data %>% 
+  rename(new_var = var) %>% 
+  #filter(treatment_assigned == "Placebo") %>%
+  #filter(area == "NPT") %>% 
+  mutate(total_n = n()) %>% 
+  group_by(area) %>% 
+  mutate(area_n = n()) %>% 
+  group_by(new_var) %>% 
+  mutate(n = n(),
+         percent = n()/total_n) %>% 
+  distinct(new_var, .keep_all = TRUE) %>% 
+  dplyr::select(new_var, n, percent) %>% 
+  arrange(new_var)
+demographics_summary
+}
+
+char_funct_treatment <- function(var, data = health_hx_data){
+demographics_summary <- data %>% 
+  rename(new_var = var) %>% 
+  #filter(treatment_assigned == "Placebo") %>% 
+  #filter(area == "NPT") %>% 
+  mutate(total_n = n()) %>% 
+  group_by(treatment) %>% 
+  mutate(treatment_n = n()) %>% 
+  group_by(treatment, new_var) %>% 
+  mutate(n = n(),
+         percent = n()/treatment_n) %>% 
+  distinct(new_var, .keep_all = TRUE) %>% 
+  dplyr::select(new_var, n, percent) %>% 
+  arrange(treatment, new_var)
+demographics_summary
+}
+
+# distinct by participant
+char_funct_total("asthma")
+char_funct_treatment("asthma")
+char_funct_total("chronicbronchitis")
+char_funct_treatment("chronicbronchitis")
+char_funct_total("cancer")
+char_funct_treatment("cancer")
+char_funct_total("coronaryarterydisease")
+char_funct_treatment("coronaryarterydisease")
+char_funct_total("chf")
+char_funct_treatment("chf")
+char_funct_total("copd")
+char_funct_treatment("copd")
+char_funct_total("diabetes")
+char_funct_treatment("diabetes")
+char_funct_total("emphysema")
+char_funct_treatment("emphysema")
+char_funct_total("hayfever")
+char_funct_treatment("hayfever")
+char_funct_total("heartattack")
+char_funct_treatment("heartattack")
+char_funct_total("hypertension")
+char_funct_treatment("hypertension")
+char_funct_total("stroke")
+char_funct_treatment("stroke")
+char_funct_total("cvd_condition")
+char_funct_treatment("cvd_condition")
+char_funct_total("ascvd_condition")
+char_funct_treatment("ascvd_condition")
+char_funct_total("resp_condition")
+char_funct_treatment("resp_condition")
+char_funct_total("any_condition")
+char_funct_treatment("any_condition")
 ```
 
