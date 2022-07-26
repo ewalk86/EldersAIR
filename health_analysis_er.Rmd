@@ -1,7 +1,7 @@
 ---
 title: 'EldersAIR: Exposure-response Analysis for Health Outcomes'
 author: "Ethan Walker"
-date: "Started 16 April 2021; Updated 20 May 2022"
+date: "Started 16 April 2021; Updated 25 July 2022"
 output: pdf_document
 ---
 
@@ -161,7 +161,7 @@ er_data_4row <- analysis_data %>%
 
 
 er_results_primary <- lmer(outcome ~ pm_iqr + ns(sampling_date, df = 4) + 
-                           age + gender + income + education + tobusenow + cvd_condition + resp_condition +
+                           age + gender + income + education + residents_smoke + cvd_condition + resp_condition +
                            (1 | adult_id_char:home:cohort:area), 
                            data = er_data_4row)
 
@@ -245,7 +245,7 @@ er_data_4row <- analysis_data %>%
 
 
 er_results_primary <- lmer(outcome ~ pm_iqr + ns(sampling_date, df = 4) + 
-                           age + gender + income + education + tobusenow + cvd_condition + resp_condition +
+                           age + gender + income + education + residents_smoke + cvd_condition + resp_condition +
                            (1 | adult_id_char:home:cohort:area), 
                            data = er_data_4row)
 
@@ -329,7 +329,7 @@ er_data_4row <- analysis_data %>%
 
 
 er_results_primary <- lmer(outcome ~ pm_iqr + ns(sampling_date, df = 4) + 
-                           age + gender + income + education + tobusenow + cvd_condition + resp_condition +
+                           age + gender + income + education + residents_smoke + cvd_condition + resp_condition +
                            (1 | adult_id_char:home:cohort:area), 
                            data = er_data_4row)
 
@@ -493,7 +493,7 @@ er_data_4row <- analysis_data %>%
 
 
 er_results_primary <- lmer(outcome ~ pm_iqr + ns(sampling_date, df = 4) + 
-                           age + gender + income + education + tobusenow + cvd_condition + resp_condition +
+                           age + gender + income + education + residents_smoke + cvd_condition + resp_condition +
                            (1 | adult_id_char:home:cohort:area), 
                            data = er_data_4row)
 
@@ -657,7 +657,7 @@ er_data_4row <- analysis_data %>%
 
 
 er_results_primary <- lmer(outcome ~ pm_iqr + ns(sampling_date, df = 4) + 
-                           age + gender + income + education + tobusenow + cvd_condition + resp_condition +
+                           age + gender + income + education + residents_smoke + cvd_condition + resp_condition +
                            (1 | adult_id_char:home:cohort:area), 
                            data = er_data_4row)
 
