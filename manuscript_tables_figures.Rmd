@@ -918,3 +918,42 @@ char_funct_total("any_condition")
 char_funct_treatment("any_condition")
 ```
 
+
+
+```{r}
+obstruction_data <- elders_cleaned_dataset_by_visit %>% 
+  arrange(home, adult_id_num, winter_id, sampling_visit) %>% 
+  mutate(hypertension = if_else(bp_sys >= 140 | bp_dia >= 90, "Yes", "No"),
+         obstruction = if_else(fev1_fvc_ratio < 0.7, "Yes", "No")) %>% 
+  select(area, home, home_winter_id, winter_id, sampling_visit, adult_id_num,
+         hypertension, obstruction, spiro_status, bp_sys, bp_dia) %>%
+  filter(winter_id == 1) %>% 
+  filter(spiro_status == "Acceptable") %>% 
+  group_by(area, adult_id_num) %>% 
+  mutate(obs_any = if_else(obstruction == "Yes" | lead(obstruction) == "Yes", "Yes", "No"),
+         obs_any = if_else(is.na(obs_any), obstruction, obs_any)) %>% 
+  ungroup() %>% 
+  distinct(area, adult_id_num, .keep_all = TRUE)  
+  count(obs_any)
+obstruction_data
+
+
+hypertension_data <- elders_cleaned_dataset_by_visit %>% 
+  arrange(area, home, adult_id_num, winter_id, sampling_visit) %>% 
+  filter(winter_id == 1) %>% 
+  #filter(spiro_status == "Acceptable") %>% 
+  group_by(area, adult_id_num) %>% 
+  mutate(bp_sys = mean(bp_sys, na.rm = T),
+         bp_dia = mean(bp_dia, na.rm = T),
+         fev1_fvc_ratio = mean(fev1_fvc_ratio, na.rm = T)) %>% 
+  mutate(hypertension_calc = if_else(bp_sys >= 140 | bp_dia >= 90, "Yes", "No"),
+         obstruction = if_else(fev1_fvc_ratio < 0.7, "Yes", "No")) %>% 
+  ungroup() %>% 
+  select(area, home, home_winter_id, winter_id, sampling_visit, adult_id_num,
+         hypertension, hypertension_calc, obstruction, spiro_status, bp_sys, bp_dia) %>%
+  distinct(area, adult_id_num, .keep_all = T) %>% 
+  #group_by(hypertension) %>% 
+  count(hypertension_calc)
+hypertension_data
+```
+

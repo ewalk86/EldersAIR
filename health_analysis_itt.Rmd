@@ -194,9 +194,9 @@ kable(tidy_results_primary)
 
 
 itt_health_results_confounders <- lmer(outcome ~ treatment + 
-                                education + residents_smoke + home_sqm_2level +
-                                burn_level + gender + chimney_clean + 
-                                stove_grade + age + bmi + 
+                                education + residents_smoke + 
+                                gender + stove_grade + 
+                                age + bmi + 
                                 baseline_outcome + (1 | adult_id_char:home:cohort:area), 
                                 data = bp_sys_data_2row)
 
@@ -254,8 +254,9 @@ tidy_results_outliers <- tidy(itt_health_results_outliers, conf.int = TRUE) %>%
 
 
 
-tidy_results_combined <- rbind(tidy_results_primary, tidy_results_confounders,
-                               tidy_results_nohome, tidy_results_outliers)
+tidy_results_combined_sbp <- rbind(tidy_results_primary, tidy_results_confounders,
+                               tidy_results_nohome) %>% 
+  mutate(outcome = "Systolic BP")
 
 
 # Calculate ICC
@@ -267,8 +268,7 @@ bp_sys_icc <- icc(icc_model)
 
 itt_plot_estimates <- tidy_results_combined %>%
   mutate(model = factor(model,
-                        levels = c("Primary", "Confounders", "No Home Term",
-                                   "Outliers Removed"))) %>% 
+                        levels = c("Primary", "Confounders", "No Home Term"))) %>% 
   ggplot(aes(group = term, shape = term)) +
     geom_point(aes(x=model, y=estimate), 
                position = position_dodge(width = 0.5), size = 4) +
@@ -363,8 +363,8 @@ kable(tidy_results_primary)
 
 
 itt_health_results_confounders <- lmer(outcome ~ treatment + 
-                                education + residents_smoke + home_sqm_2level +
-                                burn_level + gender + chimney_clean + stove_grade + 
+                                education + residents_smoke + 
+                                gender + stove_grade + 
                                 age + bmi + 
                                 baseline_outcome + (1 | adult_id_char:home:cohort:area), 
                                 data = bp_dia_data_2row)
@@ -423,8 +423,9 @@ tidy_results_outliers <- tidy(itt_health_results_outliers, conf.int = TRUE) %>%
 
 
 
-tidy_results_combined <- rbind(tidy_results_primary, tidy_results_confounders,
-                               tidy_results_nohome, tidy_results_outliers)
+tidy_results_combined_dbp <- rbind(tidy_results_primary, tidy_results_confounders,
+                               tidy_results_nohome) %>% 
+  mutate(outcome = "Diastolic BP")
 
 
 # Calculate ICC
@@ -549,7 +550,7 @@ tidy_results_primary <- tidy(itt_health_results_primary, conf.int = TRUE) %>%
          conf.high = round((conf.high), digits = 2)) %>% 
   dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
   mutate(term = gsub("treatment", "", term),
-         model = "Primary") %>% 
+         model = "All Sessions") %>% 
   dplyr::select(-p.value)
 kable(tidy_results_primary)
 
@@ -572,14 +573,14 @@ tidy_results_acceptable <- tidy(itt_health_results_acceptable, conf.int = TRUE) 
          conf.high = round((conf.high), digits = 2)) %>% 
   dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
   mutate(term = gsub("treatment", "", term),
-         model = "Acceptable Sessions") %>% 
+         model = "Primary") %>% 
   dplyr::select(-p.value)
 kable(tidy_results_acceptable)
 
 
 itt_health_results_confounders <- lmer(outcome ~ treatment + 
-                                education + residents_smoke + home_sqm_2level +
-                                burn_level + gender + chimney_clean + stove_grade + 
+                                education + residents_smoke + 
+                                gender + stove_grade + 
                                 age + bmi + 
                                 baseline_outcome + (1 | adult_id_char:home:cohort:area), 
                                 data = fvc_data_2row)
@@ -638,9 +639,10 @@ tidy_results_outliers <- tidy(itt_health_results_outliers, conf.int = TRUE) %>%
 
 
 
-tidy_results_combined <- rbind(tidy_results_primary, tidy_results_acceptable, 
+tidy_results_combined_fvc <- rbind(tidy_results_primary, tidy_results_acceptable, 
                                tidy_results_confounders,
-                               tidy_results_nohome, tidy_results_outliers)
+                               tidy_results_nohome) %>% 
+  mutate(outcome = "FVC")
 
 
 # Calculate ICC
@@ -762,7 +764,7 @@ tidy_results_primary <- tidy(itt_health_results_primary, conf.int = TRUE) %>%
          conf.high = round((conf.high), digits = 2)) %>% 
   dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
   mutate(term = gsub("treatment", "", term),
-         model = "Primary") %>% 
+         model = "All Sessions") %>% 
   dplyr::select(-p.value)
 kable(tidy_results_primary)
 
@@ -781,7 +783,7 @@ tidy_results_acceptable <- tidy(itt_health_results_acceptable, conf.int = TRUE) 
          conf.high = round((conf.high), digits = 2)) %>% 
   dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
   mutate(term = gsub("treatment", "", term),
-         model = "Acceptable Sessions") %>% 
+         model = "Primary") %>% 
   dplyr::select(-p.value)
 
 
@@ -848,7 +850,7 @@ tidy_results_outliers <- tidy(itt_health_results_outliers, conf.int = TRUE) %>%
 
 tidy_results_combined <- rbind(tidy_results_primary, tidy_results_acceptable, 
                                tidy_results_confounders,
-                               tidy_results_nohome, tidy_results_outliers)
+                               tidy_results_nohome)
 
 
 # Calculate ICC
@@ -974,7 +976,7 @@ tidy_results_primary <- tidy(itt_health_results_primary, conf.int = TRUE) %>%
          conf.high = round((conf.high), digits = 2)) %>% 
   dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
   mutate(term = gsub("treatment", "", term),
-         model = "Primary") %>% 
+         model = "All Sessions") %>% 
   dplyr::select(-p.value)
 kable(tidy_results_primary)
 
@@ -997,14 +999,14 @@ tidy_results_acceptable <- tidy(itt_health_results_acceptable, conf.int = TRUE) 
          conf.high = round((conf.high), digits = 2)) %>% 
   dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
   mutate(term = gsub("treatment", "", term),
-         model = "Acceptable Sessions") %>% 
+         model = "Primary") %>% 
   dplyr::select(-p.value)
 kable(tidy_results_acceptable)
 
 
 itt_health_results_confounders <- lmer(outcome ~ treatment + 
-                                education + residents_smoke + home_sqm_2level +
-                                burn_level + gender + chimney_clean + stove_grade + 
+                                education + residents_smoke + 
+                                gender + stove_grade + 
                                 age + bmi + 
                                 baseline_outcome + (1 | adult_id_char:home:cohort:area), 
                                 data = fev1_data_2row)
@@ -1063,9 +1065,10 @@ tidy_results_outliers <- tidy(itt_health_results_outliers, conf.int = TRUE) %>%
 
 
 
-tidy_results_combined <- rbind(tidy_results_primary, tidy_results_acceptable, 
+tidy_results_combined_fev1 <- rbind(tidy_results_primary, tidy_results_acceptable, 
                                tidy_results_confounders,
-                               tidy_results_nohome, tidy_results_outliers)
+                               tidy_results_nohome) %>% 
+  mutate(outcome = "FEV1")
 
 
 # Calculate ICC
@@ -1399,7 +1402,7 @@ tidy_results_primary <- tidy(itt_health_results_primary, conf.int = TRUE) %>%
          conf.high = round((conf.high), digits = 2)) %>% 
   dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
   mutate(term = gsub("treatment", "", term),
-         model = "Primary") %>% 
+         model = "All Sessions") %>% 
   dplyr::select(-p.value)
 kable(tidy_results_primary)
 
@@ -1422,14 +1425,14 @@ tidy_results_acceptable <- tidy(itt_health_results_acceptable, conf.int = TRUE) 
          conf.high = round((conf.high), digits = 2)) %>% 
   dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
   mutate(term = gsub("treatment", "", term),
-         model = "Acceptable Sessions") %>% 
+         model = "Primary") %>% 
   dplyr::select(-p.value)
 kable(tidy_results_acceptable)
 
 
 itt_health_results_confounders <- lmer(outcome ~ treatment + 
-                                education + residents_smoke + home_sqm_2level +
-                                burn_level + gender + chimney_clean + stove_grade + 
+                                education + residents_smoke + 
+                                gender + stove_grade + 
                                 age + bmi + 
                                 baseline_outcome + (1 | adult_id_char:home:cohort:area), 
                                 data = fev1_data_2row)
@@ -1466,9 +1469,10 @@ tidy_results_nohome <- tidy(itt_health_results_nohome, conf.int = TRUE) %>%
   dplyr::select(-p.value)
 
 
-tidy_results_combined <- rbind(tidy_results_primary, tidy_results_acceptable, 
+tidy_results_combined_fev1_fvc_ratio <- rbind(tidy_results_primary, tidy_results_acceptable, 
                                tidy_results_confounders,
-                               tidy_results_nohome)
+                               tidy_results_nohome) %>% 
+  mutate(outcome = "FEV1/FVC Ratio")
 
 
 # Calculate ICC
@@ -1515,3 +1519,51 @@ plot(itt_health_results_primary, main = "ITT Primary Model",
 qqnorm(residuals(itt_health_results_primary), main = "ITT Primary Model")
 qqline(residuals(itt_health_results_primary))
 ```
+
+
+Manuscript figure
+```{r}
+tidy_results_combined <- rbind(tidy_results_combined_sbp, tidy_results_combined_dbp,
+                               tidy_results_combined_fvc, tidy_results_combined_fev1,
+                               tidy_results_combined_fev1_fvc_ratio)
+
+itt_plot_estimates <- tidy_results_combined %>%
+  mutate(model = factor(model,
+                        levels = c("Primary", 
+                                   "Confounders", "No Home Term",
+                                   "All Sessions"))) %>% 
+  mutate(outcome = factor(outcome,
+                        levels = c("Systolic BP", "Diastolic BP",
+                                   "FVC", "FEV1", "FEV1/FVC Ratio"),
+                        labels = c("Systolic BP (mmHg)", "Diastolic BP (mmHg)",
+                                   "FVC (mL)", "FEV1 (mL)", "FEV1/FVC Ratio"))) %>% 
+  ggplot(aes(group = term, shape = term)) +
+    geom_point(aes(x=model, y=estimate), 
+               position = position_dodge(width = 0.5), size = 4) +
+    geom_errorbar(aes(x=model, ymin=conf.low, ymax=conf.high), 
+                  position = position_dodge(width = 0.5), size = 1.2, width = 0.5) +
+    geom_hline(yintercept = 0) +
+    theme_bw() +  
+    labs(y = "Estimate compared to Placebo") +
+    labs(x = "", group = "", shape = "") +
+    theme(title = element_text(size = 16), 
+          axis.text.x = element_text(size = 16, colour = "black", angle = 45,
+                                     hjust = 1, vjust = .8),
+          axis.text.y = element_text(size = 16, colour = "black"),
+          axis.title.y = element_text(size = 16,
+                                      margin = margin(t = 0, r = 20, b = 0, l = 0)),
+          axis.line.x = element_line(colour = "black", size = 1.2), 
+          axis.line.y = element_line(colour = "black", size = 1.2), 
+          axis.ticks = element_blank(), 
+          panel.border = element_blank(), 
+          panel.grid = element_blank(),
+          strip.text = element_text(size = 16, colour = "black"),
+          legend.position = "top",
+          legend.text = element_text(size = 14, colour = "black")) +
+    facet_wrap(~outcome, ncol = 1, scales = "free_y")
+itt_plot_estimates
+
+ggsave("elders_health_itt_plot.png", height = 9, width = 6)
+```
+
+
