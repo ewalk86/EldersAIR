@@ -938,22 +938,32 @@ obstruction_data <- elders_cleaned_dataset_by_visit %>%
 obstruction_data
 
 
-hypertension_data <- elders_cleaned_dataset_by_visit %>% 
+hypertension_pft_data <- elders_cleaned_dataset_by_visit %>% 
   arrange(area, home, adult_id_num, winter_id, sampling_visit) %>% 
+  mutate(obstruction = if_else(asthma == "Yes" | chronicbronchitis == "Yes" | 
+                                 emphysema == "Yes" | copd == "Yes", "Yes", "No")) %>% 
   filter(winter_id == 1) %>% 
   #filter(spiro_status == "Acceptable") %>% 
   group_by(area, adult_id_num) %>% 
   mutate(bp_sys = mean(bp_sys, na.rm = T),
          bp_dia = mean(bp_dia, na.rm = T),
+         fvc_pp = mean(fvc_pp, na.rm = T),
+         fev1_pp = mean(fev1_pp, na.rm = T),
          fev1_fvc_ratio = mean(fev1_fvc_ratio, na.rm = T)) %>% 
   mutate(hypertension_calc = if_else(bp_sys >= 140 | bp_dia >= 90, "Yes", "No"),
-         obstruction = if_else(fev1_fvc_ratio < 0.7, "Yes", "No")) %>% 
+         fev1_fvc_0.7 = if_else(fev1_fvc_ratio < 0.7, "Yes", "No"),
+         fvc_pp_0.8 = if_else(fvc_pp < 80, "Yes", "No"),
+         fev1_pp_0.8 = if_else(fev1_pp < 80, "Yes", "No"),
+         obstructive = if_else(fev1_pp < 80 & fev1_fvc_ratio < 0.7, "Yes", "No"),
+         restrictive = if_else(fev1_pp < 80 & fev1_fvc_ratio > 0.7, "Yes", "No")) %>% 
   ungroup() %>% 
   select(area, home, home_winter_id, winter_id, sampling_visit, adult_id_num,
-         hypertension, hypertension_calc, obstruction, spiro_status, bp_sys, bp_dia) %>%
+         hypertension, obstruction,
+         hypertension_calc, obstructive, spiro_status, bp_sys, bp_dia,
+         fev1_fvc_0.7, fvc_pp_0.8, fev1_pp_0.8, restrictive) %>%
   distinct(area, adult_id_num, .keep_all = T) %>% 
-  #group_by(hypertension) %>% 
-  count(hypertension_calc)
-hypertension_data
+  group_by(obstruction) %>% 
+  count(obstructive)
+hypertension_pft_data
 ```
 
