@@ -161,7 +161,7 @@ tidy_results_primary <- tidy(itt_pm_results_primary, conf.int = TRUE) %>%
   mutate(estimate = round((exp(estimate)-1)*100, digits = 2),
          conf.low = round((exp(conf.low)-1)*100, digits = 2),
          conf.high = round((exp(conf.high)-1)*100, digits = 2),
-         p.value = round((p.value), digits = 2)) %>% 
+         p.value = round((p.value), digits = 5)) %>% 
   dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
   mutate(term = gsub("treatment", "", term),
          model = "Primary") 
@@ -401,7 +401,7 @@ tidy_results_primary <- tidy(itt_pm_results_primary, conf.int = TRUE) %>%
   mutate(estimate = round((exp(estimate)-1)*100, digits = 2),
          conf.low = round((exp(conf.low)-1)*100, digits = 2),
          conf.high = round((exp(conf.high)-1)*100, digits = 2),
-         p.value = round((p.value), digits = 2)) %>% 
+         p.value = round((p.value), digits = 5)) %>% 
   dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
   mutate(term = gsub("treatment", "", term),
          model = "Primary") 

@@ -167,6 +167,7 @@ bp_sys_data_2row <- analysis_data %>%
 
 
 
+
 itt_health_results_primary <- lmer(outcome ~ treatment +
                                 baseline_outcome + (1 | adult_id_char:home:cohort:area), 
                                 data = bp_sys_data_2row)
@@ -188,8 +189,8 @@ tidy_results_primary <- tidy(itt_health_results_primary, conf.int = TRUE) %>%
          conf.high = round((conf.high), digits = 2)) %>% 
   dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
   mutate(term = gsub("treatment", "", term),
-         model = "Primary") %>% 
-  dplyr::select(-p.value)
+         model = "Primary")  
+  #dplyr::select(-p.value)
 kable(tidy_results_primary)
 
 
@@ -357,8 +358,8 @@ tidy_results_primary <- tidy(itt_health_results_primary, conf.int = TRUE) %>%
          conf.high = round((conf.high), digits = 2)) %>% 
   dplyr::select(term, estimate, conf.low, conf.high, p.value) %>% 
   mutate(term = gsub("treatment", "", term),
-         model = "Primary") %>% 
-  dplyr::select(-p.value)
+         model = "Primary")  
+  #dplyr::select(-p.value)
 kable(tidy_results_primary)
 
 
